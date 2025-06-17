@@ -21,10 +21,10 @@ pip install network-wrangler
 ### From GitHub
 
 ```bash
-pip install git+https://github.com/network-wrangler/network_wrangler.git@master#egg=network_wrangler
+pip install git+https://github.com/network-wrangler/network_wrangler.git@main#egg=network_wrangler
 ```
 
-If you wanted to install from a specific tag/version number or branch, replace `@master` with `@<branchname>`  or `@tag`
+If you wanted to install from a specific tag/version number or branch, replace `@main` with `@<branchname>`  or `@tag`
 
 ### From Clone
 
