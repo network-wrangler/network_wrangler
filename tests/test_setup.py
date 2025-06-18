@@ -10,7 +10,7 @@ def test_setup(request):
     WranglerLogger.info(f"--Starting: {request.node.name}")
     WranglerLogger.debug("Creating virtual environment...")
     venv_name = "wranglertest"
-    subprocess.run(["python", "-m", "venv", f"{venv_name}"], check=True)
+    subprocess.run(["python3", "-m", "venv", f"{venv_name}"], check=True)
     WranglerLogger.debug("Created virtual environment.\nInstalling Wrangler...")
     install_process = subprocess.run([f"{venv_name}/bin/pip", "install", "-e", "."], check=True)
     WranglerLogger.debug(f"Installed Wrangler.\n{install_process.stdout}")
@@ -45,7 +45,7 @@ def test_setup_testingenv(request):
     WranglerLogger.info(f"--Starting: {request.node.name}")
     venv_name = "wranglertest"
     WranglerLogger.debug("Creating virtual environment for testing...")
-    subprocess.run(["python", "-m", "venv", f"{venv_name}"], check=True)
+    subprocess.run(["python3", "-m", "venv", f"{venv_name}"], check=True)
     WranglerLogger.debug("Created virtual environment.\nInstalling Wrangler...")
     install_process = subprocess.run(
         [f"{venv_name}/bin/pip", "install", "-e", ".[tests]"], check=True

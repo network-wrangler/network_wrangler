@@ -21,7 +21,6 @@ from ..feed.transit_segments import (
     shape_links_to_longest_shape_segments,
 )
 from .feed import PickupDropoffAvailability
-from .shapes import shape_id_for_trip_id
 
 
 def shape_ids_for_trip_ids(trips: DataFrame[WranglerTripsTable], trip_ids: list[str]) -> list[str]:

@@ -36,7 +36,6 @@ from ..models.projects.roadway_selection import SelectLinksDict, SelectNodeDict
 from ..params import DEFAULT_SEARCH_MODES
 from .graph import shortest_path
 from .links.filters import filter_links_to_path
-from .network import add_incident_link_data_to_nodes
 from .subnet import Subnet
 
 if TYPE_CHECKING:
