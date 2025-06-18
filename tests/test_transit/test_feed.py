@@ -256,27 +256,6 @@ def test_feed_equality(request, small_transit_net):
     feed1 = small_transit_net.feed
     feed2 = feed1.deepcopy()
 
-    # Debug: Let's see what the actual hash values are
-    hash1 = feed1.hash
-    hash2 = feed2.hash
-    WranglerLogger.info(f"Feed1 hash: {hash1}")
-    WranglerLogger.info(f"Feed2 hash: {hash2}")
-    
-    # Debug: Let's also check the individual table hashes
-    for table_name in ['agencies', 'stops', 'routes', 'trips', 'stop_times', 'frequencies', 'shapes']:
-        if hasattr(feed1, table_name):
-            table1 = getattr(feed1, table_name)
-            table2 = getattr(feed2, table_name)
-            hash1_table = table1.df_hash()
-            hash2_table = table2.df_hash()
-            WranglerLogger.info(f"{table_name} table hash1: {hash1_table}")
-            WranglerLogger.info(f"{table_name} table hash2: {hash2_table}")
-            if hash1_table != hash2_table:
-                WranglerLogger.info(f"Hash mismatch in {table_name} table!")
-                # Let's see what the actual values look like
-                WranglerLogger.info(f"{table_name} table1 values: {str(table1._obj.values.tolist())}")
-                WranglerLogger.info(f"{table_name} table2 values: {str(table2._obj.values.tolist())}")
-
     # should be equal even though they are different instances
     # Note: Hash comparison might fail due to version differences in pandas/numpy
     # between local and CI environments, so we focus on logical equality
