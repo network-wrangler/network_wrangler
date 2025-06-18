@@ -431,3 +431,7 @@ class DBModelMixin:
     def deepcopy(self):
         """Convenience method to exceute deep copy of instance."""
         return copy.deepcopy(self)
+
+    def __hash__(self):
+        """Hash based on the hashes of the tables in table_names."""
+        return hash(tuple((name, self.get_table(name).to_csv()) for name in self.table_names))

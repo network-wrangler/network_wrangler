@@ -1,16 +1,20 @@
 """Utility functions for loading dictionaries from files."""
 
+import json
 from pathlib import Path
 from typing import Union
+
+import ijson
+import pyarrow as pa
+import pyarrow.parquet as pq
+import toml
+import yaml
 
 from .utils import merge_dicts
 
 
 def _load_yaml(path: Path) -> dict:
     """Load yaml file at path."""
-    import yaml
-    # Add the custom constructor to the YAML loader
-
     with path.open() as yaml_file:
         data = yaml.load(yaml_file, Loader=yaml.FullLoader)
     return data
@@ -18,8 +22,6 @@ def _load_yaml(path: Path) -> dict:
 
 def _load_json(path: Path) -> dict:
     """Load json file at path."""
-    import json
-
     with path.open() as json_file:
         data = json.load(json_file)
     return data
@@ -27,8 +29,6 @@ def _load_json(path: Path) -> dict:
 
 def _load_toml(path: Path) -> dict:
     """Load toml file at path."""
-    import toml
-
     with path.open(encoding="utf-8") as toml_file:
         data = toml.load(toml_file)
     return data

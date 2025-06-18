@@ -85,6 +85,7 @@ class IndivScopedPropertySetItem(BaseModel):
     @field_validator("timespan")
     @classmethod
     def validate_timespan(cls, v):
+        """Validate the timespan field."""
         if v is not None:
             return validate_timespan_string(v)
         return v
@@ -135,6 +136,7 @@ class GroupedScopedPropertySetItem(BaseModel):
     @field_validator("timespan")
     @classmethod
     def validate_timespan(cls, v):
+        """Validate the timespan field."""
         if v is not None:
             return validate_timespan_string(v)
         return v
@@ -142,6 +144,7 @@ class GroupedScopedPropertySetItem(BaseModel):
     @field_validator("timespans", mode="before")
     @classmethod
     def validate_timespans(cls, v):
+        """Validate the timespans field."""
         if v is not None:
             return [validate_timespan_string(ts) for ts in v]
         return v

@@ -7,6 +7,7 @@ from typing import Any, Optional, Union
 
 import numpy as np
 import pandas as pd
+import pyarrow as pa
 from geopandas import GeoDataFrame, GeoSeries
 from numpy import ndarray
 from shapely import wkt
@@ -694,7 +695,7 @@ def dict_fields_in_df(d: dict, df: pd.DataFrame) -> bool:
 
 def concat_with_attr(dfs: list[pd.DataFrame], **kwargs) -> pd.DataFrame:
     """Concatenate a list of dataframes and retain the attributes of the first dataframe."""
-    import copy
+    import copy  # noqa: PLC0415
 
     if not dfs:
         msg = "No dataframes to concatenate."

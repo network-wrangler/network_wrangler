@@ -27,6 +27,7 @@ from typing import TYPE_CHECKING, Union
 
 import numpy as np
 import pandas as pd
+import pyarrow as pa
 from pandera.typing import DataFrame
 
 from ..errors import SegmentFormatError, SegmentSelectionError, SubnetCreationError
@@ -35,6 +36,7 @@ from ..models.projects.roadway_selection import SelectLinksDict, SelectNodeDict
 from ..params import DEFAULT_SEARCH_MODES
 from .graph import shortest_path
 from .links.filters import filter_links_to_path
+from .network import add_incident_link_data_to_nodes
 from .subnet import Subnet
 
 if TYPE_CHECKING:
@@ -395,7 +397,7 @@ def identify_segment_endpoints(
             _links_df,
         )
     )
-    from .network import add_incident_link_data_to_nodes
+    from .network import add_incident_link_data_to_nodes  # noqa: PLC0415
 
     _nodes_df = add_incident_link_data_to_nodes(
         links_df=_links_df,

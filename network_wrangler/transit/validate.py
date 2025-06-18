@@ -5,7 +5,10 @@ from __future__ import annotations
 from pathlib import Path
 from typing import TYPE_CHECKING, Optional
 
+import ijson
 import pandas as pd
+import pyarrow as pa
+import pyarrow.parquet as pq
 from pandera.errors import SchemaErrors
 from pandera.typing import DataFrame
 
@@ -156,7 +159,7 @@ def validate_transit_in_dir(
         road_file_format (str): The format of roadway network file name. Defaults to "geojson".
         output_dir (str): The output directory for the validation report. Defaults to ".".
     """
-    from .io import load_transit
+    from .io import load_transit  # noqa: PLC0415
 
     try:
         t = load_transit(dir, file_format=file_format)
@@ -164,8 +167,8 @@ def validate_transit_in_dir(
         WranglerLogger.error(f"!!! [Transit Network invalid] - Failed Loading to Feed object\n{e}")
         return False
     if road_dir is not None:
-        from ..roadway import load_roadway_from_dir
-        from .network import TransitRoadwayConsistencyError
+        from ..roadway import load_roadway_from_dir  # noqa: PLC0415
+        from .network import TransitRoadwayConsistencyError  # noqa: PLC0415
 
         try:
             r = load_roadway_from_dir(road_dir, file_format=road_file_format)

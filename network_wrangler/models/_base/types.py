@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from datetime import time
-from typing import Any, List, Literal, TypeVar, Union
+from typing import Any, Literal, TypeVar, Union, list
 
 import pandas as pd
 from pydantic import Field
@@ -17,9 +17,9 @@ PandasSeries = TypeVar("PandasSeries", bound=pd.Series)
 
 ForcedStr = Any  # For simplicity, since BeforeValidator is not used here
 
-OneOf = List[List[Union[str, List[str]]]]
-ConflictsWith = List[List[str]]
-AnyOf = List[List[Union[str, List[str]]]]
+OneOf = list[list[Union[str, list[str]]]]
+ConflictsWith = list[list[str]]
+AnyOf = list[list[Union[str, list[str]]]]
 
 Latitude = float
 Longitude = float
@@ -28,23 +28,28 @@ TimeString = str
 
 
 # Standalone validator for timespan strings
-def validate_timespan_string(value: Any) -> List[str]:
+def validate_timespan_string(value: Any) -> list[str]:
     """Validate that value is a list of exactly 2 time strings in HH:MM or HH:MM:SS format.
+
     Returns the value if valid, raises ValueError otherwise.
     """
     if not isinstance(value, list):
-        raise ValueError("TimespanString must be a list")
-    if len(value) != 2:
-        raise ValueError("TimespanString must have exactly 2 elements")
+        msg = "TimespanString must be a list"
+        raise ValueError(msg)
+    REQUIRED_LENGTH = 2
+    if len(value) != REQUIRED_LENGTH:
+        msg = f"TimespanString must have exactly {REQUIRED_LENGTH} elements"
+        raise ValueError(msg)
     for item in value:
         if not isinstance(item, str):
-            raise ValueError("TimespanString elements must be strings")
-        import re
-
+            msg = "TimespanString elements must be strings"
+            raise ValueError(msg)
+        import re  # noqa: PLC0415
         if not re.match(r"^(\d+):([0-5]\d)(:[0-5]\d)?$", item):
-            raise ValueError(f"Invalid time format: {item}")
+            msg = f"Invalid time format: {item}"
+            raise ValueError(msg)
     return value
 
 
-TimespanString = List[str]
+TimespanString = list[str]
 TimeType = Union[time, str, int]

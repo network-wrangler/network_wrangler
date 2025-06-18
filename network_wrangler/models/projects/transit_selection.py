@@ -135,6 +135,7 @@ class SelectTransitTrips(RecordModel):
     @field_validator("timespans", mode="before")
     @classmethod
     def validate_timespans(cls, v):
+        """Validate the timespans field."""
         if v is not None:
             return [validate_timespan_string(ts) for ts in v]
         return v

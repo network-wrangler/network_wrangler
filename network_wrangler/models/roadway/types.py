@@ -63,6 +63,7 @@ class ScopedLinkValueItem(RecordModel):
     @field_validator("timespan")
     @classmethod
     def validate_timespan(cls, v):
+        """Validate the timespan field."""
         if v is not None:
             return validate_timespan_string(v)
         return v

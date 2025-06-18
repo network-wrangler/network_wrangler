@@ -7,10 +7,12 @@ Example usage:
 """
 
 import os
+import subprocess
 from pathlib import Path
 from typing import Optional, Union
 
 import geopandas as gpd
+import pyarrow as pa
 
 from .logger import WranglerLogger
 from .roadway.network import RoadwayNetwork
@@ -46,8 +48,6 @@ def net_to_mapbox(
             transit_geojson_out. Defaults to True.
         port: port to serve resulting tiles on. Defaults to 9000.
     """
-    import subprocess
-
     if roadway is None:
         roadway = gpd.GeoDataFrame()
     if transit is None:

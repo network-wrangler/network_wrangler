@@ -133,7 +133,9 @@ ignore = [
     "UP007", # non pep-604 annotations.
     "C416", # non pep-604 annotations.
     "UP007", # non pep-604 annotations.
-    "PLR0913" # too many args
+    "PLR0913", # too many args
+    "UP045", # Use `X | None` for type annotations
+    "UP006", # Use `list` instead of `List` for type annotation
 ]
 extend-select = [
   "B",           # flake8-bugbear

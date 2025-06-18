@@ -85,7 +85,7 @@ def _v0_to_v1_scoped_link_property_list(v0_item_list: list[dict]) -> list[dict]:
     Returns:
         list[dict]: in v1 format
     """
-    import pprint
+    import pprint  # noqa: PLC0415
 
     v1_item_list = []
 
