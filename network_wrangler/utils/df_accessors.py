@@ -85,7 +85,7 @@ class dfHash:
         # Convert to a more stable representation that's less sensitive to version differences
         # Sort the dataframe to ensure consistent ordering regardless of how it was loaded
         df_sorted = self._obj.sort_index(axis=0).sort_index(axis=1)
-        
+
         # Use a more stable string representation that's less sensitive to version differences
         # Convert to numpy array and then to string, which is more consistent across versions
         _value = str(df_sorted.values.tolist()).encode()
