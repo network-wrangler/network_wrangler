@@ -130,8 +130,10 @@ def str_to_time_list(timespan: list[TimeString]) -> list[datetime]:
     timespan_dt: list[datetime] = list(map(str_to_time, timespan))
     if not is_increasing(timespan_dt):
         timespan_dt = [timespan_dt[0], timespan_dt[1] + timedelta(days=1)]
-        WranglerLogger.warning(f"Timespan is not in increasing order: {timespan}.\
-            End time will be treated as next day.")
+        WranglerLogger.warning(
+            f"Timespan is not in increasing order: {timespan}.\
+            End time will be treated as next day."
+        )
     return timespan_dt
 
 

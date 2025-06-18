@@ -304,9 +304,7 @@ def diff_dfs(df1, df2, ignore: Optional[list[str]] = None) -> bool:
     df2 = df2[cols_to_compare]
 
     if len(df1) != len(df2):
-        WranglerLogger.warning(
-            f" Length is different /" f"DF1: {len(df1)} vs /" f"DF2: {len(df2)}\n /"
-        )
+        WranglerLogger.warning(f" Length is different /DF1: {len(df1)} vs /DF2: {len(df2)}\n /")
         diff = True
 
     diff_df = compare_df_values(df1, df2)
@@ -468,7 +466,7 @@ def segment_data_by_selection_min_overlap(
     field = "i"
     replacements_list = [2,22,33]
 
-    returns:
+    Returns:
         [22,33]
         [1], [2,3,4,5], [6]
 

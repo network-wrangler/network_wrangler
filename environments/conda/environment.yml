@@ -23,5 +23,5 @@ dependencies:
 
   # Pip-installed dependencies
   - pip:
-      - pandera==0.20.4
-      - projectcard>=0.3.3
+      - pandera[geopandas]==0.24.0
+      - projectcard==0.3.3

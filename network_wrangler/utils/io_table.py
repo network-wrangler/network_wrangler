@@ -200,9 +200,11 @@ def _read_parquet_table(filename, mask_gdf) -> Union[gpd.GeoDataFrame, pd.DataFr
             try:
                 df = gpd.read_parquet(filename, bbox=mask_gdf.total_bounds)
             except TypeError:
-                WranglerLogger.warning(f"Could not filter to bounding box {mask_gdf}.\
+                WranglerLogger.warning(
+                    f"Could not filter to bounding box {mask_gdf}.\
                                         Try upgrading to geopandas > 1.0.\
-                                        Returning unfiltered data.")
+                                        Returning unfiltered data."
+                )
                 df = gpd.read_parquet(filename)
     except:
         df = pd.read_parquet(filename)

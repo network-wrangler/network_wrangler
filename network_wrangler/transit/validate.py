@@ -173,13 +173,17 @@ def validate_transit_in_dir(
             WranglerLogger.error(f"! Roadway network not found in {road_dir}")
             return False
         except Exception as e:
-            WranglerLogger.error(f"! Error loading roadway network. \
-                                 Skipping validation of road to transit network.\n{e}")
+            WranglerLogger.error(
+                f"! Error loading roadway network. \
+                                 Skipping validation of road to transit network.\n{e}"
+            )
         try:
             t.road_net = r
         except TransitRoadwayConsistencyError as e:
-            WranglerLogger.error(f"!!! [Tranit Network inconsistent] Error in road to transit \
-                                 network consistency.\n{e}")
+            WranglerLogger.error(
+                f"!!! [Tranit Network inconsistent] Error in road to transit \
+                                 network consistency.\n{e}"
+            )
             return False
 
     return True

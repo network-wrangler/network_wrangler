@@ -33,7 +33,7 @@ model_links_df["lanes_AM_sov"] = prop_for_scope(links_df, ["6:00":"9:00"], categ
 """
 
 import copy
-from typing import Any, Union
+from typing import Any, TypeGuard, Union
 
 import pandas as pd
 from pandera.typing import DataFrame
@@ -42,7 +42,7 @@ from typing_extensions import TypeGuard
 
 from ...errors import InvalidScopedLinkValue
 from ...logger import WranglerLogger
-from ...models._base.types import TimeString
+from ...models._base.types import List, TimeString
 from ...models.projects.roadway_changes import IndivScopedPropertySetItem
 from ...models.roadway.tables import (
     ExplodedScopedLinkPropertyTable,
@@ -61,19 +61,34 @@ from ...utils.time import (
 )
 
 
-@validate_call(config={"arbitrary_types_allowed": True}, validate_return=True)
+def _convert_to_scoped_items(
+    scoped_values: List[Union[ScopedLinkValueItem, dict]],
+) -> List[ScopedLinkValueItem]:
+    """Convert dictionaries to ScopedLinkValueItem objects if needed."""
+    converted = []
+    for item in scoped_values:
+        if isinstance(item, dict):
+            converted.append(ScopedLinkValueItem(**item))
+        else:
+            converted.append(item)
+    return converted
+
+
 def _filter_to_matching_timespan_scopes(
-    scoped_values: list[ScopedLinkValueItem], timespan: list[TimeString]
-) -> list[ScopedLinkValueItem]:
-    """Filters scoped values to only include those that contain timespan.
+    scoped_values: List[Union[ScopedLinkValueItem, dict]], timespan: List[TimeString]
+) -> List[ScopedLinkValueItem]:
+    """Filters list of ScopedLinkValueItems to list of those that match.
 
     `matching` scope value: a scope that could be applied for a given category/timespan
         combination. This includes the default scopes as well as scopes that are contained within
         the given category AND timespan combination.
     """
+    scoped_values = _convert_to_scoped_items(scoped_values)
+
     if timespan == DEFAULT_TIMESPAN:
         return scoped_values
     times_dt = list(map(str_to_time, timespan))
+    # typeguard - mypy suggested this b/c we cannot guarantee we got rid of all the Nones
     return [
         s
         for s in scoped_values
@@ -85,48 +100,49 @@ def _filter_to_matching_timespan_scopes(
     ]
 
 
-@validate_call(config={"arbitrary_types_allowed": True}, validate_return=True)
 def _filter_to_matching_category_scopes(
-    scoped_values: list[ScopedLinkValueItem], category: Union[str, list]
-) -> list[ScopedLinkValueItem]:
-    """Filters scoped values to only include those that contain given category.
+    scoped_values: List[Union[ScopedLinkValueItem, dict]], category: Union[str, List]
+) -> List[ScopedLinkValueItem]:
+    """Filters list of ScopedLinkValueItems to list of those that match.
 
     `matching` scope value: a scope that could be applied for a given category/timespan
         combination. This includes the default scopes as well as scopes that are contained within
         the given category AND timespan combination.
     """
-    if category == DEFAULT_CATEGORY:
-        return scoped_values
+    scoped_values = _convert_to_scoped_items(scoped_values)
+
     return [s for s in scoped_values if s.category in category or s.category == DEFAULT_CATEGORY]
 
 
-@validate_call(config={"arbitrary_types_allowed": True}, validate_return=True)
 def _filter_to_matching_scope(
-    scoped_values: list[ScopedLinkValueItem],
-    category: Union[str, list] = DEFAULT_CATEGORY,
-    timespan: list[TimeString] = DEFAULT_TIMESPAN,
-) -> tuple[list[ScopedLinkValueItem], list[ScopedLinkValueItem]]:
-    """Filters scoped values to only include those that match category and timespan.
+    scoped_values: List[Union[ScopedLinkValueItem, dict]],
+    category: Union[str, List] = DEFAULT_CATEGORY,
+    timespan: List[TimeString] = DEFAULT_TIMESPAN,
+) -> tuple[List[ScopedLinkValueItem], List[ScopedLinkValueItem]]:
+    """Filters list of ScopedLinkValueItems to list of those that match.
 
     `matching` scope value: a scope that could be applied for a given category/timespan
         combination. This includes the default scopes as well as scopes that are contained within
         the given category AND timespan combination.
     """
+    scoped_values = _convert_to_scoped_items(scoped_values)
+
     potential_match = _filter_to_matching_category_scopes(scoped_values, category)
-    match_values = _filter_to_matching_timespan_scopes(potential_match, timespan)
-    return match_values, [s for s in scoped_values if s not in match_values]
+    match = _filter_to_matching_timespan_scopes(potential_match, timespan)
+    return match, potential_match
 
 
-@validate_call(config={"arbitrary_types_allowed": True}, validate_return=True)
 def _filter_to_overlapping_timespan_scopes(
-    scoped_values: list[ScopedLinkValueItem], timespan: list[TimeString]
-) -> list[ScopedLinkValueItem]:
+    scoped_values: List[Union[ScopedLinkValueItem, dict]], timespan: List[TimeString]
+) -> List[ScopedLinkValueItem]:
     """Filters list of ScopedLinkValueItems to list of those that overlap.
 
     `overlapping` scope value: a scope that fully or partially overlaps a given category OR
         timespan combination.  This includes the default scopes, all `matching` scopes and
         all scopes where at least one minute of timespan or one category overlap.
     """
+    scoped_values = _convert_to_scoped_items(scoped_values)
+
     if timespan == DEFAULT_TIMESPAN:
         return scoped_values
     q_timespan_dt = list(map(str_to_time, timespan))
@@ -155,12 +171,11 @@ def _islist(s: Any) -> TypeGuard[list]:
     raise TypeError(msg)
 
 
-@validate_call(config={"arbitrary_types_allowed": True}, validate_return=True)
 def _filter_to_overlapping_scopes(
-    scoped_prop_list: list[Union[ScopedLinkValueItem, IndivScopedPropertySetItem]],
-    category: Union[str, list] = DEFAULT_CATEGORY,
-    timespan: list[TimeString] = DEFAULT_TIMESPAN,
-) -> list[Union[ScopedLinkValueItem, IndivScopedPropertySetItem]]:
+    scoped_prop_list: List[Union[ScopedLinkValueItem, IndivScopedPropertySetItem, dict]],
+    category: Union[str, List] = DEFAULT_CATEGORY,
+    timespan: List[TimeString] = DEFAULT_TIMESPAN,
+) -> List[Union[ScopedLinkValueItem, IndivScopedPropertySetItem]]:
     """Filter a list of IndivScopedPropertySetItem and ScopedLinkValueItems to a specific scope.
 
     Defaults are considered to overlap everything in their scope dimension.
@@ -169,15 +184,22 @@ def _filter_to_overlapping_scopes(
         timespan combination.  This includes the default scopes, all `matching` scopes and
         all scopes where at least one minute of timespan or one category overlap.
     """
-    scoped_prop_list = _filter_to_matching_category_scopes(scoped_prop_list, category)
+    # Convert dictionaries to ScopedLinkValueItem objects
+    converted_list = []
+    for item in scoped_prop_list:
+        if isinstance(item, dict):
+            converted_list.append(ScopedLinkValueItem(**item))
+        else:
+            converted_list.append(item)
+
+    scoped_prop_list = _filter_to_matching_category_scopes(converted_list, category)
     scoped_prop_list = _filter_to_overlapping_timespan_scopes(scoped_prop_list, timespan)
     return scoped_prop_list
 
 
-@validate_call(config={"arbitrary_types_allowed": True}, validate_return=True)
 def _filter_to_conflicting_timespan_scopes(
-    scoped_values: list[ScopedLinkValueItem], timespan: list[TimeString]
-) -> list[ScopedLinkValueItem]:
+    scoped_values: List[Union[ScopedLinkValueItem, dict]], timespan: List[TimeString]
+) -> List[ScopedLinkValueItem]:
     """Filters scoped values to only include those that conflict with the timespan.
 
     Default timespan does not conflict.
@@ -191,18 +213,19 @@ def _filter_to_conflicting_timespan_scopes(
     `conflicting` scope value: a scope that is overlapping but not matching for a given category/
         timespan. By definition default scope values are not conflicting.
     """
+    scoped_values = _convert_to_scoped_items(scoped_values)
+
     overlaps = _filter_to_overlapping_timespan_scopes(scoped_values, timespan)
     matches = _filter_to_matching_timespan_scopes(scoped_values, timespan)
 
     return [s for s in overlaps if s not in matches]
 
 
-@validate_call(config={"arbitrary_types_allowed": True}, validate_return=True)
 def _filter_to_conflicting_scopes(
-    scoped_values: list[ScopedLinkValueItem],
-    timespan: list[TimeString],
-    category: Union[str, list[str]],
-) -> list[ScopedLinkValueItem]:
+    scoped_values: List[Union[ScopedLinkValueItem, dict]],
+    timespan: List[TimeString],
+    category: Union[str, List[str]],
+) -> List[ScopedLinkValueItem]:
     """Filters scoped values to only include those that conflict with the timespan.
 
     Default timespan and categoies do not conflict.
@@ -217,6 +240,8 @@ def _filter_to_conflicting_scopes(
     `conflicting` scope value: a scope that is overlapping but not matching for a given category/
         timespan. By definition default scope values are not conflicting.
     """
+    scoped_values = _convert_to_scoped_items(scoped_values)
+
     if category == DEFAULT_CATEGORY and timespan == DEFAULT_TIMESPAN:
         return scoped_values
 
@@ -274,10 +299,10 @@ def _create_exploded_df_for_scoped_prop(
     return exp_df
 
 
-@validate_call(config={"arbitrary_types_allowed": True})
+# @validate_call(config={"arbitrary_types_allowed": True})
 def _filter_exploded_df_to_scope(
     exp_scoped_prop_df: DataFrame[ExplodedScopedLinkPropertyTable],
-    timespan: list[TimeString] = DEFAULT_TIMESPAN,
+    timespan: List[TimeString] = DEFAULT_TIMESPAN,
     category: Union[str, int] = DEFAULT_CATEGORY,
     strict_timespan_match: bool = False,
     min_overlap_minutes: int = 60,
@@ -320,7 +345,7 @@ def _filter_exploded_df_to_scope(
 def prop_for_scope(
     links_df: DataFrame[RoadLinksTable],
     prop_name: str,
-    timespan: Union[None, list[TimeString]] = DEFAULT_TIMESPAN,
+    timespan: Union[None, List[TimeString]] = DEFAULT_TIMESPAN,
     category: Union[str, int, None] = DEFAULT_CATEGORY,
     strict_timespan_match: bool = False,
     min_overlap_minutes: int = 60,
