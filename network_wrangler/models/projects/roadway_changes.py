@@ -27,7 +27,7 @@ from ...params import (
 from ...utils.time import dt_overlaps, str_to_time_list
 from .._base.records import RecordModel
 from .._base.root import RootListMixin
-from .._base.types import AnyOf, OneOf, TimespanString
+from .._base.types import AnyOf, OneOf, TimespanString, validate_timespan_string
 from .roadway_selection import SelectLinksDict, SelectNodesDict
 
 
@@ -82,6 +82,14 @@ class IndivScopedPropertySetItem(BaseModel):
             raise ValidationError(msg)
         return data
 
+    @field_validator("timespan")
+    @classmethod
+    def validate_timespan(cls, v):
+        """Validate the timespan field."""
+        if v is not None:
+            return validate_timespan_string(v)
+        return v
+
 
 class GroupedScopedPropertySetItem(BaseModel):
     """Value for setting property value for a single time of day and category."""
@@ -124,6 +132,22 @@ class GroupedScopedPropertySetItem(BaseModel):
             msg = f"Require at least one of {require_any_of}"
             raise ValidationError(msg)
         return data
+
+    @field_validator("timespan")
+    @classmethod
+    def validate_timespan(cls, v):
+        """Validate the timespan field."""
+        if v is not None:
+            return validate_timespan_string(v)
+        return v
+
+    @field_validator("timespans", mode="before")
+    @classmethod
+    def validate_timespans(cls, v):
+        """Validate the timespans field."""
+        if v is not None:
+            return [validate_timespan_string(ts) for ts in v]
+        return v
 
 
 def _grouped_to_indiv_list_of_scopedpropsetitem(

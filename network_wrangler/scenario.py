@@ -658,8 +658,10 @@ class Scenario:
         """
         project_name = project_name.lower()
 
-        WranglerLogger.info(f"Applying {project_name} from file:\
-                            {self.project_cards[project_name].file}")
+        WranglerLogger.info(
+            f"Applying {project_name} from file:\
+                            {self.project_cards[project_name].file}"
+        )
 
         p = self.project_cards[project_name]
         WranglerLogger.debug(f"types: {p.change_types}")

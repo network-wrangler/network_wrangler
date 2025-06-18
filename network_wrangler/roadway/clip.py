@@ -124,7 +124,7 @@ def clip_roadway(
         boundary_geocode=boundary_geocode,
         boundary_file=boundary_file,
     )
-    from .network import RoadwayNetwork
+    from .network import RoadwayNetwork  # noqa: PLC0415
 
     trimmed_net = RoadwayNetwork(
         links_df=trimmed_links_df,

@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from typing import Union
 
+import pyarrow as pa
 from pandera.typing import DataFrame
 
 from ...logger import WranglerLogger
@@ -30,7 +31,7 @@ def stop_id_pattern_for_trip(
             "pickup_only": only pickup > 0
             "dropoff_only": only dropoff > 0
     """
-    from .stop_times import stop_times_for_pickup_dropoff_trip_id
+    from .stop_times import stop_times_for_pickup_dropoff_trip_id  # noqa: PLC0415
 
     trip_stops = stop_times_for_pickup_dropoff_trip_id(
         stop_times, trip_id, pickup_dropoff=pickup_dropoff

@@ -233,7 +233,7 @@ def _generate_ml_link_id_lookup_from_range(links_df, link_id_range: tuple[int]):
     link_id_list = [i for i in range(*link_id_range) if i % LINK_IDS_DIVISIBLE_BY == 0]
     avail_ml_link_ids = set(link_id_list) - set(links_df.model_link_id.unique().tolist())
     if len(avail_ml_link_ids) < len(og_ml_link_ids):
-        msg = f"{len(avail_ml_link_ids)} of {len(og_ml_link_ids )} new link ids\
+        msg = f"{len(avail_ml_link_ids)} of {len(og_ml_link_ids)} new link ids\
                          available for provided range: {link_id_range}."
         raise ValueError(msg)
     new_link_ids = list(avail_ml_link_ids)[: len(og_ml_link_ids)]
@@ -245,7 +245,7 @@ def _generate_ml_node_id_from_range(nodes_df, links_df, node_id_range: tuple[int
     og_ml_node_ids = node_ids_in_links(links_df.of_type.managed, nodes_df)
     avail_ml_node_ids = set(range(*node_id_range)) - set(nodes_df.model_node_id.unique().tolist())
     if len(avail_ml_node_ids) < len(og_ml_node_ids):
-        msg = f"{len(avail_ml_node_ids)} of {len(og_ml_node_ids )} new nodes ids\
+        msg = f"{len(avail_ml_node_ids)} of {len(og_ml_node_ids)} new nodes ids\
                available for provided range: {node_id_range}."
         raise ValueError(msg)
     new_ml_node_ids = list(avail_ml_node_ids)[: len(og_ml_node_ids)]

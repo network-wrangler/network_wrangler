@@ -186,14 +186,18 @@ def copy_links(
 
     _missing_copy_properties = set(copy_properties) - set(links_df.columns)
     if _missing_copy_properties:
-        WranglerLogger.warning(f"Specified properties to copy not found in links_df.\
-            Proceeding without copying: {_missing_copy_properties}")
+        WranglerLogger.warning(
+            f"Specified properties to copy not found in links_df.\
+            Proceeding without copying: {_missing_copy_properties}"
+        )
         copy_properties = [c for c in copy_properties if c not in _missing_copy_properties]
 
     _missing_rename_properties = set(rename_properties.keys()) - set(links_df.columns)
     if _missing_rename_properties:
-        WranglerLogger.warning(f"Specified properties to rename not found in links_df.\
-            Proceeding without renaming: {_missing_rename_properties}")
+        WranglerLogger.warning(
+            f"Specified properties to rename not found in links_df.\
+            Proceeding without renaming: {_missing_rename_properties}"
+        )
         rename_properties = {
             k: v for k, v in rename_properties.items() if k not in _missing_rename_properties
         }

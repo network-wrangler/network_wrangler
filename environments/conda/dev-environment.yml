@@ -11,7 +11,7 @@ dependencies:
   - ipywidgets=7.8.4
   - osmnx=1.9.3
   - pandas=2.2.3
-  - pandera-geopandas=0.18.0
+  - pandera-geopandas=0.24.0
   - psutil=6.0.0
   - pyarrow=17.0.0
   - pydantic=2.9.2
@@ -47,5 +47,5 @@ dependencies:
       - mkdocs-mermaid2-plugin==1.1.1
       - mkdocstrings==0.26.1
       - mkdocstrings-python==1.11.1
-      - pandera==0.20.4
-      - projectcard>=0.3.3
+      - pandera[geopandas]==0.24.0
+      - projectcard==0.3.3

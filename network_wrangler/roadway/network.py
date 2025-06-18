@@ -24,9 +24,11 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Any, Optional, Union
 
 import geopandas as gpd
+import ijson
 import networkx as nx
 import pandas as pd
-from pandera.typing import DataFrame
+import pyarrow as pa
+import pyarrow.parquet as pq
 from projectcard import ProjectCard, SubProject
 from pydantic import BaseModel, field_validator
 
@@ -46,11 +48,13 @@ from ..models.roadway.tables import RoadLinksTable, RoadNodesTable, RoadShapesTa
 from ..params import DEFAULT_CATEGORY, DEFAULT_TIMESPAN, LAT_LON_CRS
 from ..utils.data import concat_with_attr
 from ..utils.models import empty_df_from_datamodel, validate_df_to_model
+from .graph import net_to_graph
 from .links.create import data_to_links_df
 from .links.delete import delete_links_by_ids
 from .links.edit import edit_link_geometry_from_nodes
 from .links.filters import filter_links_to_ids, filter_links_to_node_ids
 from .links.links import node_ids_unique_to_link_ids, shape_ids_unique_to_link_ids
+from .links.scopes import prop_for_scope
 from .model_roadway import ModelRoadwayNetwork
 from .nodes.create import data_to_nodes_df
 from .nodes.delete import delete_nodes_by_ids
@@ -72,6 +76,7 @@ from .shapes.create import df_to_shapes_df
 from .shapes.delete import delete_shapes_by_ids
 from .shapes.edit import edit_shape_geometry_from_nodes
 from .shapes.io import read_shapes
+from .shapes.shapes import shape_ids_without_links
 
 if TYPE_CHECKING:
     from networkx import MultiDiGraph
@@ -145,9 +150,11 @@ class RoadwayNetwork(BaseModel):
         config (WranglerConfig): wrangler configuration object
     """
 
-    nodes_df: DataFrame[RoadNodesTable]
-    links_df: DataFrame[RoadLinksTable]
-    _shapes_df: Optional[DataFrame[RoadShapesTable]] = None
+    model_config = {"arbitrary_types_allowed": True}
+
+    nodes_df: pd.DataFrame
+    links_df: pd.DataFrame
+    _shapes_df: Optional[pd.DataFrame] = None
 
     _links_file: Optional[Path] = None
     _nodes_file: Optional[Path] = None
@@ -176,7 +183,7 @@ class RoadwayNetwork(BaseModel):
         return v
 
     @property
-    def shapes_df(self) -> DataFrame[RoadShapesTable]:
+    def shapes_df(self) -> pd.DataFrame:
         """Load and return RoadShapesTable.
 
         If not already loaded, will read from shapes_file and return. If shapes_file is None,
@@ -266,7 +273,7 @@ class RoadwayNetwork(BaseModel):
             min_overlap_minutes: If strict_timespan_match is False, will return links that overlap
                 with the timespan by at least this many minutes. Defaults to 60.
         """
-        from .links.scopes import prop_for_scope
+        from .links.scopes import prop_for_scope  # noqa: PLC0415
 
         return prop_for_scope(
             self.links_df,
@@ -330,7 +337,7 @@ class RoadwayNetwork(BaseModel):
         Args:
             mode: mode of the network, one of `drive`,`transit`,`walk`, `bike`
         """
-        from .graph import net_to_graph
+        from .graph import net_to_graph  # noqa: PLC0415
 
         if self._modal_graphs[mode]["hash"] != self.modal_graph_hash(mode):
             self._modal_graphs[mode]["graph"] = net_to_graph(self, mode)
@@ -405,15 +412,15 @@ class RoadwayNetwork(BaseModel):
         msg = f"Invalid Project Card Category: {change.change_type}"
         raise ProjectCardError(msg)
 
-    def links_with_link_ids(self, link_ids: list[int]) -> DataFrame[RoadLinksTable]:
+    def links_with_link_ids(self, link_ids: list[int]) -> pd.DataFrame:
         """Return subset of links_df based on link_ids list."""
         return filter_links_to_ids(self.links_df, link_ids)
 
-    def links_with_nodes(self, node_ids: list[int]) -> DataFrame[RoadLinksTable]:
+    def links_with_nodes(self, node_ids: list[int]) -> pd.DataFrame:
         """Return subset of links_df based on node_ids list."""
         return filter_links_to_node_ids(self.links_df, node_ids)
 
-    def nodes_in_links(self) -> DataFrame[RoadNodesTable]:
+    def nodes_in_links(self) -> pd.DataFrame:
         """Returns subset of self.nodes_df that are in self.links_df."""
         return filter_nodes_to_links(self.links_df, self.nodes_df)
 
@@ -429,7 +436,7 @@ class RoadwayNetwork(BaseModel):
 
     def add_links(
         self,
-        add_links_df: Union[pd.DataFrame, DataFrame[RoadLinksTable]],
+        add_links_df: pd.DataFrame,
         in_crs: int = LAT_LON_CRS,
     ):
         """Validate combined links_df with LinksSchema before adding to self.links_df.
@@ -456,7 +463,7 @@ class RoadwayNetwork(BaseModel):
 
     def add_nodes(
         self,
-        add_nodes_df: Union[pd.DataFrame, DataFrame[RoadNodesTable]],
+        add_nodes_df: pd.DataFrame,
         in_crs: int = LAT_LON_CRS,
     ):
         """Validate combined nodes_df with NodesSchema before adding to self.nodes_df.
@@ -484,7 +491,7 @@ class RoadwayNetwork(BaseModel):
 
     def add_shapes(
         self,
-        add_shapes_df: Union[pd.DataFrame, DataFrame[RoadShapesTable]],
+        add_shapes_df: pd.DataFrame,
         in_crs: int = LAT_LON_CRS,
     ):
         """Validate combined shapes_df with RoadShapesTable efore adding to self.shapes_df.
@@ -582,7 +589,7 @@ class RoadwayNetwork(BaseModel):
                 If False, will only remove nodes if they are not associated with any links.
                 Defaults to False.
 
-        raises:
+        Raises:
             NodeDeletionError: If not ignore_missing and selected nodes to delete aren't in network
         """
         if not isinstance(selection_dict, SelectNodesDict):
@@ -606,7 +613,7 @@ class RoadwayNetwork(BaseModel):
 
     def clean_unused_shapes(self):
         """Removes any unused shapes from network that aren't referenced by links_df."""
-        from .shapes.shapes import shape_ids_without_links
+        from .shapes.shapes import shape_ids_without_links  # noqa: PLC0415
 
         del_shape_ids = shape_ids_without_links(self.shapes_df, self.links_df)
         self.shapes_df = self.shapes_df.drop(del_shape_ids)
@@ -616,14 +623,14 @@ class RoadwayNetwork(BaseModel):
 
         NOTE: does not check if these nodes are used by transit, so use with caution.
         """
-        from .nodes.nodes import node_ids_without_links
+        from .nodes.nodes import node_ids_without_links  # noqa: PLC0415
 
         node_ids = node_ids_without_links(self.nodes_df, self.links_df)
         self.nodes_df = self.nodes_df.drop(node_ids)
 
     def move_nodes(
         self,
-        node_geometry_change_table: DataFrame[NodeGeometryChangeTable],
+        node_geometry_change_table: pd.DataFrame,
     ):
         """Moves nodes based on updated geometry along with associated links and shape geometry.
 
@@ -675,10 +682,10 @@ class RoadwayNetwork(BaseModel):
 
 
 def add_incident_link_data_to_nodes(
-    links_df: DataFrame[RoadLinksTable],
-    nodes_df: DataFrame[RoadNodesTable],
+    links_df: pd.DataFrame,
+    nodes_df: pd.DataFrame,
     link_variables: Optional[list] = None,
-) -> DataFrame[RoadNodesTable]:
+) -> pd.DataFrame:
     """Add data from links going to/from nodes to node.
 
     Args:

@@ -5,6 +5,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, Optional
 
 import geopandas as gpd
+import pyarrow as pa
 from pandera.typing import DataFrame
 from shapely import LineString
 
@@ -167,7 +168,7 @@ def stop_times_to_stop_time_links_gdf(
         from_field: Field used for the link's from node `model_node_id`. Defaults to "A".
         to_field: Field used for the link's to node `model_node_id`. Defaults to "B".
     """
-    from ..utils.geo import linestring_from_lats_lons
+    from ..utils.geo import linestring_from_lats_lons  # noqa: PLC0415
 
     if ref_nodes_df is not None:
         stops = update_stops_geometry(stops, ref_nodes_df)
