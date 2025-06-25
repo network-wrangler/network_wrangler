@@ -7,6 +7,11 @@
     ]
   },
   {
+    "version": "hotfix-pandaspanderacompatibility",
+    "title": "hotfix-pandaspanderacompatibility",
+    "aliases": []
+  },
+  {
     "version": "docs_update",
     "title": "docs_update",
     "aliases": []
