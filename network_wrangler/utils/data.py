@@ -7,6 +7,7 @@ from typing import Any, Optional, Union
 
 import numpy as np
 import pandas as pd
+import pyarrow as pa
 from geopandas import GeoDataFrame, GeoSeries
 from numpy import ndarray
 from shapely import wkt
@@ -304,9 +305,7 @@ def diff_dfs(df1, df2, ignore: Optional[list[str]] = None) -> bool:
     df2 = df2[cols_to_compare]
 
     if len(df1) != len(df2):
-        WranglerLogger.warning(
-            f" Length is different /" f"DF1: {len(df1)} vs /" f"DF2: {len(df2)}\n /"
-        )
+        WranglerLogger.warning(f" Length is different /DF1: {len(df1)} vs /DF2: {len(df2)}\n /")
         diff = True
 
     diff_df = compare_df_values(df1, df2)
@@ -468,7 +467,7 @@ def segment_data_by_selection_min_overlap(
     field = "i"
     replacements_list = [2,22,33]
 
-    returns:
+    Returns:
         [22,33]
         [1], [2,3,4,5], [6]
 
@@ -696,7 +695,7 @@ def dict_fields_in_df(d: dict, df: pd.DataFrame) -> bool:
 
 def concat_with_attr(dfs: list[pd.DataFrame], **kwargs) -> pd.DataFrame:
     """Concatenate a list of dataframes and retain the attributes of the first dataframe."""
-    import copy
+    import copy  # noqa: PLC0415
 
     if not dfs:
         msg = "No dataframes to concatenate."

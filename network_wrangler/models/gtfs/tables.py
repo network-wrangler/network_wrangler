@@ -28,6 +28,7 @@ from typing import ClassVar, Optional
 import pandas as pd
 import pandera as pa
 from pandas import Timestamp
+from pandera import DataFrameModel, Field
 from pandera.typing import Category, Series
 
 from ...logger import WranglerLogger
@@ -47,7 +48,7 @@ from .types import (
 )
 
 
-class AgenciesTable(pa.DataFrameModel):
+class AgenciesTable(DataFrameModel):
     """Represents the Agency table in the GTFS dataset.
 
     For field definitions, see the GTFS reference: <https://gtfs.org/documentation/schedule/reference/#agencytxt>
@@ -63,14 +64,14 @@ class AgenciesTable(pa.DataFrameModel):
         agency_email (str): The agency email.
     """
 
-    agency_id: Series[str] = pa.Field(coerce=True, nullable=False, unique=True)
-    agency_name: Series[str] = pa.Field(coerce=True, nullable=True)
-    agency_url: Series[HttpURL] = pa.Field(coerce=True, nullable=True)
-    agency_timezone: Series[str] = pa.Field(coerce=True, nullable=True)
-    agency_lang: Series[str] = pa.Field(coerce=True, nullable=True)
-    agency_phone: Series[str] = pa.Field(coerce=True, nullable=True)
-    agency_fare_url: Series[str] = pa.Field(coerce=True, nullable=True)
-    agency_email: Series[str] = pa.Field(coerce=True, nullable=True)
+    agency_id: Series[str] = Field(coerce=True, nullable=False, unique=True)
+    agency_name: Series[str] = Field(coerce=True, nullable=True)
+    agency_url: Series[HttpURL] = Field(coerce=True, nullable=True)
+    agency_timezone: Series[str] = Field(coerce=True, nullable=True)
+    agency_lang: Series[str] = Field(coerce=True, nullable=True)
+    agency_phone: Series[str] = Field(coerce=True, nullable=True)
+    agency_fare_url: Series[str] = Field(coerce=True, nullable=True)
+    agency_email: Series[str] = Field(coerce=True, nullable=True)
 
     class Config:
         """Config for the AgenciesTable data model."""
@@ -80,7 +81,7 @@ class AgenciesTable(pa.DataFrameModel):
         _pk: ClassVar[TablePrimaryKeys] = ["agency_id"]
 
 
-class StopsTable(pa.DataFrameModel):
+class StopsTable(DataFrameModel):
     """Represents the Stops table in the GTFS dataset.
 
     For field definitions, see the GTFS reference: <https://gtfs.org/documentation/schedule/reference/#stopstxt>
@@ -107,28 +108,28 @@ class StopsTable(pa.DataFrameModel):
         stop_timezone (Optional[str]): The stop timezone.
     """
 
-    stop_id: Series[str] = pa.Field(coerce=True, nullable=False, unique=True)
-    stop_lat: Series[float] = pa.Field(coerce=True, nullable=False, ge=-90, le=90)
-    stop_lon: Series[float] = pa.Field(coerce=True, nullable=False, ge=-180, le=180)
+    stop_id: Series[str] = Field(coerce=True, nullable=False, unique=True)
+    stop_lat: Series[float] = Field(coerce=True, nullable=False, ge=-90, le=90)
+    stop_lon: Series[float] = Field(coerce=True, nullable=False, ge=-180, le=180)
 
     # Optional Fields
-    wheelchair_boarding: Optional[Series[Category]] = pa.Field(
+    wheelchair_boarding: Optional[Series[Category]] = Field(
         dtype_kwargs={"categories": WheelchairAccessible}, coerce=True, default=0
     )
-    stop_code: Optional[Series[str]] = pa.Field(nullable=True, coerce=True)
-    stop_name: Optional[Series[str]] = pa.Field(nullable=True, coerce=True)
-    tts_stop_name: Optional[Series[str]] = pa.Field(nullable=True, coerce=True)
-    stop_desc: Optional[Series[str]] = pa.Field(nullable=True, coerce=True)
-    zone_id: Optional[Series[str]] = pa.Field(nullable=True, coerce=True)
-    stop_url: Optional[Series[str]] = pa.Field(nullable=True, coerce=True)
-    location_type: Optional[Series[Category]] = pa.Field(
+    stop_code: Optional[Series[str]] = Field(nullable=True, coerce=True)
+    stop_name: Optional[Series[str]] = Field(nullable=True, coerce=True)
+    tts_stop_name: Optional[Series[str]] = Field(nullable=True, coerce=True)
+    stop_desc: Optional[Series[str]] = Field(nullable=True, coerce=True)
+    zone_id: Optional[Series[str]] = Field(nullable=True, coerce=True)
+    stop_url: Optional[Series[str]] = Field(nullable=True, coerce=True)
+    location_type: Optional[Series[Category]] = Field(
         dtype_kwargs={"categories": LocationType},
         nullable=True,
         coerce=True,
         default=0,
     )
-    parent_station: Optional[Series[str]] = pa.Field(nullable=True, coerce=True)
-    stop_timezone: Optional[Series[str]] = pa.Field(nullable=True, coerce=True)
+    parent_station: Optional[Series[str]] = Field(nullable=True, coerce=True)
+    stop_timezone: Optional[Series[str]] = Field(nullable=True, coerce=True)
 
     class Config:
         """Config for the StopsTable data model."""
@@ -168,20 +169,20 @@ class WranglerStopsTable(StopsTable):
         projects (str): A comma-separated string value for projects that have been applied to this stop.
     """
 
-    stop_id: Series[int] = pa.Field(
+    stop_id: Series[int] = Field(
         coerce=True, nullable=False, unique=True, description="The model_node_id."
     )
-    stop_id_GTFS: Series[str] = pa.Field(
+    stop_id_GTFS: Series[str] = Field(
         coerce=True,
         nullable=True,
         description="The stop_id from the GTFS data",
     )
-    stop_lat: Series[float] = pa.Field(coerce=True, nullable=True, ge=-90, le=90)
-    stop_lon: Series[float] = pa.Field(coerce=True, nullable=True, ge=-180, le=180)
-    projects: Series[str] = pa.Field(coerce=True, default="")
+    stop_lat: Series[float] = Field(coerce=True, nullable=True, ge=-90, le=90)
+    stop_lon: Series[float] = Field(coerce=True, nullable=True, ge=-180, le=180)
+    projects: Series[str] = Field(coerce=True, default="")
 
 
-class RoutesTable(pa.DataFrameModel):
+class RoutesTable(DataFrameModel):
     """Represents the Routes table in the GTFS dataset.
 
     For field definitions, see the GTFS reference: <https://gtfs.org/documentation/schedule/reference/#routestxt>
@@ -202,19 +203,19 @@ class RoutesTable(pa.DataFrameModel):
         route_text_color (Optional[str]): The route text color.
     """
 
-    route_id: Series[str] = pa.Field(nullable=False, unique=True, coerce=True)
-    route_short_name: Series[str] = pa.Field(nullable=True, coerce=True)
-    route_long_name: Series[str] = pa.Field(nullable=True, coerce=True)
-    route_type: Series[Category] = pa.Field(
+    route_id: Series[str] = Field(nullable=False, unique=True, coerce=True)
+    route_short_name: Series[str] = Field(nullable=True, coerce=True)
+    route_long_name: Series[str] = Field(nullable=True, coerce=True)
+    route_type: Series[Category] = Field(
         dtype_kwargs={"categories": RouteType}, coerce=True, nullable=False
     )
 
     # Optional Fields
-    agency_id: Optional[Series[str]] = pa.Field(nullable=True, coerce=True)
-    route_desc: Optional[Series[str]] = pa.Field(nullable=True, coerce=True)
-    route_url: Optional[Series[str]] = pa.Field(nullable=True, coerce=True)
-    route_color: Optional[Series[str]] = pa.Field(nullable=True, coerce=True)
-    route_text_color: Optional[Series[str]] = pa.Field(nullable=True, coerce=True)
+    agency_id: Optional[Series[str]] = Field(nullable=True, coerce=True)
+    route_desc: Optional[Series[str]] = Field(nullable=True, coerce=True)
+    route_url: Optional[Series[str]] = Field(nullable=True, coerce=True)
+    route_color: Optional[Series[str]] = Field(nullable=True, coerce=True)
+    route_text_color: Optional[Series[str]] = Field(nullable=True, coerce=True)
 
     class Config:
         """Config for the RoutesTable data model."""
@@ -225,7 +226,7 @@ class RoutesTable(pa.DataFrameModel):
         _fk: ClassVar[TableForeignKeys] = {"agency_id": ("agencies", "agency_id")}
 
 
-class ShapesTable(pa.DataFrameModel):
+class ShapesTable(DataFrameModel):
     """Represents the Shapes table in the GTFS dataset.
 
     For field definitions, see the GTFS reference: <https://gtfs.org/documentation/schedule/reference/#shapestxt>
@@ -238,13 +239,13 @@ class ShapesTable(pa.DataFrameModel):
         shape_dist_traveled (Optional[float]): The shape distance traveled.
     """
 
-    shape_id: Series[str] = pa.Field(nullable=False, coerce=True)
-    shape_pt_lat: Series[float] = pa.Field(coerce=True, nullable=False, ge=-90, le=90)
-    shape_pt_lon: Series[float] = pa.Field(coerce=True, nullable=False, ge=-180, le=180)
-    shape_pt_sequence: Series[int] = pa.Field(coerce=True, nullable=False, ge=0)
+    shape_id: Series[str] = Field(nullable=False, coerce=True)
+    shape_pt_lat: Series[float] = Field(coerce=True, nullable=False, ge=-90, le=90)
+    shape_pt_lon: Series[float] = Field(coerce=True, nullable=False, ge=-180, le=180)
+    shape_pt_sequence: Series[int] = Field(coerce=True, nullable=False, ge=0)
 
     # Optional
-    shape_dist_traveled: Optional[Series[float]] = pa.Field(coerce=True, nullable=True, ge=0)
+    shape_dist_traveled: Optional[Series[float]] = Field(coerce=True, nullable=True, ge=0)
 
     class Config:
         """Config for the ShapesTable data model."""
@@ -271,11 +272,11 @@ class WranglerShapesTable(ShapesTable):
         projects (str): A comma-separated string value for projects that have been applied to this shape.
     """
 
-    shape_model_node_id: Series[int] = pa.Field(coerce=True, nullable=False)
-    projects: Series[str] = pa.Field(coerce=True, default="")
+    shape_model_node_id: Series[int] = Field(coerce=True, nullable=False)
+    projects: Series[str] = Field(coerce=True, default="")
 
 
-class TripsTable(pa.DataFrameModel):
+class TripsTable(DataFrameModel):
     """Represents the Trips table in the GTFS dataset.
 
     For field definitions, see the GTFS reference: <https://gtfs.org/documentation/schedule/reference/#tripstxt>
@@ -301,22 +302,22 @@ class TripsTable(pa.DataFrameModel):
             - 2: Not allowed
     """
 
-    trip_id: Series[str] = pa.Field(nullable=False, unique=True, coerce=True)
-    shape_id: Series[str] = pa.Field(nullable=False, coerce=True)
-    direction_id: Series[Category] = pa.Field(
+    trip_id: Series[str] = Field(nullable=False, unique=True, coerce=True)
+    shape_id: Series[str] = Field(nullable=False, coerce=True)
+    direction_id: Series[Category] = Field(
         dtype_kwargs={"categories": DirectionID}, coerce=True, nullable=False, default=0
     )
-    service_id: Series[str] = pa.Field(nullable=False, coerce=True, default="1")
-    route_id: Series[str] = pa.Field(nullable=False, coerce=True)
+    service_id: Series[str] = Field(nullable=False, coerce=True, default="1")
+    route_id: Series[str] = Field(nullable=False, coerce=True)
 
     # Optional Fields
-    trip_short_name: Optional[Series[str]] = pa.Field(nullable=True, coerce=True)
-    trip_headsign: Optional[Series[str]] = pa.Field(nullable=True, coerce=True)
-    block_id: Optional[Series[str]] = pa.Field(nullable=True, coerce=True)
-    wheelchair_accessible: Optional[Series[Category]] = pa.Field(
+    trip_short_name: Optional[Series[str]] = Field(nullable=True, coerce=True)
+    trip_headsign: Optional[Series[str]] = Field(nullable=True, coerce=True)
+    block_id: Optional[Series[str]] = Field(nullable=True, coerce=True)
+    wheelchair_accessible: Optional[Series[Category]] = Field(
         dtype_kwargs={"categories": WheelchairAccessible}, coerce=True, default=0
     )
-    bikes_allowed: Optional[Series[Category]] = pa.Field(
+    bikes_allowed: Optional[Series[Category]] = Field(
         dtype_kwargs={"categories": BikesAllowed},
         coerce=True,
         default=0,
@@ -358,7 +359,7 @@ class WranglerTripsTable(TripsTable):
         projects (str): A comma-separated string value for projects that have been applied to this trip.
     """
 
-    projects: Series[str] = pa.Field(coerce=True, default="")
+    projects: Series[str] = Field(coerce=True, default="")
 
     class Config:
         """Config for the WranglerTripsTable data model."""
@@ -369,7 +370,7 @@ class WranglerTripsTable(TripsTable):
         _fk: ClassVar[TableForeignKeys] = {"route_id": ("routes", "route_id")}
 
 
-class FrequenciesTable(pa.DataFrameModel):
+class FrequenciesTable(DataFrameModel):
     """Represents the Frequency table in the GTFS dataset.
 
     For field definitions, see the GTFS reference: <https://gtfs.org/documentation/schedule/reference/#frequenciestxt>
@@ -383,14 +384,12 @@ class FrequenciesTable(pa.DataFrameModel):
         headway_secs (int): The headway in seconds.
     """
 
-    trip_id: Series[str] = pa.Field(nullable=False, coerce=True)
-    start_time: Series[TimeString] = pa.Field(
+    trip_id: Series[str] = Field(nullable=False, coerce=True)
+    start_time: Series[TimeString] = Field(
         nullable=False, coerce=True, default=DEFAULT_TIMESPAN[0]
     )
-    end_time: Series[TimeString] = pa.Field(
-        nullable=False, coerce=True, default=DEFAULT_TIMESPAN[1]
-    )
-    headway_secs: Series[int] = pa.Field(
+    end_time: Series[TimeString] = Field(nullable=False, coerce=True, default=DEFAULT_TIMESPAN[1])
+    headway_secs: Series[int] = Field(
         coerce=True,
         ge=1,
         nullable=False,
@@ -420,13 +419,11 @@ class WranglerFrequenciesTable(FrequenciesTable):
         headway_secs (int): The headway in seconds.
     """
 
-    projects: Series[str] = pa.Field(coerce=True, default="")
-    start_time: Series = pa.Field(
+    projects: Series[str] = Field(coerce=True, default="")
+    start_time: Series = Field(
         nullable=False, coerce=True, default=str_to_time(DEFAULT_TIMESPAN[0])
     )
-    end_time: Series = pa.Field(
-        nullable=False, coerce=True, default=str_to_time(DEFAULT_TIMESPAN[1])
-    )
+    end_time: Series = Field(nullable=False, coerce=True, default=str_to_time(DEFAULT_TIMESPAN[1]))
 
     class Config:
         """Config for the FrequenciesTable data model."""
@@ -455,7 +452,7 @@ class WranglerFrequenciesTable(FrequenciesTable):
         return str_to_time_series(series)
 
 
-class StopTimesTable(pa.DataFrameModel):
+class StopTimesTable(DataFrameModel):
     """Represents the Stop Times table in the GTFS dataset.
 
     For field definitions, see the GTFS reference: <https://gtfs.org/documentation/schedule/reference/#stop_timestxt>
@@ -484,25 +481,25 @@ class StopTimesTable(pa.DataFrameModel):
             - 1: The stop is a timepoint
     """
 
-    trip_id: Series[str] = pa.Field(nullable=False, coerce=True)
-    stop_id: Series[str] = pa.Field(nullable=False, coerce=True)
-    stop_sequence: Series[int] = pa.Field(nullable=False, coerce=True, ge=0)
-    pickup_type: Series[Category] = pa.Field(
+    trip_id: Series[str] = Field(nullable=False, coerce=True)
+    stop_id: Series[str] = Field(nullable=False, coerce=True)
+    stop_sequence: Series[int] = Field(nullable=False, coerce=True, ge=0)
+    pickup_type: Series[Category] = Field(
         dtype_kwargs={"categories": PickupDropoffType},
         nullable=True,
         coerce=True,
     )
-    drop_off_type: Series[Category] = pa.Field(
+    drop_off_type: Series[Category] = Field(
         dtype_kwargs={"categories": PickupDropoffType},
         nullable=True,
         coerce=True,
     )
-    arrival_time: Series[TimeString] = pa.Field(nullable=True, coerce=True)
-    departure_time: Series[TimeString] = pa.Field(nullable=True, coerce=True)
+    arrival_time: Series[pa.Timestamp] = Field(nullable=True, default=pd.NaT, coerce=True)
+    departure_time: Series[pa.Timestamp] = Field(nullable=True, default=pd.NaT, coerce=True)
 
     # Optional
-    shape_dist_traveled: Optional[Series[float]] = pa.Field(coerce=True, nullable=True, ge=0)
-    timepoint: Optional[Series[Category]] = pa.Field(
+    shape_dist_traveled: Optional[Series[float]] = Field(coerce=True, nullable=True, ge=0)
+    timepoint: Optional[Series[Category]] = Field(
         dtype_kwargs={"categories": TimepointType}, coerce=True, default=0
     )
 
@@ -518,6 +515,17 @@ class StopTimesTable(pa.DataFrameModel):
         }
 
         unique: ClassVar[list[str]] = ["trip_id", "stop_sequence"]
+
+    @pa.dataframe_parser
+    def parse_times(cls, df):
+        """Parse time strings to timestamps."""
+        # Convert string times to timestamps
+        if "arrival_time" in df.columns and "departure_time" in df.columns:
+            # Convert string times to timestamps using str_to_time_series
+            df["arrival_time"] = str_to_time_series(df["arrival_time"])
+            df["departure_time"] = str_to_time_series(df["departure_time"])
+
+        return df
 
 
 class WranglerStopTimesTable(StopTimesTable):
@@ -541,8 +549,6 @@ class WranglerStopTimesTable(StopTimesTable):
             - 1: No drop off available
             - 2: Must phone agency to arrange drop off
             - 3: Must coordinate with driver to arrange drop off
-        arrival_time (datetime.datetime): The arrival time in datetime format.
-        departure_time (datetime.datetime): The departure time in datetime format.
         shape_dist_traveled (Optional[float]): The shape distance traveled.
         timepoint (Optional[TimepointType]): The timepoint type. Values can be:
             - 0: The stop is not a timepoint
@@ -550,40 +556,10 @@ class WranglerStopTimesTable(StopTimesTable):
         projects (str): A comma-separated string value for projects that have been applied to this stop.
     """
 
-    stop_id: Series[int] = pa.Field(nullable=False, coerce=True, description="The model_node_id.")
-    arrival_time: Series[Timestamp] = pa.Field(nullable=True, default=pd.NaT, coerce=False)
-    departure_time: Series[Timestamp] = pa.Field(nullable=True, default=pd.NaT, coerce=False)
-    projects: Series[str] = pa.Field(coerce=True, default="")
-
-    @pa.dataframe_parser
-    def parse_times(cls, df):
-        """Parse arrival and departure times.
-
-        - Check that all times are timestamps <24h.
-        - Check that arrival_time and departure_time are not both "00:00:00".  If so, set
-            them to NaT.
-
-        """
-        # if arrival_time and departure_time are not set or are both set to "00:00:00", set them to NaT
-        if "arrival_time" not in df.columns:
-            df["arrival_time"] = pd.NaT
-        if "departure_time" not in df.columns:
-            df["departure_time"] = pd.NaT
-        msg = f"stop_times before parsing: \n {df[['arrival_time', 'departure_time']]}"
-        # WranglerLogger.debug(msg)
-        filler_timestrings = (df["arrival_time"] == Timestamp("00:00:00")) & (
-            df["departure_time"] == Timestamp("00:00:00")
-        )
-
-        df.loc[filler_timestrings, "arrival_time"] = pd.NaT
-        df.loc[filler_timestrings, "departure_time"] = pd.NaT
-        msg = f"stop_times after filling with NaT: \n {df[['arrival_time', 'departure_time']]}"
-        # WranglerLogger.debug(msg)
-        df["arrival_time"] = str_to_time_series(df["arrival_time"])
-        df["departure_time"] = str_to_time_series(df["departure_time"])
-        msg = f"stop_times after parsing: \n{df[['arrival_time', 'departure_time']]}"
-        # WranglerLogger.debug(msg)
-        return df
+    stop_id: Series[int] = Field(nullable=False, coerce=True, description="The model_node_id.")
+    projects: Series[str] = Field(coerce=True, default="")
+    arrival_time: Series[pa.Timestamp] = Field(nullable=True, default=pd.NaT, coerce=True)
+    departure_time: Series[pa.Timestamp] = Field(nullable=True, default=pd.NaT, coerce=True)
 
     class Config:
         """Config for the StopTimesTable data model."""
@@ -597,3 +573,14 @@ class WranglerStopTimesTable(StopTimesTable):
         }
 
         unique: ClassVar[list[str]] = ["trip_id", "stop_sequence"]
+
+    @pa.dataframe_parser
+    def parse_times(cls, df):
+        """Parse time strings to timestamps."""
+        # Convert string times to timestamps
+        if "arrival_time" in df.columns and "departure_time" in df.columns:
+            # Convert string times to timestamps using str_to_time_series
+            df["arrival_time"] = str_to_time_series(df["arrival_time"])
+            df["departure_time"] = str_to_time_series(df["departure_time"])
+
+        return df

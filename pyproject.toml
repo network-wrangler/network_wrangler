@@ -24,21 +24,21 @@ classifiers = [
     "Programming Language :: Python :: 3",
 ]
 dependencies = [
-    "fiona",
-    "geographiclib",
-    "geojson",
-    "geopandas >= 1.0.1",
-    "ijson",
-    "osmnx >= 0.12",
-    "pandas >= 1.6",
-    "pandera[geopandas] >= 0.19.0",
-    "projectcard >= 0.3.3",
-    "psutil",
-    "pyarrow",
-    "pydantic >= 2",
-    "pyogrio",
-    "pyyaml",
-    "typing-extensions"
+    "fiona>=1.10.1",
+    "geographiclib>=2.0",
+    "geojson>=3.1.0",
+    "geopandas>=1.0.1",
+    "ijson>=3.3.0",
+    "osmnx>=1.9.3",
+    "pandas>=2.2.3",
+    "pandera[pandas,geopandas]>=0.24.0",
+    "projectcard>=0.3.3",
+    "psutil>=6.0.0",
+    "pyarrow>=17.0.0",
+    "pydantic>=2.9.2",
+    "pyogrio>=0.9.0",
+    "pyyaml>=6.0.2",
+    "typing-extensions>=4.12.2"
 ]
 
 [project.optional-dependencies]
@@ -133,7 +133,9 @@ ignore = [
     "UP007", # non pep-604 annotations.
     "C416", # non pep-604 annotations.
     "UP007", # non pep-604 annotations.
-    "PLR0913" # too many args
+    "PLR0913", # too many args
+    "UP045", # Use `X | None` for type annotations
+    "UP006", # Use `list` instead of `List` for type annotation
 ]
 extend-select = [
   "B",           # flake8-bugbear
