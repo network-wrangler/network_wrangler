@@ -494,8 +494,8 @@ class StopTimesTable(DataFrameModel):
         nullable=True,
         coerce=True,
     )
-    arrival_time: Series[TimeString] = Field(nullable=True, coerce=True)
-    departure_time: Series[TimeString] = Field(nullable=True, coerce=True)
+    arrival_time: Series[pa.Timestamp] = Field(nullable=True, default=pd.NaT, coerce=True)
+    departure_time: Series[pa.Timestamp] = Field(nullable=True, default=pd.NaT, coerce=True)
 
     # Optional
     shape_dist_traveled: Optional[Series[float]] = Field(coerce=True, nullable=True, ge=0)
@@ -515,6 +515,17 @@ class StopTimesTable(DataFrameModel):
         }
 
         unique: ClassVar[list[str]] = ["trip_id", "stop_sequence"]
+
+    @pa.dataframe_parser
+    def parse_times(cls, df):
+        """Parse time strings to timestamps."""
+        # Convert string times to timestamps
+        if "arrival_time" in df.columns and "departure_time" in df.columns:
+            # Convert string times to timestamps using str_to_time_series
+            df["arrival_time"] = str_to_time_series(df["arrival_time"])
+            df["departure_time"] = str_to_time_series(df["departure_time"])
+
+        return df
 
 
 class WranglerStopTimesTable(StopTimesTable):
@@ -538,8 +549,6 @@ class WranglerStopTimesTable(StopTimesTable):
             - 1: No drop off available
             - 2: Must phone agency to arrange drop off
             - 3: Must coordinate with driver to arrange drop off
-        arrival_time (datetime.datetime): The arrival time in datetime format.
-        departure_time (datetime.datetime): The departure time in datetime format.
         shape_dist_traveled (Optional[float]): The shape distance traveled.
         timepoint (Optional[TimepointType]): The timepoint type. Values can be:
             - 0: The stop is not a timepoint
@@ -548,39 +557,9 @@ class WranglerStopTimesTable(StopTimesTable):
     """
 
     stop_id: Series[int] = Field(nullable=False, coerce=True, description="The model_node_id.")
-    arrival_time: Series[Timestamp] = Field(nullable=True, default=pd.NaT, coerce=False)
-    departure_time: Series[Timestamp] = Field(nullable=True, default=pd.NaT, coerce=False)
     projects: Series[str] = Field(coerce=True, default="")
-
-    @pa.dataframe_parser
-    def parse_times(cls, df):
-        """Parse arrival and departure times.
-
-        - Check that all times are timestamps <24h.
-        - Check that arrival_time and departure_time are not both "00:00:00".  If so, set
-            them to NaT.
-
-        """
-        # if arrival_time and departure_time are not set or are both set to "00:00:00", set them to NaT
-        if "arrival_time" not in df.columns:
-            df["arrival_time"] = pd.NaT
-        if "departure_time" not in df.columns:
-            df["departure_time"] = pd.NaT
-        msg = f"stop_times before parsing: \n {df[['arrival_time', 'departure_time']]}"
-        # WranglerLogger.debug(msg)
-        filler_timestrings = (df["arrival_time"] == Timestamp("00:00:00")) & (
-            df["departure_time"] == Timestamp("00:00:00")
-        )
-
-        df.loc[filler_timestrings, "arrival_time"] = pd.NaT
-        df.loc[filler_timestrings, "departure_time"] = pd.NaT
-        msg = f"stop_times after filling with NaT: \n {df[['arrival_time', 'departure_time']]}"
-        # WranglerLogger.debug(msg)
-        df["arrival_time"] = str_to_time_series(df["arrival_time"])
-        df["departure_time"] = str_to_time_series(df["departure_time"])
-        msg = f"stop_times after parsing: \n{df[['arrival_time', 'departure_time']]}"
-        # WranglerLogger.debug(msg)
-        return df
+    arrival_time: Series[pa.Timestamp] = Field(nullable=True, default=pd.NaT, coerce=True)
+    departure_time: Series[pa.Timestamp] = Field(nullable=True, default=pd.NaT, coerce=True)
 
     class Config:
         """Config for the StopTimesTable data model."""
@@ -594,3 +573,14 @@ class WranglerStopTimesTable(StopTimesTable):
         }
 
         unique: ClassVar[list[str]] = ["trip_id", "stop_sequence"]
+
+    @pa.dataframe_parser
+    def parse_times(cls, df):
+        """Parse time strings to timestamps."""
+        # Convert string times to timestamps
+        if "arrival_time" in df.columns and "departure_time" in df.columns:
+            # Convert string times to timestamps using str_to_time_series
+            df["arrival_time"] = str_to_time_series(df["arrival_time"])
+            df["departure_time"] = str_to_time_series(df["departure_time"])
+
+        return df

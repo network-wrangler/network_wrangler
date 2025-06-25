@@ -1,4 +1,5 @@
 """Pandas accessor for computing hash of dataframe values."""
+
 import hashlib
 
 import pandas as pd
