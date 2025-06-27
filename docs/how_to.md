@@ -138,3 +138,68 @@
 {!
   include-markdown("https://raw.githubusercontent.com/network-wrangler/projectcard/refs/heads/main/docs/how-to.md")
 !}
+
+## How to make co-dependent roadway and transit networks routing changes
+
+When deleting roadways breaks existing transit routes, users must fix the route shapes as part of the roadway deletion project card. This involves a sequence of steps: first, adding new roadways to fix the broken shapes, then updating the affected transit routes, and finally, proceeding with the roadway deletion.
+
+!!! example "make co-dependent roadway and transit networks routing changes"
+
+    ```python
+    project: add and delete roadway for transit
+    tags: []
+    dependencies: {}
+    changes:
+    - roadway_addition:
+        links:
+        - A: 53282
+          B: 354063
+          model_link_id: 900000
+          lanes: 1
+          name: Smith Avenue South
+          drive_access: 1
+          walk_access: 1
+          bike_access: 1
+          bus_only: 0
+          rail_only: 0
+          roadway: primary
+        - A: 354063
+          B: 53282
+          model_link_id: 900001
+          lanes: 1
+          name: Smith Avenue South
+          drive_access: 1
+          walk_access: 1
+          bike_access: 1
+          bus_only: 0
+          rail_only: 0
+          roadway: primary
+        nodes:
+        - model_node_id: 354063
+          X: -93.1016
+          Y: 44.9222
+    - transit_routing_change:
+        service:
+          trip_properties:
+            route_id:
+            - 417-111
+            direction_id: 0
+        routing:
+          existing:
+          - -57637
+          - -53282
+          - -57636
+          set:
+          - -57637
+          - -53282
+          - -354063
+          - -57636
+    - roadway_deletion:
+        links:
+          model_link_id:
+            - 394014
+            - 394829
+          modes:
+            - "any"
+          ignore_missing: False
+    ```
