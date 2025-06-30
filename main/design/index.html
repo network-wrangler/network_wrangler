@@ -388,7 +388,7 @@
 <p><strong>4.<a href="https://network-wrangler.github.io/projectcard/main/api/#projectcard.projectcard.ProjectCard"><code>ProjectCard</code></a></strong> objects store information (including  metadata) about changes to the network.  Network Wrangler uses the <a href="https://network-wrangler.github.io/projectcard"><code>projectcard</code></a> package to read project cards from .yaml-like files and validate them.</p>
 <h2 id="applying-projects">Applying Projects<a class="headerlink" href="#applying-projects" title="Permanent link"> ¶</a></h2>
 <p>The basic functionality of NetworkWrangler is to apply a set of projects to a scenario.</p>
-<div class="language-python highlight"><pre><span></span><code><span id="__span-0-1"><a href="#__codelineno-0-1" id="__codelineno-0-1" name="__codelineno-0-1"></a><span class="kn">from</span> <span class="nn">project_card</span> <span class="kn">import</span> <span class="n">read_cards</span>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-0-1"><a href="#__codelineno-0-1" id="__codelineno-0-1" name="__codelineno-0-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">project_card</span><span class="w"> </span><span class="kn">import</span> <span class="n">read_cards</span>
 </span><span id="__span-0-2"><a href="#__codelineno-0-2" id="__codelineno-0-2" name="__codelineno-0-2"></a><span class="n">cards</span> <span class="o">=</span> <span class="n">read_cards</span><span class="p">([</span>
 </span><span id="__span-0-3"><a href="#__codelineno-0-3" id="__codelineno-0-3" name="__codelineno-0-3"></a>    <span class="s2">"projects/project_a.yml"</span><span class="p">,</span>
 </span><span id="__span-0-4"><a href="#__codelineno-0-4" id="__codelineno-0-4" name="__codelineno-0-4"></a>    <span class="s2">"projects/project_b.yml"</span><span class="p">,</span>
@@ -459,7 +459,7 @@
 <tr class="doc-section-item">
 <td><code><span title="network_wrangler.models.roadway.types.ScopedLinkValueItem.`category`">`category`</span></code></td>
 <td>
-<code>str</code>
+<code><span title="str">str</span></code>
 </td>
 <td>
 <div class="doc-md-description">
@@ -472,7 +472,7 @@ reserved as the default category. Default is <code>DEFAULT_CATEGORY</code>, whic
 <tr class="doc-section-item">
 <td><code><span title="network_wrangler.models.roadway.types.ScopedLinkValueItem.`timespan`">`timespan`</span></code></td>
 <td>
-<code>list[<span title="network_wrangler.models._base.types.TimeString">TimeString</span>]</code>
+<code><span title="list">list</span>[<span title="network_wrangler.models._base.types.TimeString">TimeString</span>]</code>
 </td>
 <td>
 <div class="doc-md-description">
@@ -484,7 +484,7 @@ two HH:MM(:SS) strings. Default is <code>DEFAULT_TIMESPAN</code>, which is <code
 <tr class="doc-section-item">
 <td><code><span title="network_wrangler.models.roadway.types.ScopedLinkValueItem.`value`">`value`</span></code></td>
 <td>
-<code><span title="typing.Union">Union</span>[float, int, str]</code>
+<code><span title="typing.Union">Union</span>[<span title="float">float</span>, <span title="int">int</span>, <span title="str">str</span>]</code>
 </td>
 <td>
 <div class="doc-md-description">

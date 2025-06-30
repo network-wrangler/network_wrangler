@@ -807,7 +807,7 @@
 card can contain multiple changes, each of which is applied to the network in sequence.</p>
 <h4 id="network_wrangler.scenario--create-a-scenario">Create a Scenario<a class="headerlink" href="#network_wrangler.scenario--create-a-scenario" title="Permanent link"> ¶</a></h4>
 <p>Instantiate a scenario by seeding it with a base scenario and optionally some project cards.</p>
-<div class="language-python highlight"><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="kn">from</span> <span class="nn">network_wrangler</span> <span class="kn">import</span> <span class="n">create_scenario</span>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">network_wrangler</span><span class="w"> </span><span class="kn">import</span> <span class="n">create_scenario</span>
 </span><span id="__span-0-2"><a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>
 </span><span id="__span-0-3"><a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a><span class="n">my_scenario</span> <span class="o">=</span> <span class="n">create_scenario</span><span class="p">(</span>
 </span><span id="__span-0-4"><a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a>    <span class="n">base_scenario</span><span class="o">=</span><span class="n">my_base_year_scenario</span><span class="p">,</span>
@@ -835,7 +835,7 @@ card can contain multiple changes, each of which is applied to the network in se
 <h4 id="network_wrangler.scenario--add-projects-to-a-scenario">Add Projects to a Scenario<a class="headerlink" href="#network_wrangler.scenario--add-projects-to-a-scenario" title="Permanent link"> ¶</a></h4>
 <p>In addition to adding projects when you create the scenario, project cards can be <strong>added</strong> to a
 scenario using the <code>add_project_cards</code> method.</p>
-<div class="language-python highlight"><pre><span></span><code><span id="__span-2-1"><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a><span class="kn">from</span> <span class="nn">projectcard</span> <span class="kn">import</span> <span class="n">read_cards</span>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-2-1"><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">projectcard</span><span class="w"> </span><span class="kn">import</span> <span class="n">read_cards</span>
 </span><span id="__span-2-2"><a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a>
 </span><span id="__span-2-3"><a id="__codelineno-2-3" name="__codelineno-2-3" href="#__codelineno-2-3"></a><span class="n">project_card_dict</span> <span class="o">=</span> <span class="n">read_cards</span><span class="p">(</span><span class="n">card_location</span><span class="p">,</span> <span class="n">filter_tags</span><span class="o">=</span><span class="p">[</span><span class="s2">&quot;Baseline2030&quot;</span><span class="p">],</span> <span class="n">recursive</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
 </span><span id="__span-2-4"><a id="__codelineno-2-4" name="__codelineno-2-4" href="#__codelineno-2-4"></a><span class="n">my_scenario</span><span class="o">.</span><span class="n">add_project_cards</span><span class="p">(</span><span class="n">project_card_dict</span><span class="o">.</span><span class="n">values</span><span class="p">())</span>
@@ -916,7 +916,7 @@ a yaml-like file and can also write out the project cards that have been applied
 </details>
 <h4 id="network_wrangler.scenario--load-a-scenario-from-disk">Load a scenario from disk<a class="headerlink" href="#network_wrangler.scenario--load-a-scenario-from-disk" title="Permanent link"> ¶</a></h4>
 <p>And if you want to reload scenario that you &ldquo;wrote&rdquo;, you can use the <code>load_scenario</code> function.</p>
-<div class="language-python highlight"><pre><span></span><code><span id="__span-7-1"><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a><span class="kn">from</span> <span class="nn">network_wrangler</span> <span class="kn">import</span> <span class="n">load_scenario</span>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-7-1"><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">network_wrangler</span><span class="w"> </span><span class="kn">import</span> <span class="n">load_scenario</span>
 </span><span id="__span-7-2"><a id="__codelineno-7-2" name="__codelineno-7-2" href="#__codelineno-7-2"></a>
 </span><span id="__span-7-3"><a id="__codelineno-7-3" name="__codelineno-7-3" href="#__codelineno-7-3"></a><span class="n">my_scenario</span> <span class="o">=</span> <span class="n">load_scenario</span><span class="p">(</span><span class="s2">&quot;output_dir/scenario_name_to_use_scenario.yml&quot;</span><span class="p">)</span>
 </span></code></pre></div>
@@ -959,7 +959,7 @@ a yaml-like file and can also write out the project cards that have been applied
 
 <details class="usage" open>
   <summary>Usage</summary>
-  <div class="language-python highlight"><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>    <span class="kn">from</span> <span class="nn">scenario</span> <span class="kn">import</span> <span class="n">build_scenario_from_config</span>
+  <div class="language-python highlight"><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>    <span class="kn">from</span><span class="w"> </span><span class="nn">scenario</span><span class="w"> </span><span class="kn">import</span> <span class="n">build_scenario_from_config</span>
 </span><span id="__span-0-2"><a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>    <span class="n">my_scenario</span> <span class="o">=</span> <span class="n">build_scenario_from_config</span><span class="p">(</span><span class="n">my_scenario_config</span><span class="p">)</span>
 </span></code></pre></div>
 <p>Where <code>my_scenario_config</code> can be a:</p>
@@ -1019,7 +1019,7 @@ a yaml-like file and can also write out the project cards that have been applied
 <details class="extended-usage" open>
   <summary>Extended Usage</summary>
   <p>Load a configuration from a file:</p>
-<div class="language-python highlight"><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="kn">from</span> <span class="nn">network_wrangler.configs</span> <span class="kn">import</span> <span class="n">load_scenario_config</span>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">network_wrangler.configs</span><span class="w"> </span><span class="kn">import</span> <span class="n">load_scenario_config</span>
 </span><span id="__span-0-2"><a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>
 </span><span id="__span-0-3"><a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a><span class="n">my_scenario_config</span> <span class="o">=</span> <span class="n">load_scenario_config</span><span class="p">(</span><span class="s2">&quot;path/to/config.yaml&quot;</span><span class="p">)</span>
 </span></code></pre></div>
@@ -1114,20 +1114,20 @@ RoadwayNetwork.</p>
 <details class="extended-usage" open>
   <summary>Extended usage</summary>
   <p>Load the default configuration:</p>
-<div class="language-python highlight"><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="kn">from</span> <span class="nn">network_wrangler.configs</span> <span class="kn">import</span> <span class="n">DefaultConfig</span>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">network_wrangler.configs</span><span class="w"> </span><span class="kn">import</span> <span class="n">DefaultConfig</span>
 </span></code></pre></div>
 <p>Access the configuration:</p>
-<div class="language-python highlight"><pre><span></span><code><span id="__span-1-1"><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="kn">from</span> <span class="nn">network_wrangler.configs</span> <span class="kn">import</span> <span class="n">DefaultConfig</span>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-1-1"><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">network_wrangler.configs</span><span class="w"> </span><span class="kn">import</span> <span class="n">DefaultConfig</span>
 </span><span id="__span-1-2"><a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a><span class="n">DefaultConfig</span><span class="o">.</span><span class="n">MODEL_ROADWAY</span><span class="o">.</span><span class="n">ML_OFFSET_METERS</span>
 </span><span id="__span-1-3"><a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a><span class="o">&gt;&gt;</span> <span class="o">-</span><span class="mi">10</span>
 </span></code></pre></div>
 <p>Modify the default configuration in-line:</p>
-<div class="language-python highlight"><pre><span></span><code><span id="__span-2-1"><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a><span class="kn">from</span> <span class="nn">network_wrangler.configs</span> <span class="kn">import</span> <span class="n">DefaultConfig</span>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-2-1"><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">network_wrangler.configs</span><span class="w"> </span><span class="kn">import</span> <span class="n">DefaultConfig</span>
 </span><span id="__span-2-2"><a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a>
 </span><span id="__span-2-3"><a id="__codelineno-2-3" name="__codelineno-2-3" href="#__codelineno-2-3"></a><span class="n">DefaultConfig</span><span class="o">.</span><span class="n">MODEL_ROADWAY</span><span class="o">.</span><span class="n">ML_OFFSET_METERS</span> <span class="o">=</span> <span class="mi">20</span>
 </span></code></pre></div>
 <p>Load a configuration from a file:</p>
-<div class="language-python highlight"><pre><span></span><code><span id="__span-3-1"><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a><span class="kn">from</span> <span class="nn">network_wrangler.configs</span> <span class="kn">import</span> <span class="n">load_wrangler_config</span>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-3-1"><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">network_wrangler.configs</span><span class="w"> </span><span class="kn">import</span> <span class="n">load_wrangler_config</span>
 </span><span id="__span-3-2"><a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a>
 </span><span id="__span-3-3"><a id="__codelineno-3-3" name="__codelineno-3-3" href="#__codelineno-3-3"></a><span class="n">config</span> <span class="o">=</span> <span class="n">load_wrangler_config</span><span class="p">(</span><span class="s2">&quot;path/to/config.yaml&quot;</span><span class="p">)</span>
 </span></code></pre></div>
@@ -1159,7 +1159,7 @@ RoadwayNetwork.</p>
 
     <div class="doc doc-contents ">
             <p class="doc doc-class-bases">
-              Bases: <code><a class="autorefs autorefs-internal" title="network_wrangler.configs.utils.ConfigItem" href="../api/#network_wrangler.configs.utils.ConfigItem">ConfigItem</a></code></p>
+              Bases: <code><a class="autorefs autorefs-internal" title="ConfigItem (network_wrangler.configs.utils.ConfigItem)" href="../api/#network_wrangler.configs.utils.ConfigItem">ConfigItem</a></code></p>
 
 
       <p>CPU Configuration -  Will not change any outcomes.</p>
@@ -1178,7 +1178,7 @@ RoadwayNetwork.</p>
           <tr class="doc-section-item">
             <td><code><span title="network_wrangler.configs.wrangler.CpuConfig.EST_PD_READ_SPEED">EST_PD_READ_SPEED</span></code></td>
             <td>
-                  <code>dict[str, float]</code>
+                  <code><span title="dict">dict</span>[<span title="str">str</span>, <span title="float">float</span>]</code>
             </td>
             <td>
               <div class="doc-md-description">
@@ -1208,7 +1208,7 @@ RoadwayNetwork.</p>
 <span class="normal"><a href="#__codelineno-0-205">205</a></span>
 <span class="normal"><a href="#__codelineno-0-206">206</a></span>
 <span class="normal"><a href="#__codelineno-0-207">207</a></span></pre></div></td><td class="code"><div><pre><span></span><code><span id="__span-0-191"><a id="__codelineno-0-191" name="__codelineno-0-191"></a><span class="nd">@dataclass</span>
-</span><span id="__span-0-192"><a id="__codelineno-0-192" name="__codelineno-0-192"></a><span class="k">class</span> <span class="nc">CpuConfig</span><span class="p">(</span><span class="n">ConfigItem</span><span class="p">):</span>
+</span><span id="__span-0-192"><a id="__codelineno-0-192" name="__codelineno-0-192"></a><span class="k">class</span><span class="w"> </span><span class="nc">CpuConfig</span><span class="p">(</span><span class="n">ConfigItem</span><span class="p">):</span>
 </span><span id="__span-0-193"><a id="__codelineno-0-193" name="__codelineno-0-193"></a><span class="w">    </span><span class="sd">&quot;&quot;&quot;CPU Configuration -  Will not change any outcomes.</span>
 </span><span id="__span-0-194"><a id="__codelineno-0-194" name="__codelineno-0-194"></a>
 </span><span id="__span-0-195"><a id="__codelineno-0-195" name="__codelineno-0-195"></a><span class="sd">    Attributes:</span>
@@ -1260,7 +1260,7 @@ RoadwayNetwork.</p>
 
     <div class="doc doc-contents ">
             <p class="doc doc-class-bases">
-              Bases: <code><a class="autorefs autorefs-internal" title="network_wrangler.configs.utils.ConfigItem" href="../api/#network_wrangler.configs.utils.ConfigItem">ConfigItem</a></code></p>
+              Bases: <code><a class="autorefs autorefs-internal" title="ConfigItem (network_wrangler.configs.utils.ConfigItem)" href="../api/#network_wrangler.configs.utils.ConfigItem">ConfigItem</a></code></p>
 
 
       <p>Configuration for Edits.</p>
@@ -1335,7 +1335,7 @@ by setting <code>overwrite_scoped</code> in a <code>roadway_property_change</cod
 <span class="normal"><a href="#__codelineno-0-131">131</a></span>
 <span class="normal"><a href="#__codelineno-0-132">132</a></span>
 <span class="normal"><a href="#__codelineno-0-133">133</a></span></pre></div></td><td class="code"><div><pre><span></span><code><span id="__span-0-112"><a id="__codelineno-0-112" name="__codelineno-0-112"></a><span class="nd">@dataclass</span>
-</span><span id="__span-0-113"><a id="__codelineno-0-113" name="__codelineno-0-113"></a><span class="k">class</span> <span class="nc">EditsConfig</span><span class="p">(</span><span class="n">ConfigItem</span><span class="p">):</span>
+</span><span id="__span-0-113"><a id="__codelineno-0-113" name="__codelineno-0-113"></a><span class="k">class</span><span class="w"> </span><span class="nc">EditsConfig</span><span class="p">(</span><span class="n">ConfigItem</span><span class="p">):</span>
 </span><span id="__span-0-114"><a id="__codelineno-0-114" name="__codelineno-0-114"></a><span class="w">    </span><span class="sd">&quot;&quot;&quot;Configuration for Edits.</span>
 </span><span id="__span-0-115"><a id="__codelineno-0-115" name="__codelineno-0-115"></a>
 </span><span id="__span-0-116"><a id="__codelineno-0-116" name="__codelineno-0-116"></a><span class="sd">    Attributes:</span>
@@ -1392,7 +1392,7 @@ by setting <code>overwrite_scoped</code> in a <code>roadway_property_change</cod
 
     <div class="doc doc-contents ">
             <p class="doc doc-class-bases">
-              Bases: <code><a class="autorefs autorefs-internal" title="network_wrangler.configs.utils.ConfigItem" href="../api/#network_wrangler.configs.utils.ConfigItem">ConfigItem</a></code></p>
+              Bases: <code><a class="autorefs autorefs-internal" title="ConfigItem (network_wrangler.configs.utils.ConfigItem)" href="../api/#network_wrangler.configs.utils.ConfigItem">ConfigItem</a></code></p>
 
 
       <p>Model Roadway Configuration.</p>
@@ -1423,7 +1423,7 @@ Should be &ldquo;scalar&rdquo;.</p>
           <tr class="doc-section-item">
             <td><code><span title="network_wrangler.configs.wrangler.IdGenerationConfig.TRANSIT_SHAPE_ID_SCALAR">TRANSIT_SHAPE_ID_SCALAR</span></code></td>
             <td>
-                  <code>int</code>
+                  <code><span title="int">int</span></code>
             </td>
             <td>
               <div class="doc-md-description">
@@ -1447,7 +1447,7 @@ Should be &ldquo;scalar&rdquo;.</p>
           <tr class="doc-section-item">
             <td><code><span title="network_wrangler.configs.wrangler.IdGenerationConfig.ROAD_SHAPE_ID_SCALAR">ROAD_SHAPE_ID_SCALAR</span></code></td>
             <td>
-                  <code>int</code>
+                  <code><span title="int">int</span></code>
             </td>
             <td>
               <div class="doc-md-description">
@@ -1471,7 +1471,7 @@ link for a parallel managed lane.</p>
           <tr class="doc-section-item">
             <td><code><span title="network_wrangler.configs.wrangler.IdGenerationConfig.ML_LINK_ID_RANGE">ML_LINK_ID_RANGE</span></code></td>
             <td>
-                  <code>tuple[int, int]</code>
+                  <code><span title="tuple">tuple</span>[<span title="int">int</span>, <span title="int">int</span>]</code>
             </td>
             <td>
               <div class="doc-md-description">
@@ -1483,7 +1483,7 @@ link for a parallel managed lane.</p>
           <tr class="doc-section-item">
             <td><code><span title="network_wrangler.configs.wrangler.IdGenerationConfig.ML_LINK_ID_SCALAR">ML_LINK_ID_SCALAR</span></code></td>
             <td>
-                  <code>int</code>
+                  <code><span title="int">int</span></code>
             </td>
             <td>
               <div class="doc-md-description">
@@ -1507,7 +1507,7 @@ for a parallel managed lane.</p>
           <tr class="doc-section-item">
             <td><code><span title="network_wrangler.configs.wrangler.IdGenerationConfig.ML_NODE_ID_RANGE">ML_NODE_ID_RANGE</span></code></td>
             <td>
-                  <code>tuple[int, int]</code>
+                  <code><span title="tuple">tuple</span>[<span title="int">int</span>, <span title="int">int</span>]</code>
             </td>
             <td>
               <div class="doc-md-description">
@@ -1519,7 +1519,7 @@ node for a parallel managed lane.</p>
           <tr class="doc-section-item">
             <td><code><span title="network_wrangler.configs.wrangler.IdGenerationConfig.ML_NODE_ID_SCALAR">ML_NODE_ID_SCALAR</span></code></td>
             <td>
-                  <code>int</code>
+                  <code><span title="int">int</span></code>
             </td>
             <td>
               <div class="doc-md-description">
@@ -1570,7 +1570,7 @@ a model_node_id when creating an associated nodes for parallel managed lane.</p>
 <span class="normal"><a href="#__codelineno-0-170">170</a></span>
 <span class="normal"><a href="#__codelineno-0-171">171</a></span>
 <span class="normal"><a href="#__codelineno-0-172">172</a></span></pre></div></td><td class="code"><div><pre><span></span><code><span id="__span-0-136"><a id="__codelineno-0-136" name="__codelineno-0-136"></a><span class="nd">@dataclass</span>
-</span><span id="__span-0-137"><a id="__codelineno-0-137" name="__codelineno-0-137"></a><span class="k">class</span> <span class="nc">IdGenerationConfig</span><span class="p">(</span><span class="n">ConfigItem</span><span class="p">):</span>
+</span><span id="__span-0-137"><a id="__codelineno-0-137" name="__codelineno-0-137"></a><span class="k">class</span><span class="w"> </span><span class="nc">IdGenerationConfig</span><span class="p">(</span><span class="n">ConfigItem</span><span class="p">):</span>
 </span><span id="__span-0-138"><a id="__codelineno-0-138" name="__codelineno-0-138"></a><span class="w">    </span><span class="sd">&quot;&quot;&quot;Model Roadway Configuration.</span>
 </span><span id="__span-0-139"><a id="__codelineno-0-139" name="__codelineno-0-139"></a>
 </span><span id="__span-0-140"><a id="__codelineno-0-140" name="__codelineno-0-140"></a><span class="sd">    Attributes:</span>
@@ -1642,7 +1642,7 @@ a model_node_id when creating an associated nodes for parallel managed lane.</p>
 
     <div class="doc doc-contents ">
             <p class="doc doc-class-bases">
-              Bases: <code><a class="autorefs autorefs-internal" title="network_wrangler.configs.utils.ConfigItem" href="../api/#network_wrangler.configs.utils.ConfigItem">ConfigItem</a></code></p>
+              Bases: <code><a class="autorefs autorefs-internal" title="ConfigItem (network_wrangler.configs.utils.ConfigItem)" href="../api/#network_wrangler.configs.utils.ConfigItem">ConfigItem</a></code></p>
 
 
       <p>Model Roadway Configuration.</p>
@@ -1661,7 +1661,7 @@ a model_node_id when creating an associated nodes for parallel managed lane.</p>
           <tr class="doc-section-item">
             <td><code><span title="network_wrangler.configs.wrangler.ModelRoadwayConfig.ML_OFFSET_METERS">ML_OFFSET_METERS</span></code></td>
             <td>
-                  <code>int</code>
+                  <code><span title="int">int</span></code>
             </td>
             <td>
               <div class="doc-md-description">
@@ -1672,7 +1672,7 @@ a model_node_id when creating an associated nodes for parallel managed lane.</p>
           <tr class="doc-section-item">
             <td><code><span title="network_wrangler.configs.wrangler.ModelRoadwayConfig.ADDITIONAL_COPY_FROM_GP_TO_ML">ADDITIONAL_COPY_FROM_GP_TO_ML</span></code></td>
             <td>
-                  <code>list[str]</code>
+                  <code><span title="list">list</span>[<span title="str">str</span>]</code>
             </td>
             <td>
               <div class="doc-md-description">
@@ -1684,7 +1684,7 @@ lanes.</p>
           <tr class="doc-section-item">
             <td><code><span title="network_wrangler.configs.wrangler.ModelRoadwayConfig.ADDITIONAL_COPY_TO_ACCESS_EGRESS">ADDITIONAL_COPY_TO_ACCESS_EGRESS</span></code></td>
             <td>
-                  <code>list[str]</code>
+                  <code><span title="list">list</span>[<span title="str">str</span>]</code>
             </td>
             <td>
               <div class="doc-md-description">
@@ -1711,7 +1711,7 @@ lanes.</p>
 <span class="normal"><a href="#__codelineno-0-186">186</a></span>
 <span class="normal"><a href="#__codelineno-0-187">187</a></span>
 <span class="normal"><a href="#__codelineno-0-188">188</a></span></pre></div></td><td class="code"><div><pre><span></span><code><span id="__span-0-175"><a id="__codelineno-0-175" name="__codelineno-0-175"></a><span class="nd">@dataclass</span>
-</span><span id="__span-0-176"><a id="__codelineno-0-176" name="__codelineno-0-176"></a><span class="k">class</span> <span class="nc">ModelRoadwayConfig</span><span class="p">(</span><span class="n">ConfigItem</span><span class="p">):</span>
+</span><span id="__span-0-176"><a id="__codelineno-0-176" name="__codelineno-0-176"></a><span class="k">class</span><span class="w"> </span><span class="nc">ModelRoadwayConfig</span><span class="p">(</span><span class="n">ConfigItem</span><span class="p">):</span>
 </span><span id="__span-0-177"><a id="__codelineno-0-177" name="__codelineno-0-177"></a><span class="w">    </span><span class="sd">&quot;&quot;&quot;Model Roadway Configuration.</span>
 </span><span id="__span-0-178"><a id="__codelineno-0-178" name="__codelineno-0-178"></a>
 </span><span id="__span-0-179"><a id="__codelineno-0-179" name="__codelineno-0-179"></a><span class="sd">    Attributes:</span>
@@ -1760,7 +1760,7 @@ lanes.</p>
 
     <div class="doc doc-contents ">
             <p class="doc doc-class-bases">
-              Bases: <code><a class="autorefs autorefs-internal" title="network_wrangler.configs.utils.ConfigItem" href="../api/#network_wrangler.configs.utils.ConfigItem">ConfigItem</a></code></p>
+              Bases: <code><a class="autorefs autorefs-internal" title="ConfigItem (network_wrangler.configs.utils.ConfigItem)" href="../api/#network_wrangler.configs.utils.ConfigItem">ConfigItem</a></code></p>
 
 
       <p>Configuration for Network Wrangler.</p>
@@ -1779,7 +1779,7 @@ lanes.</p>
           <tr class="doc-section-item">
             <td><code><span title="network_wrangler.configs.wrangler.WranglerConfig.IDS">IDS</span></code></td>
             <td>
-                  <code><a class="autorefs autorefs-internal" title="network_wrangler.configs.wrangler.IdGenerationConfig" href="../api/#network_wrangler.configs.wrangler.IdGenerationConfig">IdGenerationConfig</a></code>
+                  <code><a class="autorefs autorefs-internal" title="IdGenerationConfig (network_wrangler.configs.wrangler.IdGenerationConfig)" href="../api/#network_wrangler.configs.wrangler.IdGenerationConfig">IdGenerationConfig</a></code>
             </td>
             <td>
               <div class="doc-md-description">
@@ -1790,7 +1790,7 @@ lanes.</p>
           <tr class="doc-section-item">
             <td><code><span title="network_wrangler.configs.wrangler.WranglerConfig.MODEL_ROADWAY">MODEL_ROADWAY</span></code></td>
             <td>
-                  <code><a class="autorefs autorefs-internal" title="network_wrangler.configs.wrangler.ModelRoadwayConfig" href="../api/#network_wrangler.configs.wrangler.ModelRoadwayConfig">ModelRoadwayConfig</a></code>
+                  <code><a class="autorefs autorefs-internal" title="ModelRoadwayConfig (network_wrangler.configs.wrangler.ModelRoadwayConfig)" href="../api/#network_wrangler.configs.wrangler.ModelRoadwayConfig">ModelRoadwayConfig</a></code>
             </td>
             <td>
               <div class="doc-md-description">
@@ -1801,7 +1801,7 @@ lanes.</p>
           <tr class="doc-section-item">
             <td><code><span title="network_wrangler.configs.wrangler.WranglerConfig.CPU">CPU</span></code></td>
             <td>
-                  <code><a class="autorefs autorefs-internal" title="network_wrangler.configs.wrangler.CpuConfig" href="../api/#network_wrangler.configs.wrangler.CpuConfig">CpuConfig</a></code>
+                  <code><a class="autorefs autorefs-internal" title="CpuConfig (network_wrangler.configs.wrangler.CpuConfig)" href="../api/#network_wrangler.configs.wrangler.CpuConfig">CpuConfig</a></code>
             </td>
             <td>
               <div class="doc-md-description">
@@ -1812,7 +1812,7 @@ lanes.</p>
           <tr class="doc-section-item">
             <td><code><span title="network_wrangler.configs.wrangler.WranglerConfig.EDITS">EDITS</span></code></td>
             <td>
-                  <code><a class="autorefs autorefs-internal" title="network_wrangler.configs.wrangler.EditsConfig" href="../api/#network_wrangler.configs.wrangler.EditsConfig">EditsConfig</a></code>
+                  <code><a class="autorefs autorefs-internal" title="EditsConfig (network_wrangler.configs.wrangler.EditsConfig)" href="../api/#network_wrangler.configs.wrangler.EditsConfig">EditsConfig</a></code>
             </td>
             <td>
               <div class="doc-md-description">
@@ -1840,7 +1840,7 @@ lanes.</p>
 <span class="normal"><a href="#__codelineno-0-222">222</a></span>
 <span class="normal"><a href="#__codelineno-0-223">223</a></span>
 <span class="normal"><a href="#__codelineno-0-224">224</a></span></pre></div></td><td class="code"><div><pre><span></span><code><span id="__span-0-210"><a id="__codelineno-0-210" name="__codelineno-0-210"></a><span class="nd">@dataclass</span>
-</span><span id="__span-0-211"><a id="__codelineno-0-211" name="__codelineno-0-211"></a><span class="k">class</span> <span class="nc">WranglerConfig</span><span class="p">(</span><span class="n">ConfigItem</span><span class="p">):</span>
+</span><span id="__span-0-211"><a id="__codelineno-0-211" name="__codelineno-0-211"></a><span class="k">class</span><span class="w"> </span><span class="nc">WranglerConfig</span><span class="p">(</span><span class="n">ConfigItem</span><span class="p">):</span>
 </span><span id="__span-0-212"><a id="__codelineno-0-212" name="__codelineno-0-212"></a><span class="w">    </span><span class="sd">&quot;&quot;&quot;Configuration for Network Wrangler.</span>
 </span><span id="__span-0-213"><a id="__codelineno-0-213" name="__codelineno-0-213"></a>
 </span><span id="__span-0-214"><a id="__codelineno-0-214" name="__codelineno-0-214"></a><span class="sd">    Attributes:</span>
@@ -1887,9 +1887,9 @@ lanes.</p>
 </div><h2 id="review-changes-beetween-networks">Review changes beetween networks<a class="headerlink" href="#review-changes-beetween-networks" title="Permanent link"> ¶</a></h2>
 <div class="admonition example">
 <p class="admonition-title">Review Added Managed Lanes</p>
-<div class="language-python highlight"><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="kn">from</span> <span class="nn">network_wrangler</span> <span class="kn">import</span> <span class="n">load_roadway_from_dir</span>
-</span><span id="__span-0-2"><a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a><span class="kn">from</span> <span class="nn">projectcard</span> <span class="kn">import</span> <span class="n">read_card</span>
-</span><span id="__span-0-3"><a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a><span class="kn">from</span> <span class="nn">pathlib</span> <span class="kn">import</span> <span class="n">Path</span>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">network_wrangler</span><span class="w"> </span><span class="kn">import</span> <span class="n">load_roadway_from_dir</span>
+</span><span id="__span-0-2"><a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a><span class="kn">from</span><span class="w"> </span><span class="nn">projectcard</span><span class="w"> </span><span class="kn">import</span> <span class="n">read_card</span>
+</span><span id="__span-0-3"><a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a><span class="kn">from</span><span class="w"> </span><span class="nn">pathlib</span><span class="w"> </span><span class="kn">import</span> <span class="n">Path</span>
 </span><span id="__span-0-4"><a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a>
 </span><span id="__span-0-5"><a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a><span class="n">EXAMPLE_DIR</span> <span class="o">=</span> <span class="n">Path</span><span class="o">.</span><span class="n">cwd</span><span class="p">()</span><span class="o">.</span><span class="n">parent</span> <span class="o">/</span> <span class="s2">&quot;examples&quot;</span>
 </span><span id="__span-0-6"><a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a><span class="n">STPAUL</span> <span class="o">=</span> <span class="n">EXAMPLE_DIR</span> <span class="o">/</span> <span class="s2">&quot;stpaul&quot;</span>
@@ -1923,8 +1923,8 @@ lanes.</p>
 <h2 id="review-selected-facilities">Review selected facilities<a class="headerlink" href="#review-selected-facilities" title="Permanent link"> ¶</a></h2>
 <div class="admonition example">
 <p class="admonition-title">Review selected links</p>
-<div class="language-python highlight"><pre><span></span><code><span id="__span-1-1"><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="kn">from</span> <span class="nn">network_wrangler</span> <span class="kn">import</span> <span class="n">load_roadway_from_dir</span>
-</span><span id="__span-1-2"><a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a><span class="kn">from</span> <span class="nn">pathlib</span> <span class="kn">import</span> <span class="n">Path</span>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-1-1"><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">network_wrangler</span><span class="w"> </span><span class="kn">import</span> <span class="n">load_roadway_from_dir</span>
+</span><span id="__span-1-2"><a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a><span class="kn">from</span><span class="w"> </span><span class="nn">pathlib</span><span class="w"> </span><span class="kn">import</span> <span class="n">Path</span>
 </span><span id="__span-1-3"><a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a>
 </span><span id="__span-1-4"><a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a><span class="n">EXAMPLE_DIR</span> <span class="o">=</span> <span class="n">Path</span><span class="o">.</span><span class="n">cwd</span><span class="p">()</span><span class="o">.</span><span class="n">parent</span> <span class="o">/</span> <span class="s2">&quot;examples&quot;</span>
 </span><span id="__span-1-5"><a id="__codelineno-1-5" name="__codelineno-1-5" href="#__codelineno-1-5"></a><span class="n">STPAUL</span> <span class="o">=</span> <span class="n">EXAMPLE_DIR</span> <span class="o">/</span> <span class="s2">&quot;stpaul&quot;</span>
@@ -1980,7 +1980,7 @@ lanes.</p>
           <tr class="doc-section-item">
             <td><code>place_name</code></td>
             <td>
-                  <code>str</code>
+                  <code><span title="str">str</span></code>
             </td>
             <td>
               <div class="doc-md-description">
@@ -1994,7 +1994,7 @@ lanes.</p>
           <tr class="doc-section-item">
             <td><code>--type</code></td>
             <td>
-                  <code>Optional[str]</code>
+                  <code><span title="Optional">Optional</span>[<span title="str">str</span>]</code>
             </td>
             <td>
               <div class="doc-md-description">
@@ -2008,7 +2008,7 @@ lanes.</p>
           <tr class="doc-section-item">
             <td><code>--path</code></td>
             <td>
-                  <code>Optional[str]</code>
+                  <code><span title="Optional">Optional</span>[<span title="str">str</span>]</code>
             </td>
             <td>
               <div class="doc-md-description">
@@ -2022,7 +2022,7 @@ lanes.</p>
           <tr class="doc-section-item">
             <td><code>--file_format</code></td>
             <td>
-                  <code>Optional[str]</code>
+                  <code><span title="Optional">Optional</span>[<span title="str">str</span>]</code>
             </td>
             <td>
               <div class="doc-md-description">
