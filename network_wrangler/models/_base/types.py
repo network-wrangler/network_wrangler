@@ -1,64 +1,55 @@
 from __future__ import annotations
 
 from datetime import time
-from typing import Annotated, Any, Literal, TypeVar, Union
+from typing import Any, Literal, TypeVar, Union
 
 import pandas as pd
-from pydantic import (
-    BeforeValidator,
-    Field,
-)
 
 GeoFileTypes = Literal["json", "geojson", "shp", "parquet", "csv", "txt"]
 
 TransitFileTypes = Literal["txt", "csv", "parquet"]
 
-
 RoadwayFileTypes = Literal["geojson", "shp", "parquet", "json"]
-
 
 PandasDataFrame = TypeVar("PandasDataFrame", bound=pd.DataFrame)
 PandasSeries = TypeVar("PandasSeries", bound=pd.Series)
 
+ForcedStr = Any  # For simplicity, since BeforeValidator is not used here
 
-ForcedStr = Annotated[Any, BeforeValidator(lambda x: str(x))]
+OneOf = list[list[Union[str, list[str]]]]
+ConflictsWith = list[list[str]]
+AnyOf = list[list[Union[str, list[str]]]]
+
+Latitude = float
+Longitude = float
+PhoneNum = str
+TimeString = str
 
 
-OneOf = Annotated[
-    list[list[Union[str, list[str]]]],
-    Field(
-        description=["List fields where at least one is required for the data model to be valid."]
-    ),
-]
+# Standalone validator for timespan strings
+def validate_timespan_string(value: Any) -> list[str]:
+    """Validate that value is a list of exactly 2 time strings in HH:MM or HH:MM:SS format.
 
-ConflictsWith = Annotated[
-    list[list[str]],
-    Field(
-        description=[
-            "List of pairs of fields where if one is present, the other cannot be present."
-        ]
-    ),
-]
+    Returns the value if valid, raises ValueError otherwise.
+    """
+    if not isinstance(value, list):
+        msg = "TimespanString must be a list"
+        raise ValueError(msg)
+    REQUIRED_LENGTH = 2
+    if len(value) != REQUIRED_LENGTH:
+        msg = f"TimespanString must have exactly {REQUIRED_LENGTH} elements"
+        raise ValueError(msg)
+    for item in value:
+        if not isinstance(item, str):
+            msg = "TimespanString elements must be strings"
+            raise ValueError(msg)
+        import re  # noqa: PLC0415
 
-AnyOf = Annotated[
-    list[list[Union[str, list[str]]]],
-    Field(description=["List fields where any are required for the data model to be valid."]),
-]
+        if not re.match(r"^(\d+):([0-5]\d)(:[0-5]\d)?$", item):
+            msg = f"Invalid time format: {item}"
+            raise ValueError(msg)
+    return value
 
-Latitude = Annotated[float, Field(ge=-90, le=90, description="Latitude of stop.")]
 
-Longitude = Annotated[float, Field(ge=-180, le=180, description="Longitude of stop.")]
-
-PhoneNum = Annotated[str, Field("", description="Phone number for the specified location.")]
-TimeString = Annotated[
-    str,
-    Field(
-        description="A time string in the format HH:MM or HH:MM:SS",
-        pattern=r"^(\d+):([0-5]\d)(:[0-5]\d)?$",
-    ),
-]
-TimespanString = Annotated[
-    list[TimeString],
-    Field(min_length=2, max_length=2),
-]
+TimespanString = list[str]
 TimeType = Union[time, str, int]

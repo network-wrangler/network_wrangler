@@ -414,20 +414,44 @@ class DBModelMixin:
 
         # Copy all attributes to the new instance
         for attr_name, attr_value in self.__dict__.items():
-            # Use copy.deepcopy to create deep copies of mutable objects
-            if isinstance(attr_value, pd.DataFrame):
-                setattr(new_instance, attr_name, copy.deepcopy(attr_value, memo))
+            # Handle pandera DataFrameModel objects specially
+            if (
+                hasattr(attr_value, "__class__")
+                and hasattr(attr_value.__class__, "__name__")
+                and "DataFrameModel" in attr_value.__class__.__name__
+            ):
+                # For pandera DataFrameModel objects, copy the underlying DataFrame and recreate the model
+                # This avoids the timestamp corruption issue with copy.deepcopy()
+                try:
+                    # Get the underlying DataFrame
+                    if hasattr(attr_value, "_obj"):
+                        df_copy = attr_value._obj.copy(deep=True)
+                    elif hasattr(attr_value, "data"):
+                        df_copy = attr_value.data.copy(deep=True)
+                    else:
+                        # For newer pandera versions, try direct access
+                        df_copy = attr_value.copy(deep=True)
+
+                    # Recreate the DataFrameModel object with the copied DataFrame
+                    new_table = attr_value.__class__(df_copy)
+
+                    setattr(new_instance, attr_name, new_table)
+                except Exception as e:
+                    # Fallback to regular deep copy if the above fails
+                    setattr(new_instance, attr_name, copy.deepcopy(attr_value, memo))
+            elif isinstance(attr_value, pd.DataFrame):
+                # For plain pandas DataFrames, use deep copy
+                setattr(new_instance, attr_name, attr_value.copy(deep=True))
             else:
-                setattr(new_instance, attr_name, attr_value)
+                # For all other objects, use regular deep copy
+                setattr(new_instance, attr_name, copy.deepcopy(attr_value, memo))
 
-        WranglerLogger.warning(
-            "Creating a deep copy of db object.\
-            This will NOT update any references (e.g. from TransitNetwork)"
-        )
-
-        # Return the newly created deep copy instance of the object
         return new_instance
 
     def deepcopy(self):
         """Convenience method to exceute deep copy of instance."""
         return copy.deepcopy(self)
+
+    def __hash__(self):
+        """Hash based on the hashes of the tables in table_names."""
+        return hash(tuple((name, self.get_table(name).to_csv()) for name in self.table_names))

@@ -10,6 +10,7 @@ from typing import Optional, Union
 
 import geopandas as gpd
 import pandas as pd
+import psutil
 
 from ..configs import DefaultConfig
 from ..logger import WranglerLogger
@@ -200,9 +201,11 @@ def _read_parquet_table(filename, mask_gdf) -> Union[gpd.GeoDataFrame, pd.DataFr
             try:
                 df = gpd.read_parquet(filename, bbox=mask_gdf.total_bounds)
             except TypeError:
-                WranglerLogger.warning(f"Could not filter to bounding box {mask_gdf}.\
+                WranglerLogger.warning(
+                    f"Could not filter to bounding box {mask_gdf}.\
                                         Try upgrading to geopandas > 1.0.\
-                                        Returning unfiltered data.")
+                                        Returning unfiltered data."
+                )
                 df = gpd.read_parquet(filename)
     except:
         df = pd.read_parquet(filename)
@@ -276,8 +279,6 @@ def convert_file_serialization(
 
 def _available_memory():
     """Return the available memory in bytes."""
-    import psutil
-
     return psutil.virtual_memory().available
 
 
@@ -337,8 +338,8 @@ def _append_parquet_table(
     Returns:
         Path: The path to the output directory.
     """
-    import pyarrow as pa
-    import pyarrow.parquet as pq
+    import pyarrow as pa  # noqa: PLC0415
+    import pyarrow.parquet as pq  # noqa: PLC0415
 
     if directory is None:
         temp_dir = tempfile.mkdtemp()
@@ -365,12 +366,12 @@ def _json_to_parquet_in_chunks(input_file: Path, output_file: Path, chunk_size: 
         chunk_size: Number of JSON objects to process in each chunk.
     """
     try:
-        import ijson
+        import ijson  # noqa: PLC0415
     except ModuleNotFoundError as err:
         msg = "ijson is required for chunked JSON processing."
         raise ModuleNotFoundError(msg) from err
 
-    import pyarrow.parquet as pq
+    import pyarrow.parquet as pq  # noqa: PLC0415
 
     base_filename = Path(output_file).stem
     directory = None

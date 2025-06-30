@@ -23,8 +23,7 @@ def filter_link_properties_managed_lanes(
         i
         for i in links_df.columns
         if i.startswith("ML_")
-        or i.startswith("sc_ML_")
-        and i not in ["ML_access_point", "ML_egress_point"]
+        or (i.startswith("sc_ML_") and i not in ["ML_access_point", "ML_egress_point"])
     ]
 
 

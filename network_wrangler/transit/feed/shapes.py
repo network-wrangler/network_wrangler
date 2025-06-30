@@ -2,7 +2,10 @@
 
 from __future__ import annotations
 
+import ijson
 import pandas as pd
+import pyarrow as pa
+import pyarrow.parquet as pq
 from pandera.typing import DataFrame
 
 from ...logger import WranglerLogger
@@ -37,8 +40,6 @@ def shapes_for_trip_id(
     shapes: DataFrame[WranglerShapesTable], trips: DataFrame[WranglerTripsTable], trip_id: str
 ) -> DataFrame[WranglerShapesTable]:
     """Returns shape records for a single given trip_id."""
-    from .shapes import shape_id_for_trip_id
-
     shape_id = shape_id_for_trip_id(trips, trip_id)
     return shapes.loc[shapes.shape_id == shape_id]
 
@@ -74,7 +75,7 @@ def shapes_with_stop_id_for_trip_id(
             "pickup_only": only pickup > 0
             "dropoff_only": only dropoff > 0
     """
-    from .stop_times import stop_times_for_pickup_dropoff_trip_id
+    from .stop_times import stop_times_for_pickup_dropoff_trip_id  # noqa: PLC0415
 
     shapes = shapes_for_trip_id(shapes, trips, trip_id)
     trip_stop_times = stop_times_for_pickup_dropoff_trip_id(
@@ -122,7 +123,7 @@ def shapes_with_stops_for_shape_id(
     Returns:
         DataFrame[WranglerShapesTable]: DataFrame containing shapes with associated stops.
     """
-    from .trips import trip_ids_for_shape_id
+    from .trips import trip_ids_for_shape_id  # noqa: PLC0415
 
     trip_ids = trip_ids_for_shape_id(trips, shape_id)
     all_shape_stop_times = concat_with_attr(

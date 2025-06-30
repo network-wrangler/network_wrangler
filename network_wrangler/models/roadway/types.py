@@ -13,6 +13,7 @@ from pydantic import (
     PositiveInt,
     RootModel,
     conlist,
+    field_validator,
     model_validator,
 )
 
@@ -24,7 +25,7 @@ from ...utils.time import dt_overlaps, str_to_time_list
 from .._base.geo import LatLongCoordinates
 from .._base.records import RecordModel
 from .._base.root import RootListMixin
-from .._base.types import AnyOf, TimeString
+from .._base.types import AnyOf, TimeString, validate_timespan_string
 
 
 class ScopedLinkValueItem(RecordModel):
@@ -58,6 +59,14 @@ class ScopedLinkValueItem(RecordModel):
     def timespan_dt(self) -> list[list[datetime]]:
         """Convert timespan to list of datetime objects."""
         return str_to_time_list(self.timespan)
+
+    @field_validator("timespan")
+    @classmethod
+    def validate_timespan(cls, v):
+        """Validate the timespan field."""
+        if v is not None:
+            return validate_timespan_string(v)
+        return v
 
 
 class ScopedLinkValueList(RootListMixin, RootModel):

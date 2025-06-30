@@ -172,23 +172,28 @@ def _edit_scoped_link_property(
         )
 
         # filter matching scopes from updated scopes
-        matching_existing, updated_scoped_prop_value_list = _filter_to_matching_scope(
+        matching_existing, _ = _filter_to_matching_scope(
             updated_scoped_prop_value_list,
             timespan=set_item.timespan,
             category=set_item.category,
         )
+
+        # Remove matching scopes from the list
+        updated_scoped_prop_value_list = [
+            s for s in updated_scoped_prop_value_list if s not in matching_existing
+        ]
 
         # if no matching scope, append the set-value; barf on change on wrong type
         if not matching_existing:
             updated_scoped_prop_value_list.append(
                 _update_property_for_scope(set_item, default_value)
             )
+        else:
+            # for each matching scope, replace with the new value
+            for match_i in matching_existing:
+                new_value = _update_property_for_scope(set_item, match_i.value)
+                updated_scoped_prop_value_list.append(new_value)
 
-        # for each matching scope, implement the set or change
-        for match_i in matching_existing:
-            updated_scoped_prop_value_list.append(
-                _update_property_for_scope(set_item, match_i.value)
-            )
     # WranglerLogger.debug(f"Updated scoped link property:\n{updated_scoped_prop_value_list}")
     return updated_scoped_prop_value_list
 

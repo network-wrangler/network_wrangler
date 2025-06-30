@@ -616,8 +616,10 @@ def _create_selection_key(
     if isinstance(selection_dict, SelectFacility):
         selection_dict = selection_dict.model_dump(exclude_none=True, by_alias=True)
     elif not isinstance(selection_dict, dict):
-        WranglerLogger.error(f"`selection_dict` arg must be a dictionary or SelectFacility model.\
-                             Received: {selection_dict} of type {type(selection_dict)}")
+        WranglerLogger.error(
+            f"`selection_dict` arg must be a dictionary or SelectFacility model.\
+                             Received: {selection_dict} of type {type(selection_dict)}"
+        )
         msg = "Selection dictionary must be a dictionary or SelectFacility model."
         raise SelectionError(msg)
     return hashlib.sha1(str(selection_dict).encode()).hexdigest()

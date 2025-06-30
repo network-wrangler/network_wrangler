@@ -85,7 +85,7 @@ def _v0_to_v1_scoped_link_property_list(v0_item_list: list[dict]) -> list[dict]:
     Returns:
         list[dict]: in v1 format
     """
-    import pprint
+    import pprint  # noqa: PLC0415
 
     v1_item_list = []
 
@@ -127,8 +127,10 @@ def _translate_scoped_link_property_v0_to_v1(links_df: DataFrame, prop: str) -> 
         return links_df
     complex_idx = links_df[prop].apply(lambda x: isinstance(x, dict))
     WranglerLogger.debug(f"Translating {sum(complex_idx)} records in {prop} from v0 to v1 format.")
-    WranglerLogger.debug(f"links_df.loc[complex_idx, prop]:\n\
-                         {links_df.loc[complex_idx, prop].head()}")
+    WranglerLogger.debug(
+        f"links_df.loc[complex_idx, prop]:\n\
+                         {links_df.loc[complex_idx, prop].head()}"
+    )
 
     links_df.loc[complex_idx, f"sc_{prop}"] = links_df.loc[complex_idx, prop].apply(
         lambda x: _v0_to_v1_scoped_link_property_list(x)

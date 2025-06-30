@@ -5,6 +5,7 @@ from __future__ import annotations
 from pathlib import Path
 
 import pandas as pd
+import pyarrow as pa
 
 from ...logger import WranglerLogger
 from ...models.roadway.tables import RoadShapesTable
@@ -46,7 +47,7 @@ def validate_shapes_df(
     is_valid = True
 
     if not strict:
-        from .create import df_to_shapes_df
+        from .create import df_to_shapes_df  # noqa: PLC0415
 
         try:
             shapes_df = df_to_shapes_df(shapes_df)

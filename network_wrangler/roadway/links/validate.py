@@ -3,7 +3,10 @@
 from pathlib import Path
 from typing import Optional
 
+import ijson
 import pandas as pd
+import pyarrow as pa
+import pyarrow.parquet as pq
 
 from ...errors import NodesInLinksMissingError
 from ...logger import WranglerLogger
@@ -68,13 +71,13 @@ def validate_links_df(
     Returns:
         bool: True if the links dataframe is valid.
     """
-    from ...models.roadway.tables import RoadLinksTable
-    from ...utils.models import TableValidationError, validate_df_to_model
+    from ...models.roadway.tables import RoadLinksTable  # noqa: PLC0415
+    from ...utils.models import TableValidationError, validate_df_to_model  # noqa: PLC0415
 
     is_valid = True
 
     if not strict:
-        from .create import data_to_links_df
+        from .create import data_to_links_df  # noqa: PLC0415
 
         try:
             links_df = data_to_links_df(links_df)
