@@ -1,0 +1,768 @@
+
+<!DOCTYPE html>
+
+<html class="no-js" lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta content="width=device-width,initial-scale=1" name="viewport"/>
+<link href="https://wsp-sag.github.io/network_wrangler/mutable-default/design/" rel="canonical"/>
+<link href="../data_models/" rel="prev"/>
+<link href="../development/" rel="next"/>
+<link href="../assets/images/favicon.png" rel="icon"/>
+<meta content="mkdocs-1.5.3, mkdocs-material-9.5.18" name="generator"/>
+<title>Design - Network Wrangler</title>
+<link href="../assets/stylesheets/main.66ac8b77.min.css" rel="stylesheet"/>
+<link href="../assets/stylesheets/palette.06af60db.min.css" rel="stylesheet"/>
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
+<link href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&amp;display=fallback" rel="stylesheet"/>
+<style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+<link href="../assets/_mkdocstrings.css" rel="stylesheet"/>
+<link href="https://use.fontawesome.com/releases/v5.13.0/css/all.css" rel="stylesheet"/>
+<link href="../css/extra.css" rel="stylesheet"/>
+<script>__md_scope=new URL("..",location),__md_hash=e=>[...e].reduce((e,_)=>(e<<5)-e+_.charCodeAt(0),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+</head>
+<body data-md-color-accent="indigo" data-md-color-primary="indigo" data-md-color-scheme="default" dir="ltr">
+<input autocomplete="off" class="md-toggle" data-md-toggle="drawer" id="__drawer" type="checkbox"/>
+<input autocomplete="off" class="md-toggle" data-md-toggle="search" id="__search" type="checkbox"/>
+<label class="md-overlay" for="__drawer"></label>
+<div data-md-component="skip">
+<a class="md-skip" href="#design">
+          Skip to content
+        </a>
+</div>
+<div data-md-component="announce">
+</div>
+<div data-md-color-scheme="default" data-md-component="outdated" hidden="">
+</div>
+<header class="md-header" data-md-component="header">
+<nav aria-label="Header" class="md-header__inner md-grid">
+<a aria-label="Network Wrangler" class="md-header__button md-logo" data-md-component="logo" href=".." title="Network Wrangler">
+<svg viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54Z"></path></svg>
+</a>
+<label class="md-header__button md-icon" for="__drawer">
+<svg viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M3 6h18v2H3V6m0 5h18v2H3v-2m0 5h18v2H3v-2Z"></path></svg>
+</label>
+<div class="md-header__title" data-md-component="header-title">
+<div class="md-header__ellipsis">
+<div class="md-header__topic">
+<span class="md-ellipsis">
+            Network Wrangler
+          </span>
+</div>
+<div class="md-header__topic" data-md-component="header-topic">
+<span class="md-ellipsis">
+            
+              Design
+            
+          </span>
+</div>
+</div>
+</div>
+<form class="md-header__option" data-md-component="palette">
+<input aria-label="Switch to dark mode" class="md-option" data-md-color-accent="indigo" data-md-color-media="" data-md-color-primary="indigo" data-md-color-scheme="default" id="__palette_0" name="__palette" type="radio"/>
+<label class="md-header__button md-icon" for="__palette_1" hidden="" title="Switch to dark mode">
+<svg viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M12 8a4 4 0 0 0-4 4 4 4 0 0 0 4 4 4 4 0 0 0 4-4 4 4 0 0 0-4-4m0 10a6 6 0 0 1-6-6 6 6 0 0 1 6-6 6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12 20 8.69Z"></path></svg>
+</label>
+<input aria-label="Switch to light mode" class="md-option" data-md-color-accent="indigo" data-md-color-media="" data-md-color-primary="indigo" data-md-color-scheme="slate" id="__palette_1" name="__palette" type="radio"/>
+<label class="md-header__button md-icon" for="__palette_0" hidden="" title="Switch to light mode">
+<svg viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M12 18c-.89 0-1.74-.2-2.5-.55C11.56 16.5 13 14.42 13 12c0-2.42-1.44-4.5-3.5-5.45C10.26 6.2 11.11 6 12 6a6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12 20 8.69Z"></path></svg>
+</label>
+</form>
+<script>var media,input,key,value,palette=__md_get("__palette");if(palette&&palette.color){"(prefers-color-scheme)"===palette.color.media&&(media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']"),palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent"));for([key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+<label class="md-header__button md-icon" for="__search">
+<svg viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.516 6.516 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5Z"></path></svg>
+</label>
+<div class="md-search" data-md-component="search" role="dialog">
+<label class="md-search__overlay" for="__search"></label>
+<div class="md-search__inner" role="search">
+<form class="md-search__form" name="search">
+<input aria-label="Search" autocapitalize="off" autocomplete="off" autocorrect="off" class="md-search__input" data-md-component="search-query" name="query" placeholder="Search" required="" spellcheck="false" type="text"/>
+<label class="md-search__icon md-icon" for="__search">
+<svg viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.516 6.516 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5Z"></path></svg>
+<svg viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11h12Z"></path></svg>
+</label>
+<nav aria-label="Search" class="md-search__options">
+<button aria-label="Clear" class="md-search__icon md-icon" tabindex="-1" title="Clear" type="reset">
+<svg viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12 19 6.41Z"></path></svg>
+</button>
+</nav>
+</form>
+<div class="md-search__output">
+<div class="md-search__scrollwrap" data-md-scrollfix="">
+<div class="md-search-result" data-md-component="search-result">
+<div class="md-search-result__meta">
+            Initializing search
+          </div>
+<ol class="md-search-result__list" role="presentation"></ol>
+</div>
+</div>
+</div>
+</div>
+</div>
+<div class="md-header__source">
+<a class="md-source" data-md-component="source" href="https://github.com/wsp-sag/network_wrangler" title="Go to repository">
+<div class="md-source__icon md-icon">
+<svg viewbox="0 0 448 512" xmlns="http://www.w3.org/2000/svg"><!--! Font Awesome Free 6.5.2 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2024 Fonticons, Inc.--><path d="M439.55 236.05 244 40.45a28.87 28.87 0 0 0-40.81 0l-40.66 40.63 51.52 51.52c27.06-9.14 52.68 16.77 43.39 43.68l49.66 49.66c34.23-11.8 61.18 31 35.47 56.69-26.49 26.49-70.21-2.87-56-37.34L240.22 199v121.85c25.3 12.54 22.26 41.85 9.08 55a34.34 34.34 0 0 1-48.55 0c-17.57-17.6-11.07-46.91 11.25-56v-123c-20.8-8.51-24.6-30.74-18.64-45L142.57 101 8.45 235.14a28.86 28.86 0 0 0 0 40.81l195.61 195.6a28.86 28.86 0 0 0 40.8 0l194.69-194.69a28.86 28.86 0 0 0 0-40.81z"></path></svg>
+</div>
+<div class="md-source__repository">
+    GitHub
+  </div>
+</a>
+</div>
+</nav>
+</header>
+<div class="md-container" data-md-component="container">
+<nav aria-label="Tabs" class="md-tabs" data-md-component="tabs">
+<div class="md-grid">
+<ul class="md-tabs__list">
+<li class="md-tabs__item">
+<a class="md-tabs__link" href="..">
+        
+  
+    
+  
+  Home
+
+      </a>
+</li>
+<li class="md-tabs__item">
+<a class="md-tabs__link" href="../api/">
+        
+  
+    
+  
+  API Documentation
+
+      </a>
+</li>
+<li class="md-tabs__item">
+<a class="md-tabs__link" href="../data_models/">
+        
+  
+    
+  
+  Data Models
+
+      </a>
+</li>
+<li class="md-tabs__item md-tabs__item--active">
+<a class="md-tabs__link" href="./">
+        
+  
+    
+  
+  Design
+
+      </a>
+</li>
+<li class="md-tabs__item">
+<a class="md-tabs__link" href="../development/">
+        
+  
+    
+  
+  Development
+
+      </a>
+</li>
+<li class="md-tabs__item">
+<a class="md-tabs__link" href="../how_to/">
+        
+  
+    
+  
+  How To
+
+      </a>
+</li>
+<li class="md-tabs__item">
+<a class="md-tabs__link" href="../networks/">
+        
+  
+    
+  
+  Networks
+
+      </a>
+</li>
+</ul>
+</div>
+</nav>
+<main class="md-main" data-md-component="main">
+<div class="md-main__inner md-grid">
+<div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation">
+<div class="md-sidebar__scrollwrap">
+<div class="md-sidebar__inner">
+<nav aria-label="Navigation" class="md-nav md-nav--primary md-nav--lifted md-nav--integrated" data-md-level="0">
+<label class="md-nav__title" for="__drawer">
+<a aria-label="Network Wrangler" class="md-nav__button md-logo" data-md-component="logo" href=".." title="Network Wrangler">
+<svg viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54Z"></path></svg>
+</a>
+    Network Wrangler
+  </label>
+<div class="md-nav__source">
+<a class="md-source" data-md-component="source" href="https://github.com/wsp-sag/network_wrangler" title="Go to repository">
+<div class="md-source__icon md-icon">
+<svg viewbox="0 0 448 512" xmlns="http://www.w3.org/2000/svg"><!--! Font Awesome Free 6.5.2 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2024 Fonticons, Inc.--><path d="M439.55 236.05 244 40.45a28.87 28.87 0 0 0-40.81 0l-40.66 40.63 51.52 51.52c27.06-9.14 52.68 16.77 43.39 43.68l49.66 49.66c34.23-11.8 61.18 31 35.47 56.69-26.49 26.49-70.21-2.87-56-37.34L240.22 199v121.85c25.3 12.54 22.26 41.85 9.08 55a34.34 34.34 0 0 1-48.55 0c-17.57-17.6-11.07-46.91 11.25-56v-123c-20.8-8.51-24.6-30.74-18.64-45L142.57 101 8.45 235.14a28.86 28.86 0 0 0 0 40.81l195.61 195.6a28.86 28.86 0 0 0 40.8 0l194.69-194.69a28.86 28.86 0 0 0 0-40.81z"></path></svg>
+</div>
+<div class="md-source__repository">
+    GitHub
+  </div>
+</a>
+</div>
+<ul class="md-nav__list" data-md-scrollfix="">
+<li class="md-nav__item">
+<a class="md-nav__link" href="..">
+<span class="md-ellipsis">
+    Home
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../api/">
+<span class="md-ellipsis">
+    API Documentation
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../data_models/">
+<span class="md-ellipsis">
+    Data Models
+  </span>
+</a>
+</li>
+<li class="md-nav__item md-nav__item--active">
+<input class="md-nav__toggle md-toggle" id="__toc" type="checkbox"/>
+<label class="md-nav__link md-nav__link--active" for="__toc">
+<span class="md-ellipsis">
+    Design
+  </span>
+<span class="md-nav__icon md-icon"></span>
+</label>
+<a class="md-nav__link md-nav__link--active" href="./">
+<span class="md-ellipsis">
+    Design
+  </span>
+</a>
+<nav aria-label="Table of contents" class="md-nav md-nav--secondary">
+<label class="md-nav__title" for="__toc">
+<span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+<ul class="md-nav__list" data-md-component="toc" data-md-scrollfix="">
+<li class="md-nav__item">
+<a class="md-nav__link" href="#atomic-parts">
+<span class="md-ellipsis">
+      Atomic Parts
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#applying-projects">
+<span class="md-ellipsis">
+      Applying Projects
+    </span>
+</a>
+<nav aria-label="Applying Projects" class="md-nav">
+<ul class="md-nav__list">
+<li class="md-nav__item">
+<a class="md-nav__link" href="#project-dependencies">
+<span class="md-ellipsis">
+      Project Dependencies
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#order-of-project-application">
+<span class="md-ellipsis">
+      Order of project application
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#existing-values">
+<span class="md-ellipsis">
+      Existing Values
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#scoped-roadway-property-changes">
+<span class="md-ellipsis">
+      Scoped Roadway Property Changes
+    </span>
+</a>
+</li>
+</ul>
+</nav>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#selections">
+<span class="md-ellipsis">
+      Selections
+    </span>
+</a>
+<nav aria-label="Selections" class="md-nav">
+<ul class="md-nav__list">
+<li class="md-nav__item">
+<a class="md-nav__link" href="#roadway">
+<span class="md-ellipsis">
+      Roadway
+    </span>
+</a>
+<nav aria-label="Roadway" class="md-nav">
+<ul class="md-nav__list">
+<li class="md-nav__item">
+<a class="md-nav__link" href="#segment">
+<span class="md-ellipsis">
+      Segment
+    </span>
+</a>
+</li>
+</ul>
+</nav>
+</li>
+</ul>
+</nav>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#organization">
+<span class="md-ellipsis">
+      Organization
+    </span>
+</a>
+</li>
+</ul>
+</nav>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../development/">
+<span class="md-ellipsis">
+    Development
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../how_to/">
+<span class="md-ellipsis">
+    How To
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../networks/">
+<span class="md-ellipsis">
+    Networks
+  </span>
+</a>
+</li>
+</ul>
+</nav>
+</div>
+</div>
+</div>
+<div class="md-content" data-md-component="content">
+<article class="md-content__inner md-typeset">
+<h1 id="design">Design<a class="headerlink" href="#design" title="Permanent link"> ¶</a></h1>
+<h2 id="atomic-parts">Atomic Parts<a class="headerlink" href="#atomic-parts" title="Permanent link"> ¶</a></h2>
+<div class="mermaid">flowchart TD
+    subgraph BaseScenario
+        base_road_net["road_net(RoadwayNetwork)"]
+        base_transit_net["transit_net(TransitNetwork)"]
+        applied_projects["applied_projects(list)"]
+        conflicts["conflicts(dict)"]
+    end
+    BaseScenario --&gt; base_scenario
+    subgraph Scenario
+    base_scenario["base_scenario(dict)"]
+    projects["projects(ProjectCard`"]
+    road_net["road_net(RoadwayNetwork)"]
+    transit_net["transit_net(TransitNetwork)"]
+    config["config(WranglerConfig)"]
+    end</div>
+<p>NetworkWrangler deals with four primary atomic parts:</p>
+<p><strong>1. <a href="../api/#network_wrangler.scenario.Scenario"><code>Scenario</code></a></strong> objects describe a Roadway Network, Transit Network, and collection of Projects. Scenarios manage the addition and construction of projects on the network via projct cards including required pre-requisites, co-requisites, and conflicts. Scenarios can be based on or tiered from other scenarios but must at the very least be based on an existing roadway and/or transit network defined in <code>base_scenario</code>.</p>
+<p><strong>2. <a href="../api/#network_wrangler.roadway.network.RoadwayNetwork"><code>RoadwayNetwork</code></a></strong> objects stores information about roadway nodes, directed links between nodes, and the shapes of links (note that the same shape can be shared between two or more links). Network Wrangler reads/writes roadway network objects from/to three files: <code>links</code>, <code>shape</code>, and <code>nodes</code>. Their data is stored as GeoDataFrames in the object.</p>
+<p><strong>3. <a href="../api/#network_wrangler.transit.network.TransitNetwork"><code>TransitNetwork</code></a></strong> objects contain information about the service (represented by the GTFS-compatable <code>Feed</code> object with stops, routes, trips, shapes, stoptimes, and frequencies tables), and how it maps to a <code>RoadwayNetwork</code>, stored as <code>road_net</code> attribute.  Network Wrangler reads/writes transit network information from/to gtfs-like files and stores them as DataFrames within.</p>
+<p><strong>4.<a href="https://network-wrangler.github.io/projectcard/main/api/#projectcard.projectcard.ProjectCard"><code>ProjectCard</code></a></strong> objects store information (including  metadata) about changes to the network.  Network Wrangler uses the <a href="https://network-wrangler.github.io/projectcard"><code>projectcard</code></a> package to read project cards from .yaml-like files and validate them.</p>
+<h2 id="applying-projects">Applying Projects<a class="headerlink" href="#applying-projects" title="Permanent link"> ¶</a></h2>
+<p>The basic functionality of NetworkWrangler is to apply a set of projects to a scenario.</p>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-0-1"><a href="#__codelineno-0-1" id="__codelineno-0-1" name="__codelineno-0-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">project_card</span><span class="w"> </span><span class="kn">import</span> <span class="n">read_cards</span>
+</span><span id="__span-0-2"><a href="#__codelineno-0-2" id="__codelineno-0-2" name="__codelineno-0-2"></a><span class="n">cards</span> <span class="o">=</span> <span class="n">read_cards</span><span class="p">([</span>
+</span><span id="__span-0-3"><a href="#__codelineno-0-3" id="__codelineno-0-3" name="__codelineno-0-3"></a>    <span class="s2">"projects/project_a.yml"</span><span class="p">,</span>
+</span><span id="__span-0-4"><a href="#__codelineno-0-4" id="__codelineno-0-4" name="__codelineno-0-4"></a>    <span class="s2">"projects/project_b.yml"</span><span class="p">,</span>
+</span><span id="__span-0-5"><a href="#__codelineno-0-5" id="__codelineno-0-5" name="__codelineno-0-5"></a>    <span class="s2">"projects/project_c.yml"</span><span class="p">,</span>
+</span><span id="__span-0-6"><a href="#__codelineno-0-6" id="__codelineno-0-6" name="__codelineno-0-6"></a><span class="p">])</span>
+</span><span id="__span-0-7"><a href="#__codelineno-0-7" id="__codelineno-0-7" name="__codelineno-0-7"></a><span class="n">my_scenario</span><span class="o">.</span><span class="n">add_project_cards</span><span class="p">(</span><span class="n">cards</span><span class="o">.</span><span class="n">values</span><span class="p">())</span>
+</span><span id="__span-0-8"><a href="#__codelineno-0-8" id="__codelineno-0-8" name="__codelineno-0-8"></a><span class="n">my_scenario</span><span class="o">.</span><span class="n">queued_projects</span>
+</span><span id="__span-0-9"><a href="#__codelineno-0-9" id="__codelineno-0-9" name="__codelineno-0-9"></a><span class="o">&gt;&gt;</span>  <span class="p">[</span><span class="s2">"project_a"</span><span class="p">,</span> <span class="s2">"project_b"</span><span class="p">,</span> <span class="s2">"project_c"</span><span class="p">]</span>
+</span><span id="__span-0-10"><a href="#__codelineno-0-10" id="__codelineno-0-10" name="__codelineno-0-10"></a><span class="n">my_scenario</span><span class="o">.</span><span class="n">apply_projects</span><span class="p">([</span><span class="s2">"project_a"</span><span class="p">])</span>
+</span><span id="__span-0-11"><a href="#__codelineno-0-11" id="__codelineno-0-11" name="__codelineno-0-11"></a><span class="n">my_scenario</span><span class="o">.</span><span class="n">applied_projects</span>
+</span><span id="__span-0-12"><a href="#__codelineno-0-12" id="__codelineno-0-12" name="__codelineno-0-12"></a><span class="o">&gt;&gt;</span> <span class="p">[</span><span class="s2">"project_a"</span><span class="p">]</span>
+</span><span id="__span-0-13"><a href="#__codelineno-0-13" id="__codelineno-0-13" name="__codelineno-0-13"></a><span class="n">my_scenario</span><span class="o">.</span><span class="n">queued_projects</span>
+</span><span id="__span-0-14"><a href="#__codelineno-0-14" id="__codelineno-0-14" name="__codelineno-0-14"></a><span class="o">&gt;&gt;</span>  <span class="p">[</span><span class="s2">"project_b"</span><span class="p">,</span> <span class="s2">"project_c"</span><span class="p">]</span>
+</span><span id="__span-0-15"><a href="#__codelineno-0-15" id="__codelineno-0-15" name="__codelineno-0-15"></a><span class="n">my_scenario</span><span class="o">.</span><span class="n">apply_all_projects</span><span class="p">()</span>
+</span><span id="__span-0-16"><a href="#__codelineno-0-16" id="__codelineno-0-16" name="__codelineno-0-16"></a><span class="n">my_scenario</span><span class="o">.</span><span class="n">applied_projects</span>
+</span><span id="__span-0-17"><a href="#__codelineno-0-17" id="__codelineno-0-17" name="__codelineno-0-17"></a><span class="o">&gt;&gt;</span> <span class="p">[</span><span class="s2">"project_a"</span><span class="p">,</span> <span class="s2">"project_b"</span><span class="p">,</span> <span class="s2">"project_c"</span><span class="p">]</span>
+</span></code></pre></div>
+<h3 id="project-dependencies">Project Dependencies<a class="headerlink" href="#project-dependencies" title="Permanent link"> ¶</a></h3>
+<p>Each project can specify any number of other projects (by project name) as a:</p>
+<ul>
+<li><code>prerequisite</code>: list of projects that <strong>must</strong> be applied before this one.</li>
+<li><code>corequisite</code>: list of projects that <strong>must</strong> be applied alongside this one (but not necessarily first).</li>
+<li><code>conflicts</code>: list of projects that <strong>must not</strong> be applied to the same scenario as this one.</li>
+</ul>
+<p>The Scenario object keeps track of the applied projects to make sure that these dependencies are enforced.</p>
+<div class="admonition warning">
+<p class="admonition-title">Base Scenarios with applied projects</p>
+<p>Make sure your base scenario contains your applied projects and their conflicts.  This can be easily enforced by either loading a scenario from its .yml file or if you are seeding the base_scenario with an actual Scenario object instead of a dictionary.</p>
+</div>
+<h3 id="order-of-project-application">Order of project application<a class="headerlink" href="#order-of-project-application" title="Permanent link"> ¶</a></h3>
+<p>The order projects are applied defaults to the order they are specified in <code>my_scenario.projects</code>.  If a project card lists another project as a <code>prerequisite</code>, then NetworkWrangler will re-arrange the queued projects to make sure that is applied first.</p>
+<p>This order can always be reviewed in <code>my_scenario.queued_projects</code>.</p>
+<h3 id="existing-values">Existing Values<a class="headerlink" href="#existing-values" title="Permanent link"> ¶</a></h3>
+<p>You can control the behavior of Network Wrangler if existing value is not equal to the <code>existing</code> attribute in a ProjectCard as follows:</p>
+<ul>
+<li><code>error</code>: Raise an error.</li>
+<li><code>skip</code>: Skips applying the project.</li>
+<li><code>warn</code>: Writes a warning about conflicting values. This is the global default.</li>
+</ul>
+<p>These options can be set at the <strong>global</strong> configuration level by using WranglerConfig.</p>
+<div class="language-yaml highlight"><pre><span></span><code><span id="__span-1-1"><a href="#__codelineno-1-1" id="__codelineno-1-1" name="__codelineno-1-1"></a><span class="nt">EDITS</span><span class="p">:</span>
+</span><span id="__span-1-2"><a href="#__codelineno-1-2" id="__codelineno-1-2" name="__codelineno-1-2"></a><span class="w">    </span><span class="nt">EXISTING_VALUE_CONFLICT</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">warn</span>
+</span></code></pre></div>
+<p>This behavior can be overridden within a project card for a <code>roadway_property_change</code> or <code>transit_property_change</code> project for any individual <code>property_changes</code> item.</p>
+<div class="language-yaml highlight"><pre><span></span><code><span id="__span-2-1"><a href="#__codelineno-2-1" id="__codelineno-2-1" name="__codelineno-2-1"></a><span class="nt">transit_property_change</span><span class="p">:</span>
+</span><span id="__span-2-2"><a href="#__codelineno-2-2" id="__codelineno-2-2" name="__codelineno-2-2"></a><span class="w">    </span><span class="nt">property_changes</span><span class="p">:</span>
+</span><span id="__span-2-3"><a href="#__codelineno-2-3" id="__codelineno-2-3" name="__codelineno-2-3"></a><span class="w">        </span><span class="nt">headway_secs</span><span class="p">:</span>
+</span><span id="__span-2-4"><a href="#__codelineno-2-4" id="__codelineno-2-4" name="__codelineno-2-4"></a><span class="w">            </span><span class="nt">existing</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">360</span>
+</span><span id="__span-2-5"><a href="#__codelineno-2-5" id="__codelineno-2-5" name="__codelineno-2-5"></a><span class="w">            </span><span class="nt">change</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">-180</span>
+</span><span id="__span-2-6"><a href="#__codelineno-2-6" id="__codelineno-2-6" name="__codelineno-2-6"></a><span class="w">            </span><span class="nt">existing_value_conflict</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">error</span><span class="w"> </span><span class="c1"># this overrides the setting in WranglerConfig to error if the existing value is not 360.</span>
+</span></code></pre></div>
+<h3 id="scoped-roadway-property-changes">Scoped Roadway Property Changes<a class="headerlink" href="#scoped-roadway-property-changes" title="Permanent link"> ¶</a></h3>
+<p>In some cases, properties of a roadway network may apply only during certain times of the day or for certain categories of users (e.g. trucks, HOV2, etc).  The Network Wrangler data model provides the ability to scope each property using the syntax described in the <a href="../networks/#links">network documentation</a>.</p>
+<p>The value for a scoped property for a given link record is a list of <a href="../networks/#links">ScopedLinkValueItem</a> objects.</p>
+<div class="doc doc-object doc-class">
+<div class="doc doc-contents first">
+<p>Define the value of a link property for a particular timespan or category.</p>
+<p><span class="doc-section-title">Attributes:</span></p>
+<table>
+<thead>
+<tr>
+<th>Name</th>
+<th>Type</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr class="doc-section-item">
+<td><code><span title="network_wrangler.models.roadway.types.ScopedLinkValueItem.`category`">`category`</span></code></td>
+<td>
+<code><span title="str">str</span></code>
+</td>
+<td>
+<div class="doc-md-description">
+<p>Category or link user that this scoped value applies to, ex: <code>HOV2</code>,
+<code>truck</code>, etc.  Categories are user-defined with the exception of <code>any</code> which is
+reserved as the default category. Default is <code>DEFAULT_CATEGORY</code>, which is <code>all</code>.</p>
+</div>
+</td>
+</tr>
+<tr class="doc-section-item">
+<td><code><span title="network_wrangler.models.roadway.types.ScopedLinkValueItem.`timespan`">`timespan`</span></code></td>
+<td>
+<code><span title="list">list</span>[<span title="network_wrangler.models._base.types.TimeString">TimeString</span>]</code>
+</td>
+<td>
+<div class="doc-md-description">
+<p>timespan of the link property as defined as a list of
+two HH:MM(:SS) strings. Default is <code>DEFAULT_TIMESPAN</code>, which is <code>["00:00", "24:00"]</code>.</p>
+</div>
+</td>
+</tr>
+<tr class="doc-section-item">
+<td><code><span title="network_wrangler.models.roadway.types.ScopedLinkValueItem.`value`">`value`</span></code></td>
+<td>
+<code><span title="typing.Union">Union</span>[<span title="float">float</span>, <span title="int">int</span>, <span title="str">str</span>]</code>
+</td>
+<td>
+<div class="doc-md-description">
+<p>Value of the link property for the given category and
+timespan.</p>
+</div>
+</td>
+</tr>
+</tbody>
+</table>
+<p>Conflicting or matching scopes are not allowed in a list of ScopedLinkValueItems:</p>
+<ul>
+<li><code>matching</code>: a scope that could be applied for a given category/timespan combination. This includes the default scopes as well as scopes that are contained within the given category AND timespan combination.</li>
+<li><code>overlapping</code>: a scope that fully or partially overlaps a given category OR timespan combination.  This includes the default scopes, all <code>matching</code> scopes and all scopes where at least one minute of timespan or one category overlap.</li>
+<li><code>conflicting</code>: a scope that is overlapping but not matching for a given category/timespan.</li>
+</ul>
+<p>NOTE: Default scope values of <code>category: any</code> and <code>timespan:["00:00", "24:00"]</code> are <strong>not</strong> considered conflicting, but are applied to residual scopes.</p>
+<div class="doc doc-children">
+</div>
+</div>
+</div><p>There are a few ways that network wrangler can treat conflicts:</p>
+<ul>
+<li><code>conflicting</code> (default behavior):  overwrite any <em>conflicting</em> scoped properties for that property/link with what is given in the project card.</li>
+<li><code>all</code>: overwrite <em>all</em> scoped properties for that property/link with what is given in the project card.</li>
+<li><code>error</code>: raise an error when a conflict is detected.</li>
+</ul>
+<p>These options can be set at the <strong>global</strong> configuration level by using WranglerConfig.</p>
+<div class="language-yaml highlight"><pre><span></span><code><span id="__span-3-1"><a href="#__codelineno-3-1" id="__codelineno-3-1" name="__codelineno-3-1"></a><span class="nt">EDITS</span><span class="p">:</span>
+</span><span id="__span-3-2"><a href="#__codelineno-3-2" id="__codelineno-3-2" name="__codelineno-3-2"></a><span class="w">    </span><span class="nt">OVERWRITE_SCOPED</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">error</span><span class="w"> </span><span class="c1"># will default to raising an error if any scoped value in this specific property change conflicts with this scope.</span>
+</span></code></pre></div>
+<p>This behavior can be overridden within a project card for a <code>roadway_property_change</code> project for any individual <code>property_changes</code> item.</p>
+<div class="language-yaml highlight"><pre><span></span><code><span id="__span-4-1"><a href="#__codelineno-4-1" id="__codelineno-4-1" name="__codelineno-4-1"></a><span class="nt">roadway_property_change</span><span class="p">:</span>
+</span><span id="__span-4-2"><a href="#__codelineno-4-2" id="__codelineno-4-2" name="__codelineno-4-2"></a><span class="w">    </span><span class="nt">property_changes</span><span class="p">:</span>
+</span><span id="__span-4-3"><a href="#__codelineno-4-3" id="__codelineno-4-3" name="__codelineno-4-3"></a><span class="w">        </span><span class="nt">sc_myproperty</span><span class="p">:</span>
+</span><span id="__span-4-4"><a href="#__codelineno-4-4" id="__codelineno-4-4" name="__codelineno-4-4"></a><span class="w">            </span><span class="nt">set</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">1</span>
+</span><span id="__span-4-5"><a href="#__codelineno-4-5" id="__codelineno-4-5" name="__codelineno-4-5"></a><span class="w">            </span><span class="nt">scoped</span><span class="p">:</span>
+</span><span id="__span-4-6"><a href="#__codelineno-4-6" id="__codelineno-4-6" name="__codelineno-4-6"></a><span class="w">                </span><span class="nt">timespan</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[[</span><span class="nv">12</span><span class="p p-Indicator">:</span><span class="nv">00</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">15</span><span class="p p-Indicator">:</span><span class="nv">00</span><span class="p p-Indicator">]]</span>
+</span><span id="__span-4-7"><a href="#__codelineno-4-7" id="__codelineno-4-7" name="__codelineno-4-7"></a><span class="w">                </span><span class="nt">set</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">2</span>
+</span><span id="__span-4-8"><a href="#__codelineno-4-8" id="__codelineno-4-8" name="__codelineno-4-8"></a><span class="w">            </span><span class="nt">overwrite_scoped</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">all</span><span class="w"> </span><span class="c1"># will overwrite all scopes in a link/property. Useful if you are completely defining something rather than amending.</span>
+</span></code></pre></div>
+<h2 id="selections">Selections<a class="headerlink" href="#selections" title="Permanent link"> ¶</a></h2>
+<h3 id="roadway">Roadway<a class="headerlink" href="#roadway" title="Permanent link"> ¶</a></h3>
+<h4 id="segment">Segment<a class="headerlink" href="#segment" title="Permanent link"> ¶</a></h4>
+<div class="admonition example">
+<p class="admonition-title">Example Segment Facility Searches</p>
+<div class="language-yaml highlight"><pre><span></span><code><span id="__span-5-1"><a href="#__codelineno-5-1" id="__codelineno-5-1" name="__codelineno-5-1"></a><span class="nt">facility</span><span class="p">:</span>
+</span><span id="__span-5-2"><a href="#__codelineno-5-2" id="__codelineno-5-2" name="__codelineno-5-2"></a><span class="w">    </span><span class="nt">links</span><span class="p">:</span>
+</span><span id="__span-5-3"><a href="#__codelineno-5-3" id="__codelineno-5-3" name="__codelineno-5-3"></a><span class="w">        </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="s">"6th"</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">"Sixth"</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">"sixth"</span><span class="p p-Indicator">]</span><span class="w"> </span><span class="c1"># find streets that have one of the various forms of 6th</span>
+</span><span id="__span-5-4"><a href="#__codelineno-5-4" id="__codelineno-5-4" name="__codelineno-5-4"></a><span class="w">    </span><span class="nt">from</span><span class="p">:</span>
+</span><span id="__span-5-5"><a href="#__codelineno-5-5" id="__codelineno-5-5" name="__codelineno-5-5"></a><span class="w">        </span><span class="nt">osm_node_id</span><span class="p">:</span><span class="w"> </span><span class="s">"187899923"</span><span class="w">  </span><span class="c1"># start searching for segments at this ID</span>
+</span><span id="__span-5-6"><a href="#__codelineno-5-6" id="__codelineno-5-6" name="__codelineno-5-6"></a><span class="w">    </span><span class="nt">to</span><span class="p">:</span>
+</span><span id="__span-5-7"><a href="#__codelineno-5-7" id="__codelineno-5-7" name="__codelineno-5-7"></a><span class="w">        </span><span class="l l-Scalar l-Scalar-Plain">osm_node_id"</span><span class="p p-Indicator">:</span><span class="w"> </span><span class="s">"187865924"</span><span class="w"> </span><span class="c1"># end at this ID</span>
+</span></code></pre></div>
+<div class="language-yaml highlight"><pre><span></span><code><span id="__span-6-1"><a href="#__codelineno-6-1" id="__codelineno-6-1" name="__codelineno-6-1"></a><span class="nt">facility</span><span class="p">:</span>
+</span><span id="__span-6-2"><a href="#__codelineno-6-2" id="__codelineno-6-2" name="__codelineno-6-2"></a><span class="w">    </span><span class="nt">links</span><span class="p">:</span>
+</span><span id="__span-6-3"><a href="#__codelineno-6-3" id="__codelineno-6-3" name="__codelineno-6-3"></a><span class="w">        </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="s">"6th"</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">"Sixth"</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">"sixth"</span><span class="p p-Indicator">]</span>
+</span><span id="__span-6-4"><a href="#__codelineno-6-4" id="__codelineno-6-4" name="__codelineno-6-4"></a><span class="w">        </span><span class="nt">lanes</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="nv">2</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">3</span><span class="p p-Indicator">]</span><span class="w">  </span><span class="c1"># from the initial connected segment search, only return links that are either 2 OR 3 lanes</span>
+</span><span id="__span-6-5"><a href="#__codelineno-6-5" id="__codelineno-6-5" name="__codelineno-6-5"></a><span class="w">    </span><span class="nt">from</span><span class="p">:</span>
+</span><span id="__span-6-6"><a href="#__codelineno-6-6" id="__codelineno-6-6" name="__codelineno-6-6"></a><span class="w">        </span><span class="nt">osm_node_id</span><span class="p">:</span><span class="w"> </span><span class="s">"187899923"</span>
+</span><span id="__span-6-7"><a href="#__codelineno-6-7" id="__codelineno-6-7" name="__codelineno-6-7"></a><span class="w">    </span><span class="nt">to</span><span class="p">:</span>
+</span><span id="__span-6-8"><a href="#__codelineno-6-8" id="__codelineno-6-8" name="__codelineno-6-8"></a><span class="w">        </span><span class="l l-Scalar l-Scalar-Plain">osm_node_id"</span><span class="p p-Indicator">:</span><span class="w"> </span><span class="s">"187942339"</span>
+</span></code></pre></div>
+</div>
+<p>When Network Wrangler conducts a search for a <em>facility</em>, it tries to navigate from the <code>from</code> node to the <code>to</code> node based on a network created from the initial selection values of: <code>name</code>, <code>ref</code>, <code>osm_link_id</code> and <code>model_link_id</code>.</p>
+<p>If it cannot do so initially, it will expand its search graph several times until it achieves a navigable route – or reaches the maximum number of expansions which defaults to <code>roadway.segment.DEFAULT_MAX_SEARCH_BREADTH = 10</code> but can be set higher by running <code>...selection.create_segment(max_search_breadth=BIGGER_NUMBER</code> before returning the values form the selection. In production, you will want to set the search breadth as low as possible while also being successful so that you don’t get strange routes.</p>
+<p>Pertinent relationships:</p>
+<ul>
+<li><code>RoadwayNetwork.selections</code> is a dictionary of stored  <code>RoadwayLinkSelection</code> or <code>RoadwayNodeSelection</code> objects mapped to a hash of the stringified roadway selection dictionary.</li>
+<li>A <code>RoadwayLinkSelection</code> object which is a <code>segment</code> type of selection will have a single associated <code>Segment</code> object accessed from <code>RoadwayLinkSelection.segment</code> to store relevant functionality.</li>
+<li><code>Segment.subnet</code> is a single associated <code>Subnet</code> representing the subset of nodes and links that Network Wrangler will search to find a connected graph.  This is because creating a connected graph can be very memory and computationally intensive and we want to limit the size of them substantially.</li>
+<li><code>Subnet.graph</code> is the associated <code>networkx.MultiDiGraph</code> connected graph object which is used to conduct the shortest path search.</li>
+</ul>
+<p>For an interactive demonstration of what this means: <code>notebooks.Roadway Network Search.ipynb</code></p>
+<h2 id="organization">Organization<a class="headerlink" href="#organization" title="Permanent link"> ¶</a></h2>
+<table>
+<thead>
+<tr>
+<th><strong><code>../network_wrangler</code></strong></th>
+<th></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>__init__.py</code></td>
+<td>Things that <strong>must</strong> get done every time <code>network_wrangler</code> is used.</td>
+</tr>
+<tr>
+<td><code>bin</code></td>
+<td>Executable scripts.</td>
+</tr>
+<tr>
+<td><code>configs</code></td>
+<td>Structure and default values for user-settable configuration.</td>
+</tr>
+<tr>
+<td><code>errors.py</code></td>
+<td>User-facing errors.</td>
+</tr>
+<tr>
+<td><code>logger.py</code></td>
+<td>Logging utilities and the WranglerLogger class.</td>
+</tr>
+<tr>
+<td><code>models</code></td>
+<td>Pydantic and pandera data models and helper functions for them.</td>
+</tr>
+<tr>
+<td><code>params.py</code></td>
+<td>Package-wide constants.</td>
+</tr>
+<tr>
+<td><code>roadway</code></td>
+<td>Classes and functions pertaining to read, write, analyzing and editing roadway networks.</td>
+</tr>
+<tr>
+<td><code>scenario.py</code></td>
+<td>Scenario object class and helper functions.</td>
+</tr>
+<tr>
+<td><code>time.py</code></td>
+<td>Time helper functions.</td>
+</tr>
+<tr>
+<td><code>transit</code></td>
+<td>Classes and functions pertaining to read, write, analyzing and editing transit networks.</td>
+</tr>
+<tr>
+<td><code>utils</code></td>
+<td>Utility functions.</td>
+</tr>
+<tr>
+<td><code>viz.py</code></td>
+<td>Visualization helper functions.</td>
+</tr>
+</tbody>
+</table>
+<table>
+<thead>
+<tr>
+<th><strong><code>network_wrangler/roadway</code></strong></th>
+<th></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>links</code></td>
+<td>Module for managing roadway links.</td>
+</tr>
+<tr>
+<td><code>nodes</code></td>
+<td>Module for managing roadway nodes.</td>
+</tr>
+<tr>
+<td><code>projects</code></td>
+<td>Module with functions to apply various types of roadway projects.</td>
+</tr>
+<tr>
+<td><code>shapes</code></td>
+<td>Module for managing roadway shapes.</td>
+</tr>
+<tr>
+<td><code>clip.py</code></td>
+<td>Functions to clip a RoadwayNetwork object to a boundary.</td>
+</tr>
+<tr>
+<td><code>graph.py</code></td>
+<td>Functions to convert RoadwayNetwork to osmnx graph and perform graph operations.</td>
+</tr>
+<tr>
+<td><code>io.py</code></td>
+<td>Functions for reading and writing roadway networks.</td>
+</tr>
+<tr>
+<td><code>model_roadway.py</code></td>
+<td>Functions to create a model roadway network from a roadway network.</td>
+</tr>
+<tr>
+<td><code>network.py</code></td>
+<td>Roadway Network class and functions for Network Wrangler.</td>
+</tr>
+<tr>
+<td><code>segment.py</code></td>
+<td>Segment class and related functions for working with segments of a RoadwayNetwork.</td>
+</tr>
+<tr>
+<td><code>selection.py</code></td>
+<td>Roadway selection classes for selecting links and nodes from a roadway network.</td>
+</tr>
+<tr>
+<td><code>subnet.py</code></td>
+<td>Subnet class for RoadwayNetwork object.</td>
+</tr>
+<tr>
+<td><code>utils.py</code></td>
+<td>Utility functions for RoadwayNetwork and ModelRoadwayNetwork classes.</td>
+</tr>
+<tr>
+<td><code>validate.py</code></td>
+<td>Validates a roadway network to the wrangler data model specifications.</td>
+</tr>
+<tr>
+<td><code>viz.py</code></td>
+<td>Visualization functions for RoadwayNetwork and RoadwayLinkSelection.</td>
+</tr>
+</tbody>
+</table>
+<table>
+<thead>
+<tr>
+<th><strong><code>network_wrangler/transit</code></strong></th>
+<th></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>feed</code></td>
+<td>Relational tables representing transit service.</td>
+</tr>
+<tr>
+<td><code>projects</code></td>
+<td>Module with functions to apply various types of transit projects.</td>
+</tr>
+<tr>
+<td><code>clip.py</code></td>
+<td>Functions to clip a TransitNetwork object to a boundary.</td>
+</tr>
+<tr>
+<td><code>geo.py</code></td>
+<td>Geographic functions for GTFS tables.</td>
+</tr>
+<tr>
+<td><code>io.py</code></td>
+<td>Functions for reading and writing transit feeds and networks.</td>
+</tr>
+<tr>
+<td><code>model_transit.py</code></td>
+<td>ModelTransit class and functions for managing consistency between roadway and transit networks.</td>
+</tr>
+<tr>
+<td><code>network.py</code></td>
+<td>TransitNetwork class for representing a transit network consisting of a schedule <code>Feed</code> mapped to a <code>RoadwayNetwork</code>.</td>
+</tr>
+<tr>
+<td><code>selection.py</code></td>
+<td>Classes and functions for selecting transit trips from a transit network.</td>
+</tr>
+<tr>
+<td><code>validate.py</code></td>
+<td>Functions to check for transit network validity and consistency with roadway network.</td>
+</tr>
+</tbody>
+</table>
+</article>
+</div>
+<script>var tabs=__md_get("__tabs");if(Array.isArray(tabs))e:for(var set of document.querySelectorAll(".tabbed-set")){var tab,labels=set.querySelector(".tabbed-labels");for(tab of tabs)for(var label of labels.getElementsByTagName("label"))if(label.innerText.trim()===tab){var input=document.getElementById(label.htmlFor);input.checked=!0;continue e}}</script>
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+</div>
+</main>
+<footer class="md-footer">
+<div class="md-footer-meta md-typeset">
+<div class="md-footer-meta__inner md-grid">
+<div class="md-copyright">
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" rel="noopener" target="_blank">
+      Material for MkDocs
+    </a>
+</div>
+</div>
+</div>
+</footer>
+</div>
+<div class="md-dialog" data-md-component="dialog">
+<div class="md-dialog__inner md-typeset"></div>
+</div>
+<script id="__config" type="application/json">{"base": "..", "features": ["content.code.annotate", "content.code.copy", "content.tabs.link", "navigation.indexes", "navigation.tabs", "navigation.expand", "toc.integrate", "toc.follow"], "search": "../assets/javascripts/workers/search.b8dbb3d2.min.js", "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": {"default": "latest", "provider": "mike"}}</script>
+<script src="../assets/javascripts/bundle.3220b9d7.min.js"></script>
+<script type="module">import mermaid from "https://unpkg.com/mermaid@10.4.0/dist/mermaid.esm.min.mjs";
+mermaid.initialize({});</script></body>
+</html>
