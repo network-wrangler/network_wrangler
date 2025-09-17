@@ -7,6 +7,8 @@ from typing import Any, Literal, Optional, Union
 # Constants
 MAX_TRUNCATION_WARNING_STOPS = 10
 MIN_ROUTE_SEGMENTS = 2
+K_NEAREST_CANDIDATES = 20
+"""Number of nearest candidate nodes to consider in match_bus_stops_to_roadway_nodes() when using name scoring."""
 
 import geopandas as gpd
 import networkx as nx
@@ -415,6 +417,103 @@ def create_feed_frequencies(  # noqa: PLR0915
     WranglerLogger.debug(f"feed_tables['stop_times']:\n{feed_tables['stop_times']}")
 
 
+def assess_stop_name_roadway_compatibility(
+    stop_name: str,
+    node_link_names: list[str],
+    threshold: float = 0.5
+) -> tuple[bool, float, list[str]]:
+    """Assess if a transit stop name is compatible with a roadway node's link names.
+
+    Checks if street names in the stop name match any of the node's connected link names.
+    Handles common patterns like "Street1 & Street2" or "Street1 at Street2".
+
+    Exact name matches receive a special high score of 10.0 to enable users to force
+    specific stop-to-node matches by ensuring the stop name exactly matches a link name.
+
+    Args:
+        stop_name: Name of the transit stop (e.g., "Van Ness Ave & Market St")
+        node_link_names: List of link names connected to the roadway node
+        threshold: Minimum fraction of stop streets that must match node links (default 0.5)
+
+    Returns:
+        Tuple of (is_compatible, match_score, matched_streets) where:
+            - is_compatible: True if stop name is compatible with node
+            - match_score: 10.0 for exact match (to force selection), otherwise fraction
+                           of stop streets found in node links (0.0 to 1.0)
+            - matched_streets: List of street names from stop that matched node links
+    """
+    import re
+
+    if not stop_name or not node_link_names:
+        return False, 0.0, []
+
+    # Check for exact match first - allows users to force specific matches by ensuring
+    # stop names and link names are identical (case-insensitive)
+    stop_name_normalized = stop_name.lower().strip()
+    for node_link in node_link_names:
+        if node_link.lower().strip() == stop_name_normalized:
+            # Exact match gets special high score to strongly prefer/force this match
+            return True, 10.0, [stop_name]
+
+    # Common separators in stop names
+    separators = [' & ', ' and ', ' at ', ' @ ', ' / ', ' near ']
+
+    # Split stop name by separators to get individual street names
+    stop_streets = [stop_name]
+    for sep in separators:
+        if sep in stop_name.lower():
+            # Split and clean up each part
+            parts = re.split(re.escape(sep), stop_name, flags=re.IGNORECASE)
+            stop_streets = [part.strip() for part in parts if part.strip()]
+            break
+
+    # Normalize for comparison (lowercase, remove extra spaces)
+    normalized_node_links = [link.lower().strip() for link in node_link_names]
+
+    matched_streets = []
+    for street in stop_streets:
+        street_normalized = street.lower().strip()
+
+        # Check for exact match or substring match
+        for node_link in normalized_node_links:
+            # Check if the street name is contained in the node link name or vice versa
+            if street_normalized in node_link or node_link in street_normalized:
+                matched_streets.append(street)
+                break
+
+            # Also check for partial matches (e.g., "Market St" matches "Market Street")
+            # Remove common suffixes for comparison
+            suffixes = [' street', ' st', ' avenue', ' ave', ' road', ' rd', ' boulevard', ' blvd',
+                       ' drive', ' dr', ' lane', ' ln', ' way', ' court', ' ct', ' place', ' pl']
+
+            street_base = street_normalized
+            for suffix in suffixes:
+                if street_base.endswith(suffix):
+                    street_base = street_base[:-len(suffix)].strip()
+                    break
+
+            node_base = node_link
+            for suffix in suffixes:
+                if node_base.endswith(suffix):
+                    node_base = node_base[:-len(suffix)].strip()
+                    break
+
+            if street_base and node_base and (street_base in node_base or node_base in street_base):
+                matched_streets.append(street)
+                break
+
+    # Calculate match score
+    if len(stop_streets) > 0:
+        match_score = len(matched_streets) / len(stop_streets)
+    else:
+        match_score = 0.0
+
+    is_compatible = match_score >= threshold
+
+    return is_compatible, match_score, matched_streets
+
+
+
 def match_bus_stops_to_roadway_nodes(  # noqa: PLR0912, PLR0915
     feed_tables: dict[str, pd.DataFrame],
     roadway_net: RoadwayNetwork,
@@ -422,19 +521,24 @@ def match_bus_stops_to_roadway_nodes(  # noqa: PLR0912, PLR0915
     crs_units: str,
     max_distance: float,
     trace_shape_ids: Optional[list[str]] = None,
+    use_name_matching: bool = True,
+    name_match_weight: float = 0.3,
 ):
     """Match bus stops to bus-accessible nodes in the roadway network.
 
     Matches bus and trolleybus stops to the nearest bus-accessible nodes in the roadway
-    network using spatial proximity. Updates stop and shape locations to snap to road nodes.
+    network using spatial proximity and optionally street name compatibility.
+    Updates stop and shape locations to snap to road nodes.
 
     Process Steps:
     1. Identifies bus stops (route_types BUS or TROLLEYBUS) in feed_tables['stops']
     2. Builds bus network graph from roadway to find accessible nodes
     3. Projects geometries to local CRS for accurate distance calculations
-    4. Uses BallTree spatial index to find nearest bus-accessible node for each stop
-    5. Updates stop locations to matched road node locations (if within max_distance)
-    6. Updates shape point locations for matched bus stops
+    4. Uses BallTree spatial index to find candidate nodes within max_distance
+    5. If name matching is enabled and link_names exist, scores candidates by both
+       distance and name compatibility, selecting best match within max_distance
+    6. Updates stop locations to matched road node locations
+    7. Updates shape point locations for matched bus stops
 
     Modifies feed_tables in place:
 
@@ -464,6 +568,11 @@ def match_bus_stops_to_roadway_nodes(  # noqa: PLR0912, PLR0915
         crs_units: Distance units for local_crs ('feet' or 'meters')
         max_distance: Maximum matching distance in crs_units
         trace_shape_ids: Optional list of shape_ids for debug logging
+        use_name_matching: If True and nodes have 'link_names', will consider name
+            compatibility when selecting best match within max_distance. Default is True.
+        name_match_weight: Weight for name match score in combined scoring (0.0 to 1.0).
+            Final score = (1 - name_match_weight) * normalized_distance + name_match_weight * name_score
+            Default is 0.3 (30% name match, 70% distance)
 
     Raises:
         TransitValidationError: If no bus-accessible nodes found near any bus stops
@@ -558,17 +667,74 @@ def match_bus_stops_to_roadway_nodes(  # noqa: PLR0912, PLR0915
     # Get coordinates of stops to match
     bus_stop_coords = np.array([(geom.x, geom.y) for geom in bus_stops_gdf.geometry])
 
-    # Query nearest neighbors
-    match_distances, match_indices = bus_nodes_tree.query(bus_stop_coords, k=1)
-    # Create a matches dataframe
-    matches_df = pd.DataFrame(
-        {
-            "stop_idx": bus_stops_gdf.index,  # Use actual index from bus_stops_gdf
-            # Flatten the arrays since k=1
-            "match_node_idx": match_indices.flatten(),
-            "match_distance": match_distances.flatten(),
-        }
-    )
+    # Query nearest neighbors - use more candidates if name matching is enabled
+    k = 1  # Default to nearest neighbor only
+    if use_name_matching and 'link_names' in bus_accessible_nodes_gdf.columns:
+        k = min(K_NEAREST_CANDIDATES, len(bus_accessible_nodes_gdf))
+        WranglerLogger.info(
+            f"Using name-aware matching within {max_distance} {crs_units} "
+            f"with name weight {name_match_weight}"
+        )
+
+    match_distances, match_indices = bus_nodes_tree.query(bus_stop_coords, k=k)
+
+    # Process results based on whether we're doing name matching
+    if k > 1:  # Name matching with multiple candidates
+        # Initialize arrays to store best matches
+        best_indices = np.zeros(len(bus_stops_gdf), dtype=int)
+        best_distances = np.zeros(len(bus_stops_gdf))
+        name_match_scores = np.zeros(len(bus_stops_gdf))
+
+        # Find best match for each stop considering both distance and name
+        for stop_idx in range(len(bus_stops_gdf)):
+            stop_name = bus_stops_gdf.iloc[stop_idx]["stop_name"]
+            distances = match_distances[stop_idx]
+            indices = match_indices[stop_idx]
+
+            best_score = float('inf')
+            best_idx = 0
+            best_name_score = 0.0
+
+            # Evaluate candidates within max_distance
+            for i, (dist, node_idx) in enumerate(zip(distances, indices)):
+                if dist <= max_distance:
+                    node_link_names = bus_accessible_nodes_gdf.iloc[node_idx].get("link_names", [])
+
+                    # Calculate name match score
+                    _, name_score, _ = assess_stop_name_roadway_compatibility(
+                        stop_name, node_link_names if node_link_names else []
+                    )
+
+                    # Combined score (lower is better)
+                    normalized_dist = dist / max_distance
+                    combined_score = (1 - name_match_weight) * normalized_dist + name_match_weight * (1 - name_score)
+
+                    if combined_score < best_score:
+                        best_score = combined_score
+                        best_idx = i
+                        best_name_score = name_score
+
+            # Store best match
+            best_indices[stop_idx] = indices[best_idx]
+            best_distances[stop_idx] = distances[best_idx]
+            name_match_scores[stop_idx] = best_name_score
+
+        # Create matches dataframe
+        matches_df = pd.DataFrame({
+            "stop_idx": bus_stops_gdf.index,
+            "match_node_idx": best_indices,
+            "match_distance": best_distances,
+            "name_match_score": name_match_scores
+        })
+    else:
+        # Simple nearest neighbor matching (k=1)
+        matches_df = pd.DataFrame(
+            {
+                "stop_idx": bus_stops_gdf.index,
+                "match_node_idx": match_indices.flatten(),
+                "match_distance": match_distances.flatten(),
+            }
+        )
 
     # Check for valid matches
     matches_df["valid_match"] = False
@@ -599,6 +765,16 @@ def match_bus_stops_to_roadway_nodes(  # noqa: PLR0912, PLR0915
     bus_stops_gdf.loc[matches_df["stop_idx"], "stop_lon"] = matched_nodes_gdf["X"].values
     bus_stops_gdf.loc[matches_df["stop_idx"], "stop_lat"] = matched_nodes_gdf["Y"].values
     bus_stops_gdf.loc[matches_df["stop_idx"], "geometry"] = matched_nodes_gdf["geometry"].values
+
+    # Add node link_names and name match scores if available
+    if "link_names" in matched_nodes_gdf.columns:
+        bus_stops_gdf.loc[matches_df["stop_idx"], "node_link_names"] = matched_nodes_gdf["link_names"].values
+    if "name_match_score" in matches_df.columns:
+        bus_stops_gdf.loc[matches_df["stop_idx"], "name_match_score"] = matches_df["name_match_score"].values
+        # Report poor name matches
+        poor_matches = matches_df[(matches_df["valid_match"] == True) & (matches_df["name_match_score"] < 0.5)]
+        if len(poor_matches) > 0:
+            WranglerLogger.info(f"Found {len(poor_matches)} bus stops with low name compatibility (score < 0.5)")
 
     WranglerLogger.debug(f"bus_stops_gdf:\n{bus_stops_gdf}")
     if trace_shape_ids:
@@ -2001,6 +2177,7 @@ def create_feed_from_gtfs_model(  # noqa: PLR0915
     frequency_method: str,
     default_frequency_for_onetime_route: int = 10800,
     add_stations_and_links: bool = True,
+    max_stop_distance: Optional[float] = None,
     trace_shape_ids: Optional[list[str]] = None,
 ) -> Feed:
     """Convert GTFS model to Wrangler Feed with stops mapped to roadway network.
@@ -2052,6 +2229,8 @@ def create_feed_from_gtfs_model(  # noqa: PLR0915
             for routes with one trip per period (default: 10800)
         add_stations_and_links: If True, add stations to roadway network
             (recommended, False not implemented)
+        max_stop_distance: Maximum distance in crs_units for matching bus stops
+            to roadway nodes. If None, uses default MAX_DISTANCE_STOP values
         trace_shape_ids: Shape IDs for detailed debug logging
 
     Returns:
@@ -2139,13 +2318,19 @@ def create_feed_from_gtfs_model(  # noqa: PLR0915
     # Add helpful extra data to shapes table
     add_additional_data_to_shapes(feed_tables, local_crs, crs_units)
 
+    # Use provided max_stop_distance or default
+    if max_stop_distance is None:
+        max_stop_distance = MAX_DISTANCE_STOP[crs_units]
+
     match_bus_stops_to_roadway_nodes(
         feed_tables,
         roadway_net,
         local_crs,
         crs_units,
-        MAX_DISTANCE_STOP[crs_units],
+        max_stop_distance,
         trace_shape_ids,
+        use_name_matching=True,  # Use name matching when available
+        name_match_weight=0.3,  # 30% weight on name match, 70% on distance
     )
 
     # for fixed route transit, add the links and stops to the roadway network
