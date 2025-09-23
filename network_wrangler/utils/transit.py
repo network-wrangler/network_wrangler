@@ -9,6 +9,8 @@ MAX_TRUNCATION_WARNING_STOPS = 10
 MIN_ROUTE_SEGMENTS = 2
 K_NEAREST_CANDIDATES = 20
 """Number of nearest candidate nodes to consider in match_bus_stops_to_roadway_nodes() when using name scoring."""
+NAME_MATCH_WEIGHT = 0.9
+"""Weight for name match score in combined scoring in match_bus_stops_to_roadway_nodes(). 0.9 means 90% name match, 10% distance."""
 
 import geopandas as gpd
 import networkx as nx
@@ -522,7 +524,7 @@ def match_bus_stops_to_roadway_nodes(  # noqa: PLR0912, PLR0915
     max_distance: float,
     trace_shape_ids: Optional[list[str]] = None,
     use_name_matching: bool = True,
-    name_match_weight: float = 0.3,
+    name_match_weight: float = NAME_MATCH_WEIGHT,
 ):
     """Match bus stops to bus-accessible nodes in the roadway network.
 
@@ -572,7 +574,7 @@ def match_bus_stops_to_roadway_nodes(  # noqa: PLR0912, PLR0915
             compatibility when selecting best match within max_distance. Default is True.
         name_match_weight: Weight for name match score in combined scoring (0.0 to 1.0).
             Final score = (1 - name_match_weight) * normalized_distance + name_match_weight * name_score
-            Default is 0.3 (30% name match, 70% distance)
+            Defaults to NAME_MATCH_WEIGHT constant.
 
     Raises:
         TransitValidationError: If no bus-accessible nodes found near any bus stops
@@ -684,6 +686,8 @@ def match_bus_stops_to_roadway_nodes(  # noqa: PLR0912, PLR0915
         best_indices = np.zeros(len(bus_stops_gdf), dtype=int)
         best_distances = np.zeros(len(bus_stops_gdf))
         name_match_scores = np.zeros(len(bus_stops_gdf))
+        normalized_dists = np.zeros(len(bus_stops_gdf))
+        combined_scores = np.zeros(len(bus_stops_gdf))
 
         # Find best match for each stop considering both distance and name
         for stop_idx in range(len(bus_stops_gdf)):
@@ -694,47 +698,64 @@ def match_bus_stops_to_roadway_nodes(  # noqa: PLR0912, PLR0915
             best_score = float('inf')
             best_idx = 0
             best_name_score = 0.0
+            best_normalized_dist = 0.0
+            best_combined_score = float('inf')
 
             # Evaluate candidates within max_distance
+            candidates_found = False
             for i, (dist, node_idx) in enumerate(zip(distances, indices)):
-                if dist <= max_distance:
-                    node_link_names = bus_accessible_nodes_gdf.iloc[node_idx].get("link_names", [])
+                # only look at candidates within max_distance
+                if dist > max_distance: continue
 
-                    # Calculate name match score
-                    _, name_score, _ = assess_stop_name_roadway_compatibility(
-                        stop_name, node_link_names if node_link_names else []
-                    )
+                candidates_found = True
+                node_link_names = bus_accessible_nodes_gdf.iloc[node_idx].get("link_names", [])
 
-                    # Combined score (lower is better)
-                    normalized_dist = dist / max_distance
-                    combined_score = (1 - name_match_weight) * normalized_dist + name_match_weight * (1 - name_score)
+                # Calculate name match score
+                _, name_score, _ = assess_stop_name_roadway_compatibility(
+                    stop_name, node_link_names if node_link_names else []
+                )
 
-                    if combined_score < best_score:
-                        best_score = combined_score
-                        best_idx = i
-                        best_name_score = name_score
+                # Combined score (lower is better)
+                normalized_dist = dist / max_distance
+                combined_score = (1 - name_match_weight) * normalized_dist + name_match_weight * (1 - name_score)
+
+                if combined_score < best_score:
+                    best_score = combined_score
+                    best_idx = i
+                    best_name_score = name_score
+                    best_normalized_dist = normalized_dist
+                    best_combined_score = combined_score
+
+            # If no candidates within max_distance, use closest regardless
+            if not candidates_found:
+                # best_idx is already 0 (closest)
+                # Calculate normalized_dist as >1 to indicate beyond max_distance
+                best_normalized_dist = distances[0] / max_distance
+                best_combined_score = (1 - name_match_weight) * best_normalized_dist + name_match_weight * (1 - best_name_score)
 
             # Store best match
             best_indices[stop_idx] = indices[best_idx]
             best_distances[stop_idx] = distances[best_idx]
             name_match_scores[stop_idx] = best_name_score
+            normalized_dists[stop_idx] = best_normalized_dist
+            combined_scores[stop_idx] = best_combined_score
 
         # Create matches dataframe
         matches_df = pd.DataFrame({
             "stop_idx": bus_stops_gdf.index,
             "match_node_idx": best_indices,
             "match_distance": best_distances,
-            "name_match_score": name_match_scores
+            "name_match_score": name_match_scores,
+            "normalized_dist": normalized_dists,
+            "combined_score": combined_scores
         })
     else:
         # Simple nearest neighbor matching (k=1)
-        matches_df = pd.DataFrame(
-            {
-                "stop_idx": bus_stops_gdf.index,
-                "match_node_idx": match_indices.flatten(),
-                "match_distance": match_distances.flatten(),
-            }
-        )
+        matches_df = pd.DataFrame({
+            "stop_idx": bus_stops_gdf.index,
+            "match_node_idx": match_indices.flatten(),
+            "match_distance": match_distances.flatten(),
+        })
 
     # Check for valid matches
     matches_df["valid_match"] = False
@@ -771,6 +792,8 @@ def match_bus_stops_to_roadway_nodes(  # noqa: PLR0912, PLR0915
         bus_stops_gdf.loc[matches_df["stop_idx"], "node_link_names"] = matched_nodes_gdf["link_names"].values
     if "name_match_score" in matches_df.columns:
         bus_stops_gdf.loc[matches_df["stop_idx"], "name_match_score"] = matches_df["name_match_score"].values
+        bus_stops_gdf.loc[matches_df["stop_idx"], "normalized_dist"] = matches_df["normalized_dist"].values
+        bus_stops_gdf.loc[matches_df["stop_idx"], "combined_score"] = matches_df["combined_score"].values
         # Report poor name matches
         poor_matches = matches_df[(matches_df["valid_match"] == True) & (matches_df["name_match_score"] < 0.5)]
         if len(poor_matches) > 0:
@@ -778,10 +801,11 @@ def match_bus_stops_to_roadway_nodes(  # noqa: PLR0912, PLR0915
 
     WranglerLogger.debug(f"bus_stops_gdf:\n{bus_stops_gdf}")
     if trace_shape_ids:
+        debug_cols = ["stop_id","stop_name","node_link_names","name_match_score","match_distance_feet","normalized_dist","combined_score"]
         for trace_shape_id in trace_shape_ids:
             WranglerLogger.debug(
                 f"trace bus_stops_gdf for {trace_shape_id}:\n"
-                f"{bus_stops_gdf.loc[bus_stops_gdf['shape_ids'].apply(lambda x, tid=trace_shape_id: tid in x)]}"
+                f"{bus_stops_gdf.loc[bus_stops_gdf['shape_ids'].apply(lambda x, tid=trace_shape_id: tid in x), debug_cols]}"
             )
 
     # verify model_node_id, f'match_distance_{crs_units}' and 'valid_match' are not in feed_tables['stops']
@@ -2330,7 +2354,6 @@ def create_feed_from_gtfs_model(  # noqa: PLR0915
         max_stop_distance,
         trace_shape_ids,
         use_name_matching=True,  # Use name matching when available
-        name_match_weight=0.3,  # 30% weight on name match, 70% on distance
     )
 
     # for fixed route transit, add the links and stops to the roadway network
