@@ -3,19 +3,6 @@
 import pprint
 from pathlib import Path
 from typing import Any, Literal, Optional, Union
-
-# Constants
-MAX_TRUNCATION_WARNING_STOPS = 10
-MIN_ROUTE_SEGMENTS = 2
-K_NEAREST_CANDIDATES = 20
-"""Number of nearest candidate nodes to consider in match_bus_stops_to_roadway_nodes() when using name scoring."""
-NAME_MATCH_WEIGHT = 0.9
-"""Weight for name match score in combined scoring in match_bus_stops_to_roadway_nodes(). 0.9 means 90% name match, 10% distance."""
-SHAPE_DISTANCE_TOLERANCE = 1.10
-"""Maximum ratio of path distance to shortest distance in shape-aware routing. Used in create_bus_routes() and find_shape_aware_shortest_path(). 1.10 means paths up to 110% of shortest distance are considered."""
-MAX_SHAPE_CANDIDATE_PATHS = 20
-"""Maximum number of candidate paths to evaluate in find_shape_aware_shortest_path() when doing shape-aware routing."""
-
 import geopandas as gpd
 import networkx as nx
 import numpy as np
@@ -40,6 +27,18 @@ from ..params import FEET_PER_MILE, LAT_LON_CRS, METERS_PER_KILOMETER
 from ..roadway.network import RoadwayNetwork
 from ..transit.feed.feed import Feed
 from .time import time_to_seconds
+
+# Constants
+MAX_TRUNCATION_WARNING_STOPS = 10
+MIN_ROUTE_SEGMENTS = 2
+K_NEAREST_CANDIDATES = 20
+"""Number of nearest candidate nodes to consider in match_bus_stops_to_roadway_nodes() when using name scoring."""
+NAME_MATCH_WEIGHT = 0.9
+"""Weight for name match score in combined scoring in match_bus_stops_to_roadway_nodes(). 0.9 means 90% name match, 10% distance."""
+SHAPE_DISTANCE_TOLERANCE = 1.10
+"""Maximum ratio of path distance to shortest distance in shape-aware routing. Used in create_bus_routes() and find_shape_aware_shortest_path(). 1.10 means paths up to 110% of shortest distance are considered."""
+MAX_SHAPE_CANDIDATE_PATHS = 20
+"""Maximum number of candidate paths to evaluate in find_shape_aware_shortest_path() when doing shape-aware routing."""
 
 MAX_DISTANCE_STOP = {
     "feet": 0.25 * FEET_PER_MILE,
@@ -2058,13 +2057,56 @@ def add_stations_and_links_to_roadway_network(  # noqa: PLR0912, PLR0915
     station_road_links_gdf["A"] = station_road_links_gdf["A"].astype(int)
     station_road_links_gdf["B"] = station_road_links_gdf["B"].astype(int)
 
-    # drop links that are already in roadway network - this may happen for LRT links on roadways
+    # Drop links that are already in roadway network - this may happen for LRT links on roadways
+    # But first, make sure rail_only or ferry_only is set to True in the roadway links version
+
+    # save this to re-apply
+    links_df_name = roadway_net.links_df.attrs["name"]
+    roadway_net.links_df = roadway_net.links_df.merge(
+        right=station_road_links_gdf[["A","B","rail_only","ferry_only"]],
+        how="left",
+        on=["A","B"],
+        validate="one_to_one",
+        suffixes=["","_update"],
+        indicator=True
+    )
+    # re-apply
+    roadway_net.links_df.attrs["name"] = links_df_name
+    WranglerLogger.debug(
+        f"Making sure existing roadway links corresponding to station pairs have transit access\n"
+        f"{roadway_net.links_df.loc[roadway_net.links_df._merge == 'both']}"
+    )
+    # if any of these are footway or cycleway, warn
+    if 'highway' in roadway_net.links_df.columns:
+        ACTIVE_OSM_HIGHWAY = ['footway','cycleway','path','pedestrian']
+        active_only = roadway_net.links_df.loc[
+            (roadway_net.links_df["_merge"] == "both") &
+            roadway_net.links_df["highway"].isin(ACTIVE_OSM_HIGHWAY)
+        ]
+        if len(active_only) > 0:
+            WranglerLogger.warning(f"Adding rail or ferry access to {len(active_only)} active links -- See debug log")
+            WranglerLogger.debug(f"Updating the following:\n{active_only}")
+
+    roadway_net.links_df.loc[ roadway_net.links_df["_merge"] == "both", "rail_only"] = \
+        roadway_net.links_df["rail_only"] | roadway_net.links_df["rail_only_update"]
+    roadway_net.links_df.loc[ roadway_net.links_df["_merge"] == "both", "ferry_only"] = \
+        roadway_net.links_df["ferry_only"] | roadway_net.links_df["ferry_only_update"]
+    WranglerLogger.debug(
+        f"After updating:\n"
+        f"{roadway_net.links_df.loc[roadway_net.links_df._merge == 'both']}"
+    )
+    roadway_net.links_df.drop(columns=["_merge","rail_only_update","ferry_only_update"], inplace=True)
+
+    # Now drop those that are already in the roadway network
     station_road_links_gdf = station_road_links_gdf.merge(
         right=roadway_net.links_df[["A","B"]],
         how="left",
         validate="one_to_one",
         indicator=True
     )
+    WranglerLogger.debug(f"Dropping the following station_road_links_gdf rows that are already in the roadway network:\n"
+                         f"{station_road_links_gdf.loc[ station_road_links_gdf["_merge"] == "both"]}")
+
     if trace_shape_ids:
         for trace_shape_id in trace_shape_ids:
             WranglerLogger.debug(
@@ -2376,7 +2418,7 @@ def create_feed_from_gtfs_model(  # noqa: PLR0915
         raise NotImplementedError(msg)
 
     # Add helpful extra data to shapes table
-    add_additional_data_to_shapes(feed_tables, local_crs, crs_units)
+    add_additional_data_to_shapes(feed_tables, local_crs, crs_units, trace_shape_ids)
 
     # Use provided max_stop_distance or default
     if max_stop_distance is None:
