@@ -3344,7 +3344,6 @@ def get_original_shape_points_between_stops(
 
         if trace:
             WranglerLogger.debug(f"  trace Found {len(shape_points)} total shape points for shape_id={shape_id}")
-            WranglerLogger.debug(f"  trace shape_points for {shape_id}:\n{shape_points}")
             if not shape_points.empty and 'stop_sequence' in shape_points.columns:
                 unique_stop_seqs = shape_points['stop_sequence'].dropna().unique()
                 WranglerLogger.debug(f"  Unique stop_sequences in shape: {sorted(unique_stop_seqs)}")
