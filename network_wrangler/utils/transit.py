@@ -11,6 +11,10 @@ K_NEAREST_CANDIDATES = 20
 """Number of nearest candidate nodes to consider in match_bus_stops_to_roadway_nodes() when using name scoring."""
 NAME_MATCH_WEIGHT = 0.9
 """Weight for name match score in combined scoring in match_bus_stops_to_roadway_nodes(). 0.9 means 90% name match, 10% distance."""
+SHAPE_DISTANCE_TOLERANCE = 1.10
+"""Maximum ratio of path distance to shortest distance in shape-aware routing. Used in create_bus_routes() and find_shape_aware_shortest_path(). 1.10 means paths up to 110% of shortest distance are considered."""
+MAX_SHAPE_CANDIDATE_PATHS = 20
+"""Maximum number of candidate paths to evaluate in find_shape_aware_shortest_path() when doing shape-aware routing."""
 
 import geopandas as gpd
 import networkx as nx
@@ -1018,7 +1022,21 @@ def create_bus_routes(  # noqa: PLR0912, PLR0915
     # Create new shape links between those nodes
     # Check how far away the new shape links are from the given stop-to-stop shape links
     bus_stop_links_gdf.sort_values(by=["shape_id", "stop_sequence"], inplace=True)
-    G_bus = roadway_net.get_modal_graph("bus")
+    G_bus_multi = roadway_net.get_modal_graph("bus")
+
+    # Convert MultiDiGraph to DiGraph for pathfinding
+    # DiGraph is required for nx.shortest_simple_paths() used in shape-aware routing
+    # Keep directionality but collapse multiple edges to shortest
+    G_bus = nx.DiGraph()
+    for u, v, data in G_bus_multi.edges(data=True):
+        if G_bus.has_edge(u, v):
+            # Keep edge with minimum distance
+            if data.get('distance', float('inf')) < G_bus[u][v]['distance']:
+                G_bus[u][v]['distance'] = data.get('distance', 0)
+        else:
+            G_bus.add_edge(u, v, distance=data.get('distance', 0))
+
+    WranglerLogger.debug(f"Converted MultiDiGraph ({G_bus_multi.number_of_edges()} edges) to DiGraph ({G_bus.number_of_edges()} edges)")
 
     # collect node sequences for these shapes
     bus_node_sequence = []
@@ -1033,12 +1051,30 @@ def create_bus_routes(  # noqa: PLR0912, PLR0915
             current_shape_pt_sequence = 1
             current_shape_id = row["shape_id"]
 
-        # WranglerLogger.debug(f"{idx} Looking for path from {row['A']} to {row['B']}")
-        # WranglerLogger.debug(f"{row}")
+        if current_shape_id in trace_shape_ids:
+            WranglerLogger.debug(f"trace path {current_shape_id}: {_idx} Looking for path from {row['A']} to {row['B']}")
+            WranglerLogger.debug(f"\n{row}")
         try:
-            # Try to find shortest path
-            path = nx.shortest_path(G_bus, row["A"], row["B"])
-            # WranglerLogger.debug(f"Found path for {row['A']} to {row['B']}: len={path_length} {path}")
+            # Find shortest path with optional shape-aware selection
+            use_shape_aware_routing = True  # Could be made a parameter
+
+            if use_shape_aware_routing:
+                # Get original shape points between these stops for comparison
+                original_shape_points = get_original_shape_points_between_stops(
+                    feed_tables, row["shape_id"], row["stop_sequence"],
+                    row["stop_sequence"] + 1, current_shape_id in trace_shape_ids
+                )
+
+                path = find_shape_aware_shortest_path(
+                    G_bus, row["A"], row["B"], original_shape_points,
+                    roadway_net, SHAPE_DISTANCE_TOLERANCE, current_shape_id in trace_shape_ids
+                )
+            else:
+                # Standard shortest path
+                path = nx.shortest_path(G_bus, row["A"], row["B"], weight="distance")
+
+            if current_shape_id in trace_shape_ids:
+                WranglerLogger.debug(f"trace path {current_shape_id}: Found path for {row['A']} to {row['B']}: len={len(path)} {path}")
 
             # Create shape point rows for that path
             # Only include first point if it's the first path for the shape,
@@ -2353,7 +2389,7 @@ def create_feed_from_gtfs_model(  # noqa: PLR0915
         crs_units,
         max_stop_distance,
         trace_shape_ids,
-        use_name_matching=True,  # Use name matching when available
+        use_name_matching=True  # Use name matching when available
     )
 
     # for fixed route transit, add the links and stops to the roadway network
@@ -3280,3 +3316,260 @@ def truncate_route_at_stop(  # noqa: PLR0912, PLR0915
 
     # Note: shapes would need to be truncated to match truncated trips
     # TODO: truncate shapes to match truncated trips
+
+
+def get_original_shape_points_between_stops(
+    feed_tables: dict, shape_id: str, from_stop_seq: int, to_stop_seq: int, trace: bool = False
+):
+    """Get original GTFS shape points between two consecutive stops.
+
+    Uses stop_sequence information already added by add_additional_data_to_shapes().
+
+    Args:
+        feed_tables: GTFS feed tables dictionary
+        shape_id: Shape identifier
+        from_stop_seq: Starting stop sequence number
+        to_stop_seq: Ending stop sequence number (should be from_stop_seq + 1)
+        trace: If True, enable trace logging for debugging
+
+    Returns:
+        DataFrame of shape points between stops, or empty DataFrame if not found
+    """
+    try:
+        if trace:
+            WranglerLogger.debug(f"Getting shape points for shape_id={shape_id} between stop_seq {from_stop_seq} and {to_stop_seq}")
+
+        # Get shape points for this shape_id
+        shape_points = feed_tables['shapes'][feed_tables['shapes']['shape_id'] == shape_id].copy()
+
+        if trace:
+            WranglerLogger.debug(f"  trace Found {len(shape_points)} total shape points for shape_id={shape_id}")
+            WranglerLogger.debug(f"  trace shape_points for {shape_id}:\n{shape_points}")
+            if not shape_points.empty and 'stop_sequence' in shape_points.columns:
+                unique_stop_seqs = shape_points['stop_sequence'].dropna().unique()
+                WranglerLogger.debug(f"  Unique stop_sequences in shape: {sorted(unique_stop_seqs)}")
+
+        if shape_points.empty:
+            if trace:
+                WranglerLogger.debug(f"  No shape points found for shape_id={shape_id}")
+            return shape_points
+
+        # Sort by shape_pt_sequence
+        shape_points = shape_points.sort_values('shape_pt_sequence')
+
+        # Check if stop_sequence column exists
+        if 'stop_sequence' not in shape_points.columns:
+            if trace:
+                WranglerLogger.debug(f"  WARNING: 'stop_sequence' column not found in shapes table")
+                WranglerLogger.debug(f"  Available columns: {list(shape_points.columns)}")
+            return pd.DataFrame()
+
+        # Find the shape_pt_sequence values for the start and end stops
+        # Only rows with stop_sequence values are actual stops
+        stop_points = shape_points[shape_points['stop_sequence'].notna()]
+
+        if trace:
+            WranglerLogger.debug(f"  Found {len(stop_points)} stop points (vs {len(shape_points)} total shape points)")
+            if not stop_points.empty:
+                WranglerLogger.debug(f"  Stop sequences present: {sorted(stop_points['stop_sequence'].unique())}")
+
+        # Find shape_pt_sequence range for the requested stop sequences
+        from_stop_points = stop_points[stop_points['stop_sequence'] == from_stop_seq]
+        to_stop_points = stop_points[stop_points['stop_sequence'] == to_stop_seq]
+
+        if from_stop_points.empty or to_stop_points.empty:
+            if trace:
+                WranglerLogger.debug(f"  WARNING: Could not find stop sequences {from_stop_seq} or {to_stop_seq}")
+                if from_stop_points.empty:
+                    WranglerLogger.debug(f"    from_stop_seq {from_stop_seq} not found")
+                if to_stop_points.empty:
+                    WranglerLogger.debug(f"    to_stop_seq {to_stop_seq} not found")
+            return pd.DataFrame()
+
+        # Get the shape_pt_sequence values for these stops
+        from_shape_seq = from_stop_points['shape_pt_sequence'].iloc[0]
+        to_shape_seq = to_stop_points['shape_pt_sequence'].iloc[0]
+
+        if trace:
+            WranglerLogger.debug(f"  Stop sequence {from_stop_seq} is at shape_pt_sequence {from_shape_seq}")
+            WranglerLogger.debug(f"  Stop sequence {to_stop_seq} is at shape_pt_sequence {to_shape_seq}")
+
+        # Filter to get all shape points between these two stops (inclusive)
+        shape_points = shape_points[
+            (shape_points['shape_pt_sequence'] >= from_shape_seq) &
+            (shape_points['shape_pt_sequence'] <= to_shape_seq)
+        ]
+
+        if trace:
+            WranglerLogger.debug(f"  Filtered to {len(shape_points)} shape points between shape_pt_sequences {from_shape_seq} and {to_shape_seq}")
+            if not shape_points.empty:
+                num_with_stops = shape_points['stop_sequence'].notna().sum()
+                WranglerLogger.debug(f"    Including {num_with_stops} stop points and {len(shape_points)-num_with_stops} intermediate shape points")
+
+        return shape_points
+    except Exception as e:
+        if trace:
+            WranglerLogger.debug(f"  ERROR in get_original_shape_points_between_stops: {type(e).__name__}: {e}")
+            import traceback
+            WranglerLogger.debug(f"  Traceback: {traceback.format_exc()}")
+        return pd.DataFrame()
+
+
+def calculate_path_deviation_from_shape(path_nodes: list, original_shape_points: pd.DataFrame, roadway_net, trace: bool = False) -> float:
+    """Calculate total deviation of a path from original shape points.
+
+    Creates a LineString from the path nodes and calculates the distance from each
+    shape point to the nearest point on the line.
+
+    Args:
+        path_nodes: List of roadway node IDs in the path
+        original_shape_points: DataFrame of original GTFS shape points
+        roadway_net: RoadwayNetwork to get node coordinates
+        trace: If True, enable trace logging for debugging
+
+    Returns:
+        Total deviation distance (sum of distances from shape points to path line)
+    """
+    if original_shape_points.empty or not path_nodes:
+        return float('inf')
+
+    try:
+        from shapely.geometry import LineString, Point
+
+        # Create LineString from path nodes
+        path_coords = []
+        for node_id in path_nodes:
+            node_row = roadway_net.nodes_df[roadway_net.nodes_df['model_node_id'] == node_id]
+            if not node_row.empty:
+                path_coords.append((node_row.iloc[0]['X'], node_row.iloc[0]['Y']))
+
+        if len(path_coords) < 2:
+            return float('inf')
+
+        path_line = LineString(path_coords)
+
+        # Calculate total deviation - for each shape point, find distance to path line
+        total_deviation = 0.0
+        if trace:
+            WranglerLogger.debug(f"Calculating path deviation for line with {len(path_nodes)} nodes against {len(original_shape_points)} shape points")
+            # Get link names for first and last nodes for debugging
+            first_node_row = roadway_net.nodes_df[roadway_net.nodes_df['model_node_id'] == path_nodes[0]]
+            last_node_row = roadway_net.nodes_df[roadway_net.nodes_df['model_node_id'] == path_nodes[-1]]
+            first_link_names = first_node_row.iloc[0].get('link_names', []) if not first_node_row.empty and 'link_names' in first_node_row.columns else []
+            last_link_names = last_node_row.iloc[0].get('link_names', []) if not last_node_row.empty and 'link_names' in last_node_row.columns else []
+            WranglerLogger.debug(f"  Path from node {path_nodes[0]} ({first_link_names}) to node {path_nodes[-1]} ({last_link_names})")
+
+        for idx, shape_row in original_shape_points.iterrows():
+            shape_point = Point(shape_row['shape_pt_lon'], shape_row['shape_pt_lat'])
+            # Distance from point to nearest point on line
+            dist = shape_point.distance(path_line)
+            total_deviation += dist
+
+            if trace and idx % max(1, len(original_shape_points) // 5) == 0:  # Log every ~20% of points
+                WranglerLogger.debug(f"  Shape point {idx} distance to path: {dist:.6f}")
+
+        if trace:
+            WranglerLogger.debug(f"Total path deviation: {total_deviation:.6f} (avg per point: {total_deviation/len(original_shape_points):.6f})")
+
+        return total_deviation
+    except Exception as e:
+        if trace:
+            WranglerLogger.debug(f"Error calculating path deviation: {e}")
+        return float('inf')
+
+
+def find_shape_aware_shortest_path(
+    G_bus: nx.DiGraph, start_node: int, end_node: int, original_shape_points: pd.DataFrame,
+    roadway_net: RoadwayNetwork, tolerance: float = 1.10, trace: bool = False
+) -> list:
+    """Find shortest path that considers original shape points.
+
+    Uses constrained shortest path approach:
+    1. Find shortest distance
+    2. Get all paths within tolerance of shortest distance
+    3. Among those, select path with minimum deviation from original shape
+
+    Args:
+        G_bus: NetworkX DiGraph of bus network
+        start_node: Starting node ID
+        end_node: Ending node ID
+        original_shape_points: DataFrame of original GTFS shape points
+        roadway_net: RoadwayNetwork to get node coordinates
+        tolerance: Maximum ratio of path distance to shortest distance (default 1.10 = 110%)
+        trace: Whether to log trace information
+
+    Returns:
+        List of node IDs representing the best path
+    """
+    try:
+        # First, get the absolute shortest path distance
+        shortest_dist = nx.shortest_path_length(G_bus, start_node, end_node, weight="distance")
+        max_allowed_dist = shortest_dist * tolerance
+
+        # Get multiple shortest paths to evaluate
+        from itertools import islice
+        candidate_paths = list(islice(nx.shortest_simple_paths(G_bus, start_node, end_node, weight="distance"), MAX_SHAPE_CANDIDATE_PATHS))
+
+        best_path = None
+        best_deviation = float('inf')
+        paths_within_tolerance = 0
+
+        # Store path info for debug output
+        debug_paths = []
+
+        for path in candidate_paths:
+            # Calculate path distance
+            path_dist = 0
+            for i in range(len(path) - 1):
+                edge_data = G_bus[path[i]][path[i+1]]
+                path_dist += edge_data.get('distance', 0)
+
+            # Check if within tolerance
+            if path_dist <= max_allowed_dist:
+                paths_within_tolerance += 1
+
+                # Calculate shape deviation for this path
+                deviation = calculate_path_deviation_from_shape(
+                    path, original_shape_points, roadway_net, trace=trace
+                )
+
+                # Store for debug output
+                if trace:
+                    debug_paths.append({
+                        'path': path,
+                        'distance': path_dist,
+                        'deviation': deviation,
+                        'is_best': False  # Will update later
+                    })
+
+                # Select path with minimum deviation
+                if deviation < best_deviation:
+                    best_deviation = deviation
+                    best_path = path
+                    if trace:
+                        WranglerLogger.debug(f"  New best path with deviation {deviation:.6f}, distance {path_dist:.3f}")
+
+        # Mark the best path
+        if trace and debug_paths and best_path:
+            for dp in debug_paths:
+                if dp['path'] == best_path:
+                    dp['is_best'] = True
+                    break
+
+        if trace:
+            WranglerLogger.debug(f"Shape-aware routing: {paths_within_tolerance} paths within {tolerance:.1%} tolerance")
+            if not original_shape_points.empty:
+                WranglerLogger.debug(f"Original shape has {len(original_shape_points)} points between stops")
+            if best_path:
+                WranglerLogger.debug(f"Selected path with deviation {best_deviation:.6f}")
+
+
+        return best_path if best_path else candidate_paths[0]  # Fallback to shortest
+
+    except Exception as e:
+        if trace:
+            WranglerLogger.debug(f"Shape-aware routing failed: {type(e).__name__}: {e}, falling back to standard shortest path")
+            import traceback
+            WranglerLogger.debug(f"Traceback: {traceback.format_exc()}")
+        # Fallback to standard shortest path
+        return nx.shortest_path(G_bus, start_node, end_node, weight="distance")
