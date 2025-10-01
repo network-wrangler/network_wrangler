@@ -2105,7 +2105,7 @@ def add_stations_and_links_to_roadway_network(  # noqa: PLR0912, PLR0915
         indicator=True
     )
     WranglerLogger.debug(f"Dropping the following station_road_links_gdf rows that are already in the roadway network:\n"
-                         f"{station_road_links_gdf.loc[ station_road_links_gdf["_merge"] == "both"]}")
+                         f"{station_road_links_gdf.loc[ station_road_links_gdf['_merge'] == 'both']}")
 
     if trace_shape_ids:
         for trace_shape_id in trace_shape_ids:
