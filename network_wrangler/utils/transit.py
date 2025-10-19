@@ -35,6 +35,8 @@ K_NEAREST_CANDIDATES = 20
 """Number of nearest candidate nodes to consider in match_bus_stops_to_roadway_nodes() when using name scoring."""
 NAME_MATCH_WEIGHT = 0.9
 """Weight for name match score in combined scoring in match_bus_stops_to_roadway_nodes(). 0.9 means 90% name match, 10% distance."""
+MIN_SUBSTRING_MATCH_LENGTH = 3
+"""Minimum string length required for substring matching in assess_stop_name_roadway_compatibility(). Prevents spurious matches with single letters."""
 SHAPE_DISTANCE_TOLERANCE = 1.10
 """Maximum ratio of path distance to shortest distance in shape-aware routing. Used in create_bus_routes() and find_shape_aware_shortest_path(). 1.10 means paths up to 110% of shortest distance are considered."""
 MAX_SHAPE_CANDIDATE_PATHS = 20
@@ -291,7 +293,7 @@ def create_feed_frequencies(  # noqa: PLR0915
     # if num_trip_ids > 1, we can use:
     #    timeperiod duration / num_trip_ids OR
     #    mean time between trip_depart_times OR
-    #    median time between trip_depar_times
+    #    median time between trip_depart_times
     # Let's set all of those
 
     shape_patterns_df["timeperiod_duration_minutes"] = shape_patterns_df["timeperiod"].map(
@@ -317,6 +319,10 @@ def create_feed_frequencies(  # noqa: PLR0915
     shape_patterns_df.loc[shape_patterns_df["num_trip_ids"] <= 1, "headway_mins"] = (
         default_frequency_for_onetime_route
     )
+    # if it's zero, use uniform_headway
+    WranglerLogger.debug(f"Updating zero headway_mins to uniform_headway:\n{shape_patterns_df.loc[ shape_patterns_df['headway_mins']==0]}")
+    shape_patterns_df.loc[ shape_patterns_df['headway_mins']==0, 'headway_mins'] = shape_patterns_df['uniform_headway']
+
     WranglerLogger.debug(
         f"After calculating different versions of headways, shape_patterns_df:\n{shape_patterns_df}"
     )
@@ -449,7 +455,7 @@ def assess_stop_name_roadway_compatibility(
     """
     import re
 
-    if not stop_name or not node_link_names:
+    if not stop_name or (node_link_names is None or len(node_link_names) == 0):
         return False, 0.0, []
 
     # Check for exact match first - allows users to force specific matches by ensuring
@@ -482,9 +488,12 @@ def assess_stop_name_roadway_compatibility(
         # Check for exact match or substring match
         for node_link in normalized_node_links:
             # Check if the street name is contained in the node link name or vice versa
-            if street_normalized in node_link or node_link in street_normalized:
-                matched_streets.append(street)
-                break
+            # Only do substring matching if both strings meet minimum length to avoid
+            # spurious matches with single letters (e.g., "E" matching "Deer Creek")
+            if len(street_normalized) >= MIN_SUBSTRING_MATCH_LENGTH and len(node_link) >= MIN_SUBSTRING_MATCH_LENGTH:
+                if street_normalized in node_link or node_link in street_normalized:
+                    matched_streets.append(street)
+                    break
 
             # Also check for partial matches (e.g., "Market St" matches "Market Street")
             # Remove common suffixes for comparison
@@ -503,7 +512,11 @@ def assess_stop_name_roadway_compatibility(
                     node_base = node_base[:-len(suffix)].strip()
                     break
 
-            if street_base and node_base and (street_base in node_base or node_base in street_base):
+            # Apply same minimum length requirement for suffix-removed matching
+            if (street_base and node_base and
+                len(street_base) >= MIN_SUBSTRING_MATCH_LENGTH and
+                len(node_base) >= MIN_SUBSTRING_MATCH_LENGTH and
+                (street_base in node_base or node_base in street_base)):
                 matched_streets.append(street)
                 break
 
@@ -715,7 +728,7 @@ def match_bus_stops_to_roadway_nodes(  # noqa: PLR0912, PLR0915
 
                 # Calculate name match score
                 _, name_score, _ = assess_stop_name_roadway_compatibility(
-                    stop_name, node_link_names if node_link_names else []
+                    stop_name, node_link_names if (node_link_names is not None and len(node_link_names) > 0) else []
                 )
 
                 # Combined score (lower is better)
@@ -940,14 +953,117 @@ def match_bus_stops_to_roadway_nodes(  # noqa: PLR0912, PLR0915
         ] = feed_tables["stop_times"]["geometry_bus"]
         feed_tables["stop_times"].drop(columns=["geometry_bus", "_merge"], inplace=True)
 
+def create_debug_links_for_bad_bus_paths(
+        roadway_net: RoadwayNetwork,
+        no_bus_path_gdf: gpd.GeoDataFrame,
+        local_crs: str,
+        crs_units: str,
+    ):
+    """
+    Creates links in the roadway network for these bad bus paths.
+    This is intended for the user to look at and remove, which is easier to do by investigating
+    in the output network.
+    """
+    WranglerLogger.debug("create_debug_links_for_bad_bus_paths")
+
+    WranglerLogger.debug(f"Before adding links, {len(roadway_net.links_df)=:,}")
+    WranglerLogger.debug(f"roadway_net.links_df:\n{roadway_net.links_df}")
+    # model_link_id, A, B, geometry, name, rail_only, bus_only, ferry_only, drive_access, bike_access, walk_access, distance, roadway, 
+    # projects, managed, shape_id, lanes, pric, ref, access, ML_projects, ML_lanes, ML_access, truck_access, osm_link_id, highway, 
+    # oneway, reversed, length, county, drive_centroid_fit, walk_centroid_fit, direction
+    # stop_id, stop_name, next_stop_id, next_stop_name, shape_ids
+
+    # no_bus_path_gdf columns:
+    # A, B, shape_id, stop_sequence, route_type, route_id, direction_id, trip_id,
+    # stop_id, stop_name, next_stop_id, next_stop_name, num_points, geometry
+    add_links_gdf = no_bus_path_gdf.copy()
+    # drop some unneeded columns
+    add_links_gdf.drop(columns=["stop_sequence","route_type","route_id","direction_id","trip_id","num_points"])
+    # roll up to unique A,B, using the first
+    add_links_gdf = gpd.GeoDataFrame(data=add_links_gdf.groupby(by=["A","B"]).agg(
+        shape_ids      = pd.NamedAgg(column="shape_id", aggfunc=list),
+        stop_id        = pd.NamedAgg(column="stop_id", aggfunc="first"),
+        stop_name      = pd.NamedAgg(column="stop_name", aggfunc="first"),
+        next_stop_id   = pd.NamedAgg(column="next_stop_id", aggfunc="first"),
+        next_stop_name = pd.NamedAgg(column="next_stop_name", aggfunc="first"),
+        geometry       = pd.NamedAgg(column="geometry", aggfunc="first")
+    ).reset_index(drop=False), geometry="geometry", crs=no_bus_path_gdf.crs)
+    add_links_gdf["shape_id"] = (
+        add_links_gdf["stop_id"] + " to " + add_links_gdf["next_stop_id"]
+    )
+    # make ok for any transit
+    add_links_gdf["rail_only"] = True
+    add_links_gdf["bus_only"] = True
+    add_links_gdf["ferry_only"] = True
+    add_links_gdf["drive_access"] = True
+    # not ok for others
+    add_links_gdf["truck_access"] = False
+    add_links_gdf["bike_access"] = False
+    add_links_gdf["walk_access"] = False
+    # fill in some defaults
+    add_links_gdf["roadway"] = "transit"
+    add_links_gdf["lanes"] = 1
+    add_links_gdf["highway"] = "transit"
+    add_links_gdf["managed"] = 0
+    # this is how you find me
+    add_links_gdf["ref"] = "bad_bus_path"    
+
+    add_links_gdf.to_crs(local_crs, inplace=True)
+    add_links_gdf["length"] = add_links_gdf.length
+    if crs_units == "feet":
+        add_links_gdf["distance"] = add_links_gdf["length"] / FEET_PER_MILE
+    else:
+        add_links_gdf["distance"] = (
+            add_links_gdf["length"] / METERS_PER_KILOMETER
+        )
+    add_links_gdf.to_crs(LAT_LON_CRS, inplace=True)
+    add_links_gdf.reset_index(drop=True, inplace=True)
+
+    # check if any exist already
+    add_links_gdf["temp_model_link_id"] = add_links_gdf.index
+    exists_already_df = pd.merge(
+        left=roadway_net.links_df,
+        right=add_links_gdf[["A","B","temp_model_link_id"]],
+        on=["A","B"],
+        how="inner"
+    )
+    if len(exists_already_df) > 0:
+        WranglerLogger.warning(
+            f"Can't add the following links because they exist already; adding transit modes:\n"
+            f"{exists_already_df}")
+        # set transit usability for those links
+        roadway_net.links_df.loc[ roadway_net.links_df["model_link_id"].isin(exists_already_df["model_link_id"]), "rail_only"] = True
+        roadway_net.links_df.loc[ roadway_net.links_df["model_link_id"].isin(exists_already_df["model_link_id"]), "bus_only" ] = True
+        roadway_net.links_df.loc[ roadway_net.links_df["model_link_id"].isin(exists_already_df["model_link_id"]), "ferry_only"] = True
+        # remove the duplicate from add_links_gdf
+        add_links_gdf = add_links_gdf.loc[ ~add_links_gdf["temp_model_link_id"].isin(exists_already_df["temp_model_link_id"])]
+        add_links_gdf.reset_index(drop=True, inplace=True)
+    
+    # we're done with this
+    add_links_gdf.drop(columns=["temp_model_link_id"], inplace=True)
+
+    # assign model_link_id
+    max_model_link_id = roadway_net.links_df.model_link_id.max()
+    add_links_gdf["model_link_id"] = add_links_gdf.index + max_model_link_id + 1
+
+    # Add links
+    WranglerLogger.debug(f"add_links_gdf:\n{add_links_gdf}")
+    roadway_net.add_links(add_links_gdf)
+    WranglerLogger.debug(f"After adding links, {len(roadway_net.links_df)=:,}")
+
+    # Add shapes
+    WranglerLogger.info(f"Adding {len(add_links_gdf):,} shapes to roadway network")
+    roadway_net.add_shapes(add_links_gdf)
+
 
 def create_bus_routes(  # noqa: PLR0912, PLR0915
     bus_stop_links_gdf: gpd.GeoDataFrame,
     feed_tables: dict[str, pd.DataFrame],
     roadway_net: RoadwayNetwork,
-    _local_crs: str,  # Unused but kept for API consistency
+    local_crs: str,
     crs_units: str,
     trace_shape_ids: Optional[list[str]] = None,
+    errors: Literal["raise", "ignore"] = "raise",
 ):
     """Find shortest paths through the bus network between consecutive bus stops.
 
@@ -987,6 +1103,7 @@ def create_bus_routes(  # noqa: PLR0912, PLR0915
         local_crs: Coordinate reference system for projections
         crs_units: Distance units ('feet' or 'meters')
         trace_shape_ids: Optional shape IDs for debug logging
+        errors: 'raise' or 'ignore'
 
     Raises:
         TransitValidationError: If no path exists between any consecutive stops.
@@ -1151,7 +1268,13 @@ def create_bus_routes(  # noqa: PLR0912, PLR0915
             "Some bus stop sequences failed to find paths. See e.no_bus_path_gdf"
         )
         e.no_bus_path_gdf = no_bus_path_gdf
-        raise e
+
+        # raise an error if requested
+        if errors == "raise":
+            raise e
+        
+        # if we're ignoring, then we need to create roadway network links for these - and mark them
+        create_debug_links_for_bad_bus_paths(roadway_net, no_bus_path_gdf, local_crs, crs_units)
 
     # create bus shapes
     # current shapes columns:
@@ -2281,6 +2404,7 @@ def create_feed_from_gtfs_model(  # noqa: PLR0915
     add_stations_and_links: bool = True,
     max_stop_distance: Optional[float] = None,
     trace_shape_ids: Optional[list[str]] = None,
+    errors: Literal["raise", "ignore"] = "raise",
 ) -> Feed:
     """Convert GTFS model to Wrangler Feed with stops mapped to roadway network.
 
@@ -2447,7 +2571,7 @@ def create_feed_from_gtfs_model(  # noqa: PLR0915
     # between bus stops and update stops and shapes accordingly
     try:
         create_bus_routes(
-            bus_stop_links_gdf, feed_tables, roadway_net, local_crs, crs_units, trace_shape_ids
+            bus_stop_links_gdf, feed_tables, roadway_net, local_crs, crs_units, trace_shape_ids, errors
         )
     except Exception as e:
         raise e
