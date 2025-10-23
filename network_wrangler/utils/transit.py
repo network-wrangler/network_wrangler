@@ -1228,7 +1228,7 @@ def create_bus_routes(  # noqa: PLR0912, PLR0915
                 last_stop_sequence = row["stop_sequence"]
 
         except nx.NetworkXNoPath as e:
-            WranglerLogger.warning(f"No path exists from for {row["shape_id"]} from {row['A']} to {row['B']}")
+            WranglerLogger.warning(f"No path exists from for {row['shape_id']} from {row['A']} to {row['B']}")
             WranglerLogger.warning(e)
             # No path exists
             no_path_sequence.append(
