@@ -1624,7 +1624,7 @@ def add_additional_data_to_shapes(  # noqa: PLR0915
     feed_tables["shapes"]["stop_sequence"] = None
     # these are the most useful columns for debugging
     stoptime_debug_cols = ['stop_sequence','stop_id','stop_name']
-    shape_debug_cols = ['shape_pt_sequence','shape_dist_traveled','stop_sequence','stop_id','stop_name',f'match_distance_{crs_units}']
+    shape_debug_cols = ['shape_id','shape_pt_sequence','shape_dist_traveled','stop_sequence','stop_id','stop_name',f'match_distance_{crs_units}']
 
     # Add stop geometry to stop_times and convert it a GeoDataFrame
     WranglerLogger.debug(f"Before merge, {len(feed_tables['stop_times'])=:,}")
@@ -1665,15 +1665,16 @@ def add_additional_data_to_shapes(  # noqa: PLR0915
 
     # TODO: This is a little slow; modify to wholly vectorized?
     for shape_id in unique_shape_ids:
-        # Get stop_times for this shape - note this is a reference
+        # Get stop_times for this shape
         stoptimes_for_shape_df = feed_tables["stop_times"].loc[
             feed_tables["stop_times"]["shape_id"] == shape_id
-        ]
+        ].copy()
+        stoptimes_for_shape_df["0_index"] = range(len(stoptimes_for_shape_df))
 
-        # Get shape points for this shape_id - note this is a reference
+        # Get shape points for this shape_id
         shape_df = feed_tables["shapes"].loc[
             feed_tables["shapes"]["shape_id"] == shape_id
-        ]
+        ].copy()
 
         # WranglerLogger.debug(f"stoptimes_for_shape_df:\n{stoptimes_for_shape_df[stoptime_debug_cols]}")
         # WranglerLogger.debug(f"shape_df:\n{shape_df}")
@@ -1691,16 +1692,17 @@ def add_additional_data_to_shapes(  # noqa: PLR0915
         assert len(shape_coords) == len(shape_df)
         shape_tree = BallTree(shape_coords)
 
-        # Find nearest shape point for all stops at once
+        # Find k nearest shape points for all stops at once
         stop_coords = np.array([(geom.x, geom.y) for geom in stoptimes_for_shape_df.geometry])
         assert len(stop_coords) == len(stoptimes_for_shape_df)
         # Don't pass k=1 because some stops occur more than once, like in a loop
-        # Note: distances & indices = num_stops rows, NEAREST_K_SHAPES_TO_STOPS cols
+        # Note: distances & indices = num_stops rows, nearest_k cols
         #   indicating, for each stop, what are the closest shape points?
         # When a stop shows up multiple times in a route, it's tricky;
         # => we require the shape indices to be increasing as the stop sequence increases
         # So do those stops in a second pass
-        distances, indices = shape_tree.query(stop_coords, k=NEAREST_K_SHAPES_TO_STOPS)
+        nearest_k = min(NEAREST_K_SHAPES_TO_STOPS, len(shape_coords))
+        distances, indices = shape_tree.query(stop_coords, k=nearest_k)
         # count how many times the stop_ids occur in the shape
         stop_counts_df = stoptimes_for_shape_df.groupby("stop_id").agg(
             min_stop_seq = pd.NamedAgg(column="stop_sequence", aggfunc="min"),
@@ -1718,7 +1720,7 @@ def add_additional_data_to_shapes(  # noqa: PLR0915
         if shape_id in trace_shape_ids:
             WranglerLogger.debug(
                 f"trace stoptimes_for_shape_df for {shape_id} {len(stoptimes_for_shape_df)=}:\n"
-                f"{stoptimes_for_shape_df[stoptime_debug_cols]}"
+                f"{stoptimes_for_shape_df[stoptime_debug_cols + ['0_index']]}"
             )
             WranglerLogger.debug(f"stop_counts_df:\n{stop_counts_df}")
             WranglerLogger.debug(f"distances: {type(distances)} {distances.shape}\n{distances}")
@@ -1787,7 +1789,8 @@ def add_additional_data_to_shapes(  # noqa: PLR0915
                 f"{shape_df[shape_debug_cols]}"
             )
             WranglerLogger.debug(
-                f"trace {shape_id}: After first pass, shape:\n{shape_stops_df}"
+                f"trace {shape_id}: After first pass, shape_stops_df:\n"
+                f"{shape_stops_df[shape_debug_cols]}"
             )
 
         stops_join_shapes_df = pd.merge(
@@ -1820,40 +1823,62 @@ def add_additional_data_to_shapes(  # noqa: PLR0915
             right_index=True,
             how="left"
         )
-        WranglerLogger.debug(f"left_only_df:\n{left_only_df}")
+        WranglerLogger.debug(f"After first pass, left_only_df:\n{left_only_df}")
 
-        if shape_id in trace_shape_ids:
-            WranglerLogger.debug(
-                f"shape_df for {shape_id} {len(shape_df)=}:\n"
-                f"{shape_df[['shape_pt_sequence','stop_sequence','stop_id','stop_name','shape_dist_traveled']]}"
-            )
-
-        stop_num = 0 # this will go from [0, len(shape_stops_df)]
         for left_only_idx, left_only_stop_info in left_only_df.iterrows():
             stop_id = left_only_stop_info["stop_id"]
             shape_stops_count = left_only_stop_info["stop_count"]
             stop_sequence = left_only_stop_info["stop_sequence"]
+            stop_num = stoptimes_for_shape_df.loc[ 
+                (stoptimes_for_shape_df["stop_id"] == stop_id) &
+                (stoptimes_for_shape_df["stop_sequence"] == stop_sequence)
+            ].iloc[0]["0_index"] # this will index into the distances and indices
+
+            prev_stop_seq = None
+            next_stop_seq = None
 
             # now we have the additional constraint that:
             #  shape_global_idx > than that for the previous idx
             #  shape_global_idx < than that for the next idx
             if left_only_stop_info["duplicate_stops_consecutive"] == True:
-                prev_stop_seq = left_only_stop_info["min_stop_seq"] - 1
-                next_stop_seq = left_only_stop_info["max_stop_seq"] + 1
+                # highest stop_sequence before left_only_stop_info["min_stop_seq"]
+                prev_stops_filtered = shape_stops_df[
+                    shape_stops_df['stop_sequence'] < left_only_stop_info["min_stop_seq"]
+                ]['stop_sequence']
+                # lowest stop_sequence before left_only_stop_info["max_stop_seq"]
+                next_stops_filtered = shape_stops_df[
+                    shape_stops_df['stop_sequence'] > left_only_stop_info["max_stop_seq"]
+                ]['stop_sequence']
             else:
-                prev_stop_seq = stop_sequence - 1
-                next_stop_seq = stop_sequence + 1
+                # highest stop_sequence before stop_sequence
+                prev_stops_filtered = shape_stops_df[
+                    shape_stops_df['stop_sequence'] < stop_sequence
+                ]['stop_sequence']
+                # lowest stop_sequence after stop_sequence
+                next_stops_filtered = shape_stops_df[
+                    shape_stops_df['stop_sequence'] > stop_sequence
+                ]['stop_sequence']
+
+            if False and shape_id in trace_shape_ids:
+                WranglerLogger.debug(f"prev_stops_filtered:{prev_stops_filtered}")
+                WranglerLogger.debug(f"next_stops_filtered:{next_stops_filtered}")
+
+            if len(prev_stops_filtered) > 0:
+                prev_stop_seq = prev_stops_filtered.max()
+            if len(next_stops_filtered) > 0:
+                next_stop_seq = next_stops_filtered.min()
+
             if shape_id in trace_shape_ids:
                 WranglerLogger.debug(f"{prev_stop_seq=} {next_stop_seq=}")
 
             prev_shape_idx = None
             next_shape_idx = None
-            if prev_stop_seq >= shape_stops_df["stop_sequence"].min():
+            if (prev_stop_seq is not None) and (prev_stop_seq >= shape_stops_df["stop_sequence"].min()):
                 prev_shape_idx = int(feed_tables["shapes"][
                     (feed_tables["shapes"]["shape_id"] == shape_id) &
                     (feed_tables["shapes"]["stop_sequence"] == prev_stop_seq)
                 ].index[0])
-            if next_stop_seq <= shape_stops_df["stop_sequence"].max():
+            if (next_stop_seq is not None) and (next_stop_seq <= shape_stops_df["stop_sequence"].max()):
                 next_shape_idx = int(feed_tables["shapes"][
                     (feed_tables["shapes"]["shape_id"] == shape_id) &
                     (feed_tables["shapes"]["stop_sequence"] == next_stop_seq)
@@ -1862,7 +1887,7 @@ def add_additional_data_to_shapes(  # noqa: PLR0915
 
             found_shape = False
             # look through the options
-            for shape_opt_num in range(NEAREST_K_SHAPES_TO_STOPS):
+            for shape_opt_num in range(nearest_k):
                 shape_local_idx = int(indices[stop_num, shape_opt_num]) # index in shape_indices of closest shape point
                 shape_global_idx = int(shape_indices[shape_local_idx]) # index in shape_df
                 distance = float(distances[stop_num, shape_opt_num])
@@ -1873,9 +1898,7 @@ def add_additional_data_to_shapes(  # noqa: PLR0915
                         f" trying {shape_opt_num=} {shape_stops_idx=} {stop_num=} {shape_stops_count=} "
                         f"{shape_local_idx=} {shape_global_idx=} "
                         f"{distance=} existing_dist={feed_tables['shapes'].loc[shape_global_idx, f'match_distance_{crs_units}']}"
-                    )
-                    # WranglerLogger.debug(f"stop_info:\n{stop_info}")
-                
+                    )                
                 # require shape_global_idx > prev_shape_idx
                 if prev_shape_idx and (shape_global_idx <= prev_shape_idx):
                     continue
@@ -1889,10 +1912,13 @@ def add_additional_data_to_shapes(  # noqa: PLR0915
             
             if found_shape:
                 if shape_id in trace_shape_ids:
-                    WranglerLogger.debug(f"Found shape pt to match {stop_id=} at {shape_global_idx=}")
+                    WranglerLogger.debug(f"Found shape pt to match {stop_sequence=} {stop_id=} at {shape_global_idx=}")
                 # set it
+                stop_info = stoptimes_for_shape_df.loc[
+                    (stoptimes_for_shape_df["stop_id"] == stop_id) &
+                    (stoptimes_for_shape_df["stop_sequence"] == stop_sequence)].iloc[0]
                 feed_tables["shapes"].loc[shape_global_idx, f"match_distance_{crs_units}"] = distance
-                feed_tables["shapes"].loc[shape_global_idx, "stop_id"] = stop_info["stop_id"]
+                feed_tables["shapes"].loc[shape_global_idx, "stop_id"] = stop_id
                 feed_tables["shapes"].loc[shape_global_idx, "stop_name"] = stop_info["stop_name"]
                 feed_tables["shapes"].loc[shape_global_idx, "stop_sequence"] = stop_sequence
 
@@ -1905,7 +1931,7 @@ def add_additional_data_to_shapes(  # noqa: PLR0915
                 matched_count += 1
 
             elif found_shape == False:
-                WranglerLogger.debug(f"No viable shape pts near this stop (in closest {NEAREST_K_SHAPES_TO_STOPS}); inserting stop")
+                WranglerLogger.debug(f"No viable shape pts near this stop (in closest {nearest_k}); inserting stop")
                 stop_info = feed_tables["stops"].loc[ feed_tables["stops"]["stop_id"] == left_only_stop_info["stop_id"] ].iloc[0]
                 WranglerLogger.debug(f"Inserting:\n{stop_info}")
 
@@ -1978,9 +2004,6 @@ def add_additional_data_to_shapes(  # noqa: PLR0915
                     data=pd.concat(concat_list, ignore_index=True),
                     geometry="geometry", crs=local_crs)
 
-            # continue working on missing stops    
-            stop_num += 1
-
         # check again that all stops match (except for the second consecutive duplicate stop)
         # and that the stop_sequence is increasing
         # refresh
@@ -1996,22 +2019,20 @@ def add_additional_data_to_shapes(  # noqa: PLR0915
                 f"{shape_df[shape_debug_cols]}"
             )
             WranglerLogger.debug(
-                f"trace {shape_id}: After second pass, shape:\n{shape_stops_df}"
+                f"trace {shape_id}: After second pass, shape_stops_df:\n"
+                f"{shape_stops_df[shape_debug_cols]}"
             )
 
         # check that all stops matched to a shape point
-        try:
-            stops_join_shapes_df = pd.merge(
-                left=feed_tables["stop_times"].loc[feed_tables["stop_times"]["shape_id"]==shape_id, 
-                    ["stop_id","stop_sequence","shape_id"]],
-                right=shape_stops_df[["stop_id","stop_sequence","shape_id"]],
-                how="left",
-                on=["stop_id","stop_sequence","shape_id"],
-                validate="one_to_one",
-                indicator=True
-            )
-        except:
-            WranglerLogger.fatal(f"shape_stops_df:\n{shape_stops_df}")
+        stops_join_shapes_df = pd.merge(
+            left=feed_tables["stop_times"].loc[feed_tables["stop_times"]["shape_id"]==shape_id, 
+                ["stop_id","stop_sequence","shape_id"]],
+            right=shape_stops_df[["stop_id","stop_sequence","shape_id"]],
+            how="outer",
+            on=["stop_id","stop_sequence","shape_id"],
+            validate="one_to_one",
+            indicator=True
+        )
         left_only_df = stops_join_shapes_df.loc[ stops_join_shapes_df['_merge'] == 'left_only']
 
         # check missing stops
@@ -2030,7 +2051,7 @@ def add_additional_data_to_shapes(  # noqa: PLR0915
             WranglerLogger.debug(f"shape_stops_df:\n{shape_stops_df[shape_debug_cols]}")
 
         if len(left_only_df) > 0:
-            WranglerLogger.debug(f"left_only:\n{left_only_df}")
+            WranglerLogger.debug(f"After second pass, left_only:\n{left_only_df}")
             assert (left_only_df["duplicate_stops_consecutive"]==True).all()
 
         WranglerLogger.debug(f"Finished shape_id={shape_id}")
