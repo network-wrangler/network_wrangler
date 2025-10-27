@@ -503,7 +503,8 @@ def assess_stop_name_roadway_compatibility(
             # Also check for partial matches (e.g., "Market St" matches "Market Street")
             # Remove common suffixes for comparison
             suffixes = [' street', ' st', ' avenue', ' ave', ' road', ' rd', ' boulevard', ' blvd',
-                       ' drive', ' dr', ' lane', ' ln', ' way', ' court', ' ct', ' place', ' pl']
+                       ' drive', ' dr', ' lane', ' ln', ' way', ' court', ' ct', ' place', ' pl',
+                       ' parkway', ' pkwy', ' highway', ' hwy']
 
             street_base = street_normalized
             for suffix in suffixes:
@@ -1746,7 +1747,7 @@ def add_additional_data_to_shapes(  # noqa: PLR0915
             if shape_id in trace_shape_ids:
                 WranglerLogger.debug(
                     f"trace {shape_id}: Pass 1 - Finding shape pt for {stop_sequence=} {stop_id=},"
-                    f" trying {shape_opt_num=} {shape_stops_idx=} {stop_num=} {shape_stops_count=} "
+                    f" trying 0 {shape_stops_idx=} {stop_num=} {shape_stops_count=} "
                     f"{shape_local_idx=} {shape_global_idx=} "
                     f"{distance=} existing_dist={feed_tables['shapes'].loc[shape_global_idx, f'match_distance_{crs_units}']}"
                 )
@@ -2021,6 +2022,16 @@ def add_additional_data_to_shapes(  # noqa: PLR0915
             WranglerLogger.debug(
                 f"trace {shape_id}: After second pass, shape_stops_df:\n"
                 f"{shape_stops_df[shape_debug_cols]}"
+            )
+
+        # this will cause the subsequent merge to crash
+        dupe_shape_stops_df = shape_stops_df[ 
+            shape_stops_df.duplicated(subset=["stop_id","stop_sequence","shape_id"], keep=False)
+        ]
+        if len(dupe_shape_stops_df) > 0:
+            WranglerLogger.warning(
+                f"Unexpeccted duplicates: dupe_shape_stops_df:\n"
+                f"{dupe_shape_stops_df[ shape_debug_cols ]}"
             )
 
         # check that all stops matched to a shape point
