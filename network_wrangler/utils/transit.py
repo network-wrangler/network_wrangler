@@ -1908,9 +1908,14 @@ def _align_shape_with_stops(
             inserted_count += 1
 
     # Sort feed_tables["shapes"] by shape_id and shape_pt_sequence to ensure correct order
+    # Use stop_sequence as a secondary key to handle cases where multiple stops
+    # have the same shape_pt_sequence (e.g., when an inserted stop ends up at same position as matched stop)
     # This is needed because we inserted stops inline
     feed_tables["shapes"].sort_values(
-        by=["shape_id", "shape_pt_sequence"], inplace=True, ignore_index=True
+        by=["shape_id", "shape_pt_sequence", "stop_sequence"],
+        inplace=True,
+        ignore_index=True,
+        na_position='first'  # Put shape points without stops first
     )
 
     # Verify all stops are matched
