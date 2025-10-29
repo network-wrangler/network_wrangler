@@ -984,16 +984,17 @@ def create_debug_links_for_bad_bus_paths(
     # stop_id, stop_name, next_stop_id, next_stop_name, num_points, geometry
     add_links_gdf = no_bus_path_gdf.copy()
     # drop some unneeded columns
-    add_links_gdf.drop(columns=["stop_sequence","route_type","route_id","direction_id","trip_id","num_points"])
+    add_links_gdf.drop(columns=["stop_sequence","route_type","route_id","direction_id","shape_id","num_points"])
     # roll up to unique A,B, using the first
     add_links_gdf = gpd.GeoDataFrame(data=add_links_gdf.groupby(by=["A","B"]).agg(
-        shape_ids      = pd.NamedAgg(column="shape_id", aggfunc=list),
+        trip_ids       = pd.NamedAgg(column="trip_id", aggfunc=list),
         stop_id        = pd.NamedAgg(column="stop_id", aggfunc="first"),
         stop_name      = pd.NamedAgg(column="stop_name", aggfunc="first"),
         next_stop_id   = pd.NamedAgg(column="next_stop_id", aggfunc="first"),
         next_stop_name = pd.NamedAgg(column="next_stop_name", aggfunc="first"),
         geometry       = pd.NamedAgg(column="geometry", aggfunc="first")
     ).reset_index(drop=False), geometry="geometry", crs=no_bus_path_gdf.crs)
+    add_links_gdf["name"] = add_links_gdf["trip_ids"].astype(str)
     add_links_gdf["shape_id"] = (
         add_links_gdf["stop_id"] + " to " + add_links_gdf["next_stop_id"]
     )
@@ -1683,6 +1684,19 @@ def _insert_stop_into_shape(
         else:
             new_seq = 0.5
 
+    # Ensure new_seq doesn't conflict with existing shape points
+    # Check if any remaining shape points have this exact sequence
+    remaining_sequences = shape_df.iloc[start_search_idx:]["shape_pt_sequence"].values
+    if new_seq in remaining_sequences:
+        # Find the index of the conflicting sequence
+        conflict_idx = start_search_idx + list(remaining_sequences).index(new_seq)
+        # Place this stop slightly before the conflicting point
+        if insert_after_idx >= 0 and insert_after_idx < len(shape_df):
+            prev_seq = shape_df.iloc[insert_after_idx]["shape_pt_sequence"]
+            new_seq = (prev_seq + new_seq) / 2.0
+        else:
+            new_seq = new_seq - 0.5
+
     # Create new row for the inserted stop
     # Use template from insert_after_idx position for route metadata
     if insert_after_idx >= 0 and insert_after_idx < len(shape_df):
@@ -1917,6 +1931,21 @@ def _align_shape_with_stops(
         ignore_index=True,
         na_position='first'  # Put shape points without stops first
     )
+
+    # Renumber shape_pt_sequence if there are non-integer values or duplicates
+    shape_mask = feed_tables["shapes"]["shape_id"] == shape_id
+    shape_sequences = feed_tables["shapes"].loc[shape_mask, "shape_pt_sequence"]
+
+    # Check if renumbering is needed (non-integers or duplicates)
+    has_non_integers = not all(shape_sequences == shape_sequences.astype(int))
+    has_duplicates = shape_sequences.duplicated().any()
+
+    if has_non_integers or has_duplicates:
+        shape_indices = feed_tables["shapes"][shape_mask].index
+        feed_tables["shapes"].loc[shape_indices, "shape_pt_sequence"] = range(len(shape_indices))
+        WranglerLogger.info(
+            f"Renumbered shape_pt_sequence for {shape_id} to sequential integers"
+        )
 
     # Verify all stops are matched
     shape_mask = feed_tables["shapes"]["shape_id"] == shape_id
