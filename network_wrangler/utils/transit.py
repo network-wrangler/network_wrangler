@@ -796,6 +796,9 @@ def match_bus_stops_to_roadway_nodes(  # noqa: PLR0912, PLR0915
     matched_nodes_gdf = bus_accessible_nodes_gdf.iloc[matches_df["match_node_idx"]]
     WranglerLogger.debug(f"matched_nodes_gdf:\n{matched_nodes_gdf}")
 
+    # Save original stop geometries before updating (needed for fallback matching)
+    bus_stops_gdf["geometry_original"] = bus_stops_gdf["geometry"]
+
     # Update bus stops with matched node information (vectorized)
     # Update all matches with their corresponding node information
     bus_stops_gdf.loc[matches_df["stop_idx"], f"match_distance_{crs_units}"] = matches_df[
@@ -821,9 +824,61 @@ def match_bus_stops_to_roadway_nodes(  # noqa: PLR0912, PLR0915
         if len(poor_matches) > 0:
             WranglerLogger.info(f"Found {len(poor_matches)} bus stops with low name compatibility (score < 0.5)")
 
+    # Handle stops with poor combined_score (> 0.9) by matching to ANY nearest node
+    # (not just bus-accessible), since create_debug_links_for_bad_bus_paths() will add connectivity
+    bus_stops_gdf["matched_non_bus_node"] = False
+    if "combined_score" in bus_stops_gdf.columns:
+        poor_score_mask = (bus_stops_gdf["valid_match"] == True) & (bus_stops_gdf["combined_score"] > 0.9)
+        poor_score_stops = bus_stops_gdf[poor_score_mask]
+
+        if len(poor_score_stops) > 0:
+            WranglerLogger.info(
+                f"Found {len(poor_score_stops)} bus stops with poor combined_score (> 0.9). "
+                f"Re-matching to nearest node in full network (not just bus-accessible nodes). "
+                f"Note: create_debug_links_for_bad_bus_paths() will add necessary connectivity."
+            )
+
+            # Build BallTree for ALL roadway nodes (not just bus-accessible)
+            all_nodes_gdf = roadway_net.nodes_df.copy()
+            all_nodes_gdf.to_crs(local_crs, inplace=True)
+            all_node_coords = np.array([(geom.x, geom.y) for geom in all_nodes_gdf.geometry])
+            all_nodes_tree = BallTree(all_node_coords)
+
+            # Re-match poor-score stops to nearest node in full network using ORIGINAL geometry
+            poor_stop_coords = np.array([(geom.x, geom.y) for geom in poor_score_stops["geometry_original"]])
+            rematch_distances, rematch_indices = all_nodes_tree.query(poor_stop_coords, k=1)
+
+            # Update with new matches
+            rematch_indices = rematch_indices.flatten()
+            rematch_distances = rematch_distances.flatten()
+            rematched_nodes_gdf = all_nodes_gdf.iloc[rematch_indices]
+
+            # Update bus_stops_gdf with rematched information
+            poor_stop_indices = poor_score_stops.index
+            bus_stops_gdf.loc[poor_stop_indices, f"match_distance_{crs_units}"] = rematch_distances
+            bus_stops_gdf.loc[poor_stop_indices, "model_node_id"] = rematched_nodes_gdf["model_node_id"].values
+            bus_stops_gdf.loc[poor_stop_indices, "stop_lon"] = rematched_nodes_gdf["X"].values
+            bus_stops_gdf.loc[poor_stop_indices, "stop_lat"] = rematched_nodes_gdf["Y"].values
+            bus_stops_gdf.loc[poor_stop_indices, "geometry"] = rematched_nodes_gdf["geometry"].values
+            bus_stops_gdf.loc[poor_stop_indices, "matched_non_bus_node"] = True
+
+            if "link_names" in rematched_nodes_gdf.columns:
+                bus_stops_gdf.loc[poor_stop_indices, "node_link_names"] = rematched_nodes_gdf["link_names"].values
+
+            WranglerLogger.warning(
+                f"Rematched {len(poor_score_stops)} stops to non-bus-accessible nodes:\n"
+                f"This will create a workable network if you passed errors='ignore' to\n"
+                f"create_feed_from_gtfs_model() because create_debug_links_for_bad_bus_paths()\n"
+                f"will create special bus links\n"
+                f"{bus_stops_gdf.loc[poor_score_mask, ['stop_id','stop_name','model_node_id',f'match_distance_{crs_units}','matched_non_bus_node']]}"
+            )
+
+    # Clean up temporary column
+    bus_stops_gdf.drop(columns=["geometry_original"], inplace=True)
+
     WranglerLogger.debug(f"bus_stops_gdf:\n{bus_stops_gdf}")
     if trace_shape_ids:
-        debug_cols = ["stop_id","stop_name","node_link_names","name_match_score","match_distance_feet","normalized_dist","combined_score"]
+        debug_cols = ["stop_id","stop_name","model_node_id","node_link_names","name_match_score","match_distance_feet","normalized_dist","combined_score"]
         for trace_shape_id in trace_shape_ids:
             WranglerLogger.debug(
                 f"trace bus_stops_gdf for {trace_shape_id}:\n"
@@ -836,18 +891,18 @@ def match_bus_stops_to_roadway_nodes(  # noqa: PLR0912, PLR0915
     assert "valid_match" not in feed_tables["stops"].columns
 
     # Update feed_tables['stops'] by merging the updates
+    merge_cols = [
+        "stop_id",
+        "model_node_id",
+        f"match_distance_{crs_units}",
+        "stop_lon",
+        "stop_lat",
+        "geometry",
+        "valid_match",
+        "matched_non_bus_node",
+    ]
     feed_tables["stops"] = feed_tables["stops"].merge(
-        bus_stops_gdf[
-            [
-                "stop_id",
-                "model_node_id",
-                f"match_distance_{crs_units}",
-                "stop_lon",
-                "stop_lat",
-                "geometry",
-                "valid_match",
-            ]
-        ],
+        bus_stops_gdf[merge_cols],
         on="stop_id",
         how="left",
         suffixes=("", "_bus"),
@@ -900,6 +955,7 @@ def match_bus_stops_to_roadway_nodes(  # noqa: PLR0912, PLR0915
                 "stop_lat",
                 "geometry",
                 "valid_match",
+                "matched_non_bus_node",
             ]
         ],
         on="stop_id",
@@ -1177,6 +1233,24 @@ def create_bus_routes(  # noqa: PLR0912, PLR0915
         if current_shape_id in trace_shape_ids:
             WranglerLogger.debug(f"trace path {current_shape_id}: {_idx} Looking for path from {row['A']} to {row['B']}")
             WranglerLogger.debug(f"\n{row}")
+
+        # Check if either node is not in the bus graph (e.g., matched_non_bus_node=True)
+        # If so, skip pathfinding and add to no_path_sequence for special handling
+        if not G_bus.has_node(row["A"]) or not G_bus.has_node(row["B"]):
+            WranglerLogger.warning(
+                f"Node not in bus graph for {row['shape_id']} from {row['A']} to {row['B']} "
+                f"(likely matched_non_bus_node)."
+            )
+            no_path_sequence.append(
+                {
+                    "shape_id": row["shape_id"],
+                    "stop_id": row["stop_id"],
+                    "next_stop_id": row["next_stop_id"],
+                    "stop_sequence": row["stop_sequence"],
+                }
+            )
+            continue
+
         try:
             # Find shortest path with optional shape-aware selection
             use_shape_aware_routing = True  # Could be made a parameter
@@ -1230,7 +1304,7 @@ def create_bus_routes(  # noqa: PLR0912, PLR0915
                 last_stop_sequence = row["stop_sequence"]
 
         except nx.NetworkXNoPath as e:
-            WranglerLogger.warning(f"No path exists from for {row['shape_id']} from {row['A']} to {row['B']}")
+            WranglerLogger.warning(f"No path exists for {row['shape_id']} from {row['A']} to {row['B']}")
             WranglerLogger.warning(e)
             # No path exists
             no_path_sequence.append(
@@ -1242,7 +1316,19 @@ def create_bus_routes(  # noqa: PLR0912, PLR0915
                 }
             )
         except nx.NodeNotFound as e:
-            WranglerLogger.fatal(f"No node found: {e}")
+            WranglerLogger.warning(
+                f"Node not found for {row['shape_id']} from {row['A']} to {row['B']}: {e}. "
+                f"Adding to no_path_sequence for special link creation."
+            )
+            # Node not in graph (e.g., matched_non_bus_node)
+            no_path_sequence.append(
+                {
+                    "shape_id": row["shape_id"],
+                    "stop_id": row["stop_id"],
+                    "next_stop_id": row["next_stop_id"],
+                    "stop_sequence": row["stop_sequence"],
+                }
+            )
 
     bus_node_sequence_df = pd.DataFrame(bus_node_sequence)
     WranglerLogger.debug(f"bus_node_sequence_df:\n{bus_node_sequence_df}")
@@ -1271,13 +1357,13 @@ def create_bus_routes(  # noqa: PLR0912, PLR0915
             crs=bus_stop_links_gdf.crs,
         )
         WranglerLogger.debug(f"no_bus_path_gdf:\n{no_bus_path_gdf}")
-        e = TransitValidationError(
-            "Some bus stop sequences failed to find paths. See e.no_bus_path_gdf"
-        )
-        e.no_bus_path_gdf = no_bus_path_gdf
 
         # raise an error if requested
         if errors == "raise":
+            e = TransitValidationError(
+                "Some bus stop sequences failed to find paths. See e.no_bus_path_gdf"
+            )
+            e.no_bus_path_gdf = no_bus_path_gdf
             raise e
         
         # if we're ignoring, then we need to create roadway network links for these - and mark them
@@ -1721,6 +1807,9 @@ def _insert_stop_into_shape(
             "shape_dist_traveled": None,
         }
     )
+    # Copy matched_non_bus_node if available (will be present for bus stops after match_bus_stops_to_roadway_nodes)
+    if "matched_non_bus_node" in feed_tables["stops"].columns:
+        new_row["matched_non_bus_node"] = stop_info.get("matched_non_bus_node", False)
 
     # Insert into feed_tables["shapes"]
     # Create new row as GeoDataFrame
@@ -1894,6 +1983,9 @@ def _align_shape_with_stops(
             feed_tables["shapes"].loc[global_idx, "shape_pt_lon"] = stop_info["stop_lon"]
             feed_tables["shapes"].loc[global_idx, "shape_pt_lat"] = stop_info["stop_lat"]
             feed_tables["shapes"].loc[global_idx, "geometry"] = stop_info["geometry"]
+            # Copy matched_non_bus_node if available (will be present for bus stops after match_bus_stops_to_roadway_nodes)
+            if "matched_non_bus_node" in feed_tables["stops"].columns:
+                feed_tables["shapes"].loc[global_idx, "matched_non_bus_node"] = stop_info.get("matched_non_bus_node", False)
 
             prev_matched_shape_idx = best_shape_idx
             matched_count += 1
@@ -2018,6 +2110,7 @@ def _align_shape_with_stops(
                     "stop_name": row.get("stop_name") if is_stop else None,
                     "stop_sequence": row.get("stop_sequence") if is_stop else None,
                     "match_distance": row.get(f"match_distance_{crs_units}") if is_stop else None,
+                    "matched_non_bus_node": row.get("matched_non_bus_node") if is_stop else None,
                 }
             )
 
