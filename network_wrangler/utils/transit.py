@@ -978,10 +978,12 @@ def match_bus_stops_to_roadway_nodes(  # noqa: PLR0912, PLR0915
     ] = feed_tables["shapes"][f"match_distance_{crs_units}_bus"]
 
     if trace_shape_ids:
+        debug_cols = ["shape_pt_sequence","stop_sequence","stop_id","stop_name","shape_model_node_id","match_distance_feet_bus","matched_non_bus_node"]
         for trace_shape_id in trace_shape_ids:
             WranglerLogger.debug(
-                f"trace feed_tables['shapes'] for {trace_shape_id} at the end of match_bus_stops_to_roadway_nodes:\n"
-                f"{feed_tables['shapes'].loc[feed_tables['shapes']['shape_id'] == trace_shape_id]}"
+                f"trace feed_tables['shapes'] for {trace_shape_id}"
+                f"at the end of match_bus_stops_to_roadway_nodes():\n"
+                f"{feed_tables['shapes'].loc[feed_tables['shapes']['shape_id'] == trace_shape_id][debug_cols]}"
             )
 
     # Drop bus-specific columns
@@ -1020,6 +1022,7 @@ def create_debug_links_for_bad_bus_paths(
         no_bus_path_gdf: gpd.GeoDataFrame,
         local_crs: str,
         crs_units: str,
+        trace_shape_ids: Optional[list[str]] = None,
     ):
     """
     Creates links in the roadway network for these bad bus paths.
@@ -1040,10 +1043,11 @@ def create_debug_links_for_bad_bus_paths(
     # stop_id, stop_name, next_stop_id, next_stop_name, num_points, geometry
     add_links_gdf = no_bus_path_gdf.copy()
     # drop some unneeded columns
-    add_links_gdf.drop(columns=["stop_sequence","route_type","route_id","direction_id","shape_id","num_points"])
+    add_links_gdf.drop(columns=["route_type","route_id","direction_id","shape_id","num_points"])
     # roll up to unique A,B, using the first
     add_links_gdf = gpd.GeoDataFrame(data=add_links_gdf.groupby(by=["A","B"]).agg(
         trip_ids       = pd.NamedAgg(column="trip_id", aggfunc=list),
+        stop_seqs      = pd.NamedAgg(column="stop_sequence", aggfunc=list),
         stop_id        = pd.NamedAgg(column="stop_id", aggfunc="first"),
         stop_name      = pd.NamedAgg(column="stop_name", aggfunc="first"),
         next_stop_id   = pd.NamedAgg(column="next_stop_id", aggfunc="first"),
@@ -1108,6 +1112,17 @@ def create_debug_links_for_bad_bus_paths(
     # assign model_link_id
     max_model_link_id = roadway_net.links_df.model_link_id.max()
     add_links_gdf["model_link_id"] = add_links_gdf.index + max_model_link_id + 1
+
+    # log for trace_shape_ids
+    if trace_shape_ids:
+        for trace_shape_id in trace_shape_ids:
+            trace_trip_id = f'{trace_shape_id}_trip'
+            shape_mask = add_links_gdf['trip_ids'].apply(lambda x: trace_trip_id in x if isinstance(x, list) else False)
+            if shape_mask.any():
+                WranglerLogger.debug(
+                    f"adding links for trace {trace_shape_id} in create_debug_links_for_bad_bus_paths:\n"
+                    f"{add_links_gdf.loc[shape_mask]}"
+                )
 
     # Add links
     WranglerLogger.debug(f"add_links_gdf:\n{add_links_gdf}")
@@ -1235,11 +1250,11 @@ def create_bus_routes(  # noqa: PLR0912, PLR0915
             WranglerLogger.debug(f"\n{row}")
 
         # Check if either node is not in the bus graph (e.g., matched_non_bus_node=True)
-        # If so, skip pathfinding and add to no_path_sequence for special handling
+        # If so, skip pathfinding and add simple A→B connection to bus_node_sequence
         if not G_bus.has_node(row["A"]) or not G_bus.has_node(row["B"]):
             WranglerLogger.warning(
                 f"Node not in bus graph for {row['shape_id']} from {row['A']} to {row['B']} "
-                f"(likely matched_non_bus_node)."
+                f"(likely matched_non_bus_node). Adding direct A→B connection."
             )
             no_path_sequence.append(
                 {
@@ -1249,6 +1264,36 @@ def create_bus_routes(  # noqa: PLR0912, PLR0915
                     "stop_sequence": row["stop_sequence"],
                 }
             )
+
+            # Add simple A→B path to bus_node_sequence (in correct order)
+            path = [row["A"], row["B"]]
+            if current_shape_pt_sequence != 1:
+                path = path[1:]  # Skip first node to avoid duplication
+
+            for path_node_id in path:
+                bus_node_dict = {
+                    "shape_id": row["shape_id"],
+                    "route_id": row["route_id"],
+                    "route_type": row["route_type"],
+                    "trip_id": row["trip_id"],
+                    "direction_id": row["direction_id"],
+                    "shape_pt_sequence": current_shape_pt_sequence,
+                    "shape_model_node_id": path_node_id,
+                }
+                # Set stop info for the nodes
+                if path_node_id == row["A"]:
+                    bus_node_dict["stop_id"] = row["stop_id"]
+                    bus_node_dict["stop_name"] = row["stop_name"]
+                    bus_node_dict["stop_sequence"] = row["stop_sequence"]
+                elif path_node_id == row["B"]:
+                    bus_node_dict["stop_id"] = row["next_stop_id"]
+                    bus_node_dict["stop_name"] = row["next_stop_name"]
+                    bus_node_dict["stop_sequence"] = row["stop_sequence"] + 1
+
+                bus_node_sequence.append(bus_node_dict)
+                current_shape_pt_sequence += 1
+                last_stop_sequence = row["stop_sequence"]
+
             continue
 
         try:
@@ -1306,7 +1351,7 @@ def create_bus_routes(  # noqa: PLR0912, PLR0915
         except nx.NetworkXNoPath as e:
             WranglerLogger.warning(f"No path exists for {row['shape_id']} from {row['A']} to {row['B']}")
             WranglerLogger.warning(e)
-            # No path exists
+            # No path exists - add to no_path_sequence and add simple A→B to bus_node_sequence
             no_path_sequence.append(
                 {
                     "shape_id": row["shape_id"],
@@ -1315,12 +1360,42 @@ def create_bus_routes(  # noqa: PLR0912, PLR0915
                     "stop_sequence": row["stop_sequence"],
                 }
             )
+
+            # Add simple A→B path to bus_node_sequence (in correct order)
+            path = [row["A"], row["B"]]
+            if current_shape_pt_sequence != 1:
+                path = path[1:]  # Skip first node to avoid duplication
+
+            for path_node_id in path:
+                bus_node_dict = {
+                    "shape_id": row["shape_id"],
+                    "route_id": row["route_id"],
+                    "route_type": row["route_type"],
+                    "trip_id": row["trip_id"],
+                    "direction_id": row["direction_id"],
+                    "shape_pt_sequence": current_shape_pt_sequence,
+                    "shape_model_node_id": path_node_id,
+                }
+                # Set stop info for the nodes
+                if path_node_id == row["A"]:
+                    bus_node_dict["stop_id"] = row["stop_id"]
+                    bus_node_dict["stop_name"] = row["stop_name"]
+                    bus_node_dict["stop_sequence"] = row["stop_sequence"]
+                elif path_node_id == row["B"]:
+                    bus_node_dict["stop_id"] = row["next_stop_id"]
+                    bus_node_dict["stop_name"] = row["next_stop_name"]
+                    bus_node_dict["stop_sequence"] = row["stop_sequence"] + 1
+
+                bus_node_sequence.append(bus_node_dict)
+                current_shape_pt_sequence += 1
+                last_stop_sequence = row["stop_sequence"]
+
         except nx.NodeNotFound as e:
             WranglerLogger.warning(
                 f"Node not found for {row['shape_id']} from {row['A']} to {row['B']}: {e}. "
-                f"Adding to no_path_sequence for special link creation."
+                f"Adding simple A→B connection."
             )
-            # Node not in graph (e.g., matched_non_bus_node)
+            # Node not in graph - add to no_path_sequence and add simple A→B to bus_node_sequence
             no_path_sequence.append(
                 {
                     "shape_id": row["shape_id"],
@@ -1329,6 +1404,35 @@ def create_bus_routes(  # noqa: PLR0912, PLR0915
                     "stop_sequence": row["stop_sequence"],
                 }
             )
+
+            # Add simple A→B path to bus_node_sequence (in correct order)
+            path = [row["A"], row["B"]]
+            if current_shape_pt_sequence != 1:
+                path = path[1:]  # Skip first node to avoid duplication
+
+            for path_node_id in path:
+                bus_node_dict = {
+                    "shape_id": row["shape_id"],
+                    "route_id": row["route_id"],
+                    "route_type": row["route_type"],
+                    "trip_id": row["trip_id"],
+                    "direction_id": row["direction_id"],
+                    "shape_pt_sequence": current_shape_pt_sequence,
+                    "shape_model_node_id": path_node_id,
+                }
+                # Set stop info for the nodes
+                if path_node_id == row["A"]:
+                    bus_node_dict["stop_id"] = row["stop_id"]
+                    bus_node_dict["stop_name"] = row["stop_name"]
+                    bus_node_dict["stop_sequence"] = row["stop_sequence"]
+                elif path_node_id == row["B"]:
+                    bus_node_dict["stop_id"] = row["next_stop_id"]
+                    bus_node_dict["stop_name"] = row["next_stop_name"]
+                    bus_node_dict["stop_sequence"] = row["stop_sequence"] + 1
+
+                bus_node_sequence.append(bus_node_dict)
+                current_shape_pt_sequence += 1
+                last_stop_sequence = row["stop_sequence"]
 
     bus_node_sequence_df = pd.DataFrame(bus_node_sequence)
     WranglerLogger.debug(f"bus_node_sequence_df:\n{bus_node_sequence_df}")
@@ -1357,6 +1461,13 @@ def create_bus_routes(  # noqa: PLR0912, PLR0915
             crs=bus_stop_links_gdf.crs,
         )
         WranglerLogger.debug(f"no_bus_path_gdf:\n{no_bus_path_gdf}")
+        if trace_shape_ids:
+            debug_cols = ["A","B","stop_sequence","stop_id","next_stop_id","stop_name","next_stop_name"]
+            for trace_shape_id in trace_shape_ids:
+                WranglerLogger.debug(
+                    f"trace no_bus_path_gdf for {trace_shape_id}:\n"
+                    f"{no_bus_path_gdf.loc[no_bus_path_gdf['shape_id'] == trace_shape_id, debug_cols]}"
+                )
 
         # raise an error if requested
         if errors == "raise":
@@ -1367,7 +1478,7 @@ def create_bus_routes(  # noqa: PLR0912, PLR0915
             raise e
         
         # if we're ignoring, then we need to create roadway network links for these - and mark them
-        create_debug_links_for_bad_bus_paths(roadway_net, no_bus_path_gdf, local_crs, crs_units)
+        create_debug_links_for_bad_bus_paths(roadway_net, no_bus_path_gdf, local_crs, crs_units, trace_shape_ids)
 
     # create bus shapes
     # current shapes columns:
@@ -1379,6 +1490,7 @@ def create_bus_routes(  # noqa: PLR0912, PLR0915
     #  shape_id, route_id, route_type, trip_id, direction_id, shape_pt_sequence, shape_model_node_id, stop_id, stop_name
 
     # Reorder to be similar
+    # bus_node_sequence_df.sort_values(by=["trip_id",])
     bus_node_sequence_df = bus_node_sequence_df[
         [
             "shape_id",
@@ -1418,6 +1530,13 @@ def create_bus_routes(  # noqa: PLR0912, PLR0915
         crs=roadway_net.nodes_df.crs,
     )
     WranglerLogger.debug(f"Final bus_node_sequence_gdf:\n{bus_node_sequence_gdf}")
+    if trace_shape_ids:
+        debug_cols = ["shape_pt_sequence","stop_sequence","stop_id","stop_name","shape_model_node_id"]
+        for trace_shape_id in trace_shape_ids:
+            WranglerLogger.debug(
+                f"trace {trace_shape_id} bus_node_sequence_gdf:\n"
+                f"{bus_node_sequence_gdf.loc[ bus_node_sequence_gdf['shape_id']==trace_shape_id, debug_cols]}"
+            )
 
     feed_tables["shapes"].to_crs(LAT_LON_CRS, inplace=True)
     # replace bus links in feed_tables['shapes'] with bus_node_sequence_gdf
@@ -1431,10 +1550,11 @@ def create_bus_routes(  # noqa: PLR0912, PLR0915
     )
 
     if trace_shape_ids:
+        debug_cols = ["shape_pt_sequence","stop_sequence","stop_id","stop_name","shape_model_node_id"]
         for trace_shape_id in trace_shape_ids:
             WranglerLogger.debug(
                 f"trace feed_tables['shapes'] for {trace_shape_id} at the end of create_bus_routes():\n"
-                f"{feed_tables['shapes'].loc[feed_tables['shapes']['shape_id'] == trace_shape_id]}"
+                f"{feed_tables['shapes'].loc[feed_tables['shapes']['shape_id'] == trace_shape_id, debug_cols]}"
             )
 
 
