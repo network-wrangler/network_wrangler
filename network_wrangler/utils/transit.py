@@ -3114,34 +3114,127 @@ def create_feed_from_gtfs_model(  # noqa: PLR0915
     nodes and optionally adds station infrastructure to the network.
 
     Process Steps:
-    1. Converts roadway nodes to GeoDataFrame if needed
-    2. Copies and prepares GTFS tables (routes, trips, stops, etc.)
-    3. Enriches stops with route/agency metadata (add_additional_data_to_stops)
-    4. Creates frequency-based schedules from detailed timetables
-    5. Enriches shapes with stop matching (add_additional_data_to_shapes)
-    6. Matches bus stops to existing roadway nodes
-    7. Adds station nodes and links for fixed-guideway transit
-    8. Routes bus services through road network between stops
-    9. Creates final Feed object with all processed tables
+    1. Prepare roadway network:
+       - Convert roadway_net.nodes_df to GeoDataFrame if needed
+       - Create Point geometries from X, Y coordinates
+       - Set CRS to LAT_LON_CRS (EPSG:4326)
+       - Modifies roadway_net.nodes_df in place
 
-    Modifies in place:
+    2. Copy GTFS tables to feed_tables dictionary:
+       - Copy routes, trips, agencies, stops, stop_times, shapes from gtfs_model
+       - Convert stops to GeoDataFrame with Point geometries from stop_lon/stop_lat
+       - Creates feed_tables dict for all subsequent operations
 
-    roadway_net.nodes_df - Converted to GeoDataFrame and adds:
-        - geometry: Point geometry if not present
-        - bus_access (bool): True if node is in bus modal graph
-        - Additional modal access flags may be added
+    3. Enrich stops with route/agency metadata:
+       - Calls: [`add_additional_data_to_stops()`][network_wrangler.utils.transit.add_additional_data_to_stops]
+       - Joins route and agency information to each stop via stop_times and trips
+       - Adds columns: agency_ids, agency_names, route_ids, route_names, route_types,
+         shape_ids, is_parent, is_bus_stop
+       - Modifies feed_tables['stops'] in place
 
-    roadway_net - If add_stations_and_links=True:
-        - Adds new nodes for transit stations
-        - Adds dedicated transit links between stations
-        - Updates shapes and modal graphs
+    4. Create frequency-based schedules from timetables:
+       - Calls: [`create_feed_frequencies()`][network_wrangler.utils.transit.create_feed_frequencies]
+       - Converts GTFS trip-based schedules to frequency-based representation
+       - Groups trips by stop pattern (shape_id) and time period
+       - Calculates headways using specified method (uniform/mean/median)
+       - Creates one representative trip per shape_id
+       - Creates feed_tables['frequencies'] table
+       - Modifies: feed_tables['stop_times'] (adds departure_minutes),
+         feed_tables['trips'] (one row per shape_id)
 
-    Creates feed_tables dictionary with:
-        - routes, trips, agencies: Copied from GTFS
-        - stops: Enhanced with model_node_id mappings
-        - stop_times: Converted to frequency-based
-        - shapes: Updated with roadway routing
-        - frequencies: Created from timetables
+    5. Match stops to shape points and enrich shapes:
+       - Calls: [`add_additional_data_to_shapes()`][network_wrangler.utils.transit.add_additional_data_to_shapes]
+       - For each shape_id, processes stops in sequence order
+       - For each stop:
+           - Match: Find nearest existing shape point within threshold (forward-only search)
+           - Insert: If no match, create new shape point at stop location
+       - Uses local minimum matching to handle routes that double back
+       - Renumbers shape_pt_sequence if duplicates or non-integers detected
+       - Writes debug_shapes.geojson with stop matching information
+       - Calls helpers: `_match_stop_to_shape_points()`, `_insert_stop_into_shape()`,
+         `_align_shape_with_stops()`, `_write_debug_shapes()`
+       - Modifies feed_tables['shapes']: adds stop_id, stop_name, stop_sequence,
+         match_distance_{crs_units}, matched_non_bus_node
+
+    6. Match bus stops to roadway nodes:
+       - Calls: [`match_bus_stops_to_roadway_nodes()`][network_wrangler.utils.transit.match_bus_stops_to_roadway_nodes]
+       - Gets bus modal graph from roadway network (bus-accessible nodes only)
+       - For each bus stop:
+           - Finds K nearest bus-accessible nodes using BallTree spatial index
+           - If use_name_matching=True: scores by distance + name compatibility
+             (combined_score = 0.1 * normalized_dist + 0.9 * (1 - name_score))
+           - Selects best match within max_distance threshold
+       - Fallback for poor matches (combined_score > 0.9):
+           - Re-matches using ALL roadway nodes (not just bus-accessible)
+           - Uses original stop location (before first match moved it)
+           - Sets matched_non_bus_node = True
+       - Updates stop locations to matched node positions
+       - Modifies feed_tables['stops']: adds model_node_id, match_distance_{crs_units},
+         valid_match, matched_non_bus_node, node_link_names, name_match_score,
+         normalized_dist, combined_score
+       - Modifies feed_tables['shapes']: updates bus stop shape points to node locations,
+         adds matched_non_bus_node flag
+       - Modifies roadway_net.nodes_df: adds bus_access column
+
+    7. Add stations and links to roadway network:
+       - Calls: [`add_stations_and_links_to_roadway_network()`][network_wrangler.utils.transit.add_stations_and_links_to_roadway_network]
+       - For STATION_ROUTE_TYPES (rail, light rail, subway, etc.):
+           - Creates new nodes for each station
+           - Adds dedicated transit links between consecutive stations
+           - Links follow original GTFS shape geometry
+       - For BUS/TROLLEYBUS routes:
+           - Creates bus_stop_links_gdf with consecutive stop pairs (A->B)
+           - Includes route metadata (route_id, trip_id, direction_id, etc.)
+           - No new nodes/links added yet (handled in next step)
+       - Returns station_id_to_model_node_id_dict and bus_stop_links_gdf
+       - Modifies roadway_net.nodes_df: adds station nodes
+       - Modifies roadway_net.links_df: adds station-to-station links
+       - Modifies feed_tables['stops']: updates station stops with new model_node_ids
+       - Modifies feed_tables['shapes']: removes intermediate shape points for station routes,
+         keeps only station stop points
+
+    8. Route bus services through road network:
+       - Calls: [`create_bus_routes()`][network_wrangler.utils.transit.create_bus_routes]
+       - Gets bus modal graph (DiGraph for pathfinding)
+       - For each consecutive bus stop pair (A->B):
+           - Check: If either node not in bus graph (e.g., matched_non_bus_node):
+               - Add direct A->B connection to bus_node_sequence
+               - Add to no_path_sequence for special handling
+               - Skip pathfinding
+           - Find path: Use NetworkX shortest path through bus network
+               - Optional: Shape-aware routing (prefers paths close to original shape)
+           - Create shape points: Add all intermediate nodes in path as shape points
+       - Handles exceptions (NetworkXNoPath, NodeNotFound): adds to no_path_sequence
+       - If errors='raise' and no_path_sequence not empty: raises TransitValidationError
+       - Note: Segments in no_path_sequence typically need special bus-only links created
+         via [`create_debug_links_for_bad_bus_paths()`][network_wrangler.utils.transit.create_debug_links_for_bad_bus_paths]
+         (external to this function)
+       - Calls helpers: `get_original_shape_points_between_stops()`,
+         `find_shape_aware_shortest_path()`
+       - Modifies feed_tables['shapes']: replaces bus route shapes with routed paths
+         through road network, adds shape_model_node_id from roadway
+
+    9. Consolidate duplicate stops mapped to same node:
+       - Renames stop_id -> stop_id_GTFS (original GTFS IDs)
+       - Renames model_node_id -> stop_id (now uses network node IDs as stop IDs)
+       - Multiple GTFS stops may map to same network node
+       - Groups by stop_id (model_node_id) and aggregates:
+           - Converts singular fields to lists (stop_id_GTFS, stop_name, etc.)
+           - Takes first geometry/location
+           - Merges route/agency lists (flattens and deduplicates)
+       - Creates stop_id_to_model_node_id_dict mapping GTFS stop_id -> model_node_id
+       - Modifies feed_tables['stops']: consolidated rows, one per unique network node
+
+    10. Update stop references and create Feed object:
+        - Updates feed_tables['stop_times']: maps stop_id_GTFS -> stop_id (model_node_id)
+        - Converts stop_times to Wrangler format
+        - Creates Feed object with all processed tables:
+            - routes, trips, agencies: from GTFS
+            - stops: consolidated by model_node_id with metadata
+            - stop_times: with updated stop_id references
+            - shapes: routed through road network with shape_model_node_id
+            - frequencies: frequency-based schedules by time period
+        - Returns Feed object ready for network modeling
 
     Args:
         gtfs_model: Source GTFS data model
@@ -3159,6 +3252,7 @@ def create_feed_from_gtfs_model(  # noqa: PLR0915
         max_stop_distance: Maximum distance in crs_units for matching bus stops
             to roadway nodes. If None, uses default MAX_DISTANCE_STOP values
         trace_shape_ids: Shape IDs for detailed debug logging
+        errors: How to handle routing errors ('raise' or 'ignore')
 
     Returns:
         Feed: Wrangler Feed object with:
@@ -3169,10 +3263,8 @@ def create_feed_from_gtfs_model(  # noqa: PLR0915
     Raises:
         TransitValidationError: If bus stops can't be matched to roadway
         NodeNotFoundError: If required nodes aren't found
-        Exception: Debug exception with intermediate data (temporary)
 
     Notes:
-        - Currently raises a debug exception before completion (line 1698-1702)
         - Bus routes are re-routed through actual road network
         - Station routes keep original alignment with new nodes/links
     """
