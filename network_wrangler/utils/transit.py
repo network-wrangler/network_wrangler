@@ -1245,7 +1245,7 @@ def create_bus_routes(  # noqa: PLR0912, PLR0915
             current_shape_pt_sequence = 1
             current_shape_id = row["shape_id"]
 
-        if current_shape_id in trace_shape_ids:
+        if trace_shape_ids and current_shape_id in trace_shape_ids:
             WranglerLogger.debug(f"trace path {current_shape_id}: {_idx} Looking for path from {row['A']} to {row['B']}")
             WranglerLogger.debug(f"\n{row}")
 
@@ -1304,18 +1304,18 @@ def create_bus_routes(  # noqa: PLR0912, PLR0915
                 # Get original shape points between these stops for comparison
                 original_shape_points = get_original_shape_points_between_stops(
                     feed_tables, row["shape_id"], row["stop_sequence"],
-                    row["stop_sequence"] + 1, current_shape_id in trace_shape_ids
+                    row["stop_sequence"] + 1, trace_shape_ids and current_shape_id in trace_shape_ids
                 )
 
                 path = find_shape_aware_shortest_path(
                     G_bus, row["A"], row["B"], original_shape_points,
-                    roadway_net, SHAPE_DISTANCE_TOLERANCE, current_shape_id in trace_shape_ids
+                    roadway_net, SHAPE_DISTANCE_TOLERANCE, trace_shape_ids and current_shape_id in trace_shape_ids
                 )
             else:
                 # Standard shortest path
                 path = nx.shortest_path(G_bus, row["A"], row["B"], weight="distance")
 
-            if current_shape_id in trace_shape_ids:
+            if trace_shape_ids and current_shape_id in trace_shape_ids:
                 WranglerLogger.debug(f"trace path {current_shape_id}: Found path for {row['A']} to {row['B']}: len={len(path)} {path}")
 
             # Create shape point rows for that path
