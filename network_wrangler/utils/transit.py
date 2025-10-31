@@ -1250,11 +1250,11 @@ def create_bus_routes(  # noqa: PLR0912, PLR0915
             WranglerLogger.debug(f"\n{row}")
 
         # Check if either node is not in the bus graph (e.g., matched_non_bus_node=True)
-        # If so, skip pathfinding and add simple A→B connection to bus_node_sequence
+        # If so, skip pathfinding and add simple A->B connection to bus_node_sequence
         if not G_bus.has_node(row["A"]) or not G_bus.has_node(row["B"]):
             WranglerLogger.warning(
                 f"Node not in bus graph for {row['shape_id']} from {row['A']} to {row['B']} "
-                f"(likely matched_non_bus_node). Adding direct A→B connection."
+                f"(likely matched_non_bus_node). Adding direct A->B connection."
             )
             no_path_sequence.append(
                 {
@@ -1265,7 +1265,7 @@ def create_bus_routes(  # noqa: PLR0912, PLR0915
                 }
             )
 
-            # Add simple A→B path to bus_node_sequence (in correct order)
+            # Add simple A->B path to bus_node_sequence (in correct order)
             path = [row["A"], row["B"]]
             if current_shape_pt_sequence != 1:
                 path = path[1:]  # Skip first node to avoid duplication
@@ -1351,7 +1351,7 @@ def create_bus_routes(  # noqa: PLR0912, PLR0915
         except nx.NetworkXNoPath as e:
             WranglerLogger.warning(f"No path exists for {row['shape_id']} from {row['A']} to {row['B']}")
             WranglerLogger.warning(e)
-            # No path exists - add to no_path_sequence and add simple A→B to bus_node_sequence
+            # No path exists - add to no_path_sequence and add simple A->B to bus_node_sequence
             no_path_sequence.append(
                 {
                     "shape_id": row["shape_id"],
@@ -1361,7 +1361,7 @@ def create_bus_routes(  # noqa: PLR0912, PLR0915
                 }
             )
 
-            # Add simple A→B path to bus_node_sequence (in correct order)
+            # Add simple A->B path to bus_node_sequence (in correct order)
             path = [row["A"], row["B"]]
             if current_shape_pt_sequence != 1:
                 path = path[1:]  # Skip first node to avoid duplication
@@ -1393,9 +1393,9 @@ def create_bus_routes(  # noqa: PLR0912, PLR0915
         except nx.NodeNotFound as e:
             WranglerLogger.warning(
                 f"Node not found for {row['shape_id']} from {row['A']} to {row['B']}: {e}. "
-                f"Adding simple A→B connection."
+                f"Adding simple A->B connection."
             )
-            # Node not in graph - add to no_path_sequence and add simple A→B to bus_node_sequence
+            # Node not in graph - add to no_path_sequence and add simple A->B to bus_node_sequence
             no_path_sequence.append(
                 {
                     "shape_id": row["shape_id"],
@@ -1405,7 +1405,7 @@ def create_bus_routes(  # noqa: PLR0912, PLR0915
                 }
             )
 
-            # Add simple A→B path to bus_node_sequence (in correct order)
+            # Add simple A->B path to bus_node_sequence (in correct order)
             path = [row["A"], row["B"]]
             if current_shape_pt_sequence != 1:
                 path = path[1:]  # Skip first node to avoid duplication
