@@ -562,6 +562,7 @@ def match_bus_stops_to_roadway_nodes(  # noqa: PLR0912, PLR0915
     5. If name matching is enabled and link_names exist, scores candidates by both
        distance and name compatibility, selecting best match within max_distance
     6. Marks stops with combined_score > 0.9 as poor_match=True (only when name matching enabled)
+       - Excludes stops that serve station route types (rail, ferry, etc.) - these are handled separately
     7. For poor_match stops, their model_node_id is the nearest bus-accessible node
        (to use for creating connector links later)
     8. Updates stop locations to matched road node locations (except poor_match stops)
@@ -574,7 +575,7 @@ def match_bus_stops_to_roadway_nodes(  # noqa: PLR0912, PLR0915
         - model_node_id (int): Matched roadway node ID (None if no close match)
         - match_distance_{crs_units} (float): Distance to matched node
         - close_match (bool): True if match found within max_distance
-        - poor_match (bool): True if combined_score > 0.9 (only exists when name matching enabled)
+        - poor_match (bool): True if combined_score > 0.9 AND stop doesn't serve station routes (only when name matching enabled)
         - stop_lon, stop_lat, geometry: Updated to road node location if close_match and not poor_match
 
     feed_tables['shapes'] - Adds/modifies columns:
@@ -836,14 +837,39 @@ def match_bus_stops_to_roadway_nodes(  # noqa: PLR0912, PLR0915
 
     # combined_score only exists when use_name_matching=True and link_names column exists
     # poor_match is defined as having combined_score > 0.9
+    # BUT exclude stops that serve station route types (rail, ferry, etc.) - they're handled separately
     if "combined_score" in bus_stops_gdf.columns:
         debug_cols = debug_cols + ['combined_score', 'poor_match']
-        bus_stops_gdf["poor_match"] = (bus_stops_gdf["close_match"] == True) & (bus_stops_gdf["combined_score"] > 0.9)
+
+        # Check if stop serves any station route types (rail, ferry, etc.)
+        bus_stops_gdf["serves_station_routes"] = bus_stops_gdf["route_types"].apply(
+            lambda x: any(rt in STATION_ROUTE_TYPES for rt in x) if isinstance(x, list) else False
+        )
+
+        # poor_match = poor score AND not a station stop
+        bus_stops_gdf["poor_match"] = (
+            (bus_stops_gdf["close_match"] == True) &
+            (bus_stops_gdf["combined_score"] > 0.9) &
+            (bus_stops_gdf["serves_station_routes"] == False)
+        )
         poor_score_stops = bus_stops_gdf[bus_stops_gdf["poor_match"] == True]
+
+        # Log excluded stops (poor score but serve station routes)
+        excluded_station_stops = bus_stops_gdf[
+            (bus_stops_gdf["close_match"] == True) &
+            (bus_stops_gdf["combined_score"] > 0.9) &
+            (bus_stops_gdf["serves_station_routes"] == True)
+        ]
+        if len(excluded_station_stops) > 0:
+            WranglerLogger.info(
+                f"Found {len(excluded_station_stops)} stops with poor combined_score (> 0.9) "
+                f"that serve station route types (rail/ferry/etc). These will NOT be marked as "
+                f"poor_match and will be handled as stations in step 7."
+            )
 
         if len(poor_score_stops) > 0:
             WranglerLogger.info(
-                f"Found {len(poor_score_stops)} bus stops with poor_match=True (combined_score > 0.9). "
+                f"Found {len(poor_score_stops)} bus-only stops with poor_match=True (combined_score > 0.9). "
                 f"These will be treated as unmatched stops and added to the network with "
                 f"connector links to nearest bus-accessible nodes."
             )
@@ -857,6 +883,9 @@ def match_bus_stops_to_roadway_nodes(  # noqa: PLR0912, PLR0915
                 f"poor_match stops:\n"
                 f"{bus_stops_gdf.loc[bus_stops_gdf['poor_match'], debug_cols_with_poor]}"
             )
+
+        # Clean up temporary column
+        bus_stops_gdf.drop(columns=["serves_station_routes"], inplace=True)
     else:
         # No name matching, so no poor_match stops (all matches are based on distance only)
         bus_stops_gdf["poor_match"] = False
