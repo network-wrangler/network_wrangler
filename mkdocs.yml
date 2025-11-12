@@ -62,7 +62,7 @@ plugins:
             - https://pandera.readthedocs.io/en/stable/objects.inv
             - https://pandas.pydata.org/docs/objects.inv
           options:
-            docstring_section_style: list
+            docstring_section_style: table
             show_source: true
             show_if_no_docstring: false
             show_object_full_path: true
