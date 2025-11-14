@@ -1160,8 +1160,8 @@ def add_unmatched_bus_stops_to_network(
             "geometry": centroid_geom,
             "X": centroid_geom.x,
             "Y": centroid_geom.y,
-            "stop_ids": list(set(cluster_stops["stop_id"].tolist())), # make unique
-            "stop_names": list(set(cluster_stops["stop_name"].tolist())), # make unique
+            "stop_id_GTFS": str(list(set(cluster_stops["stop_id"].tolist()))), # make unique list
+            "stop_name": str(list(set(cluster_stops["stop_name"].tolist()))), # make unique
             "nearest_bus_node": nearest_bus_node,
             "is_transit_stop_node": True,
             "num_stops_in_cluster": len(cluster_stops),
