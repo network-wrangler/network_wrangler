@@ -1325,7 +1325,6 @@ def create_connector_links_for_poor_match_stops(
     # Other attributes
     connector_links_gdf["roadway"] = "transit"
     connector_links_gdf["lanes"] = 1
-    connector_links_gdf["highway"] = "transit"
     connector_links_gdf["managed"] = 0
 
     # Calculate distance
@@ -1427,7 +1426,6 @@ def create_links_for_failed_bus_paths(
     # fill in some defaults
     add_links_gdf["roadway"] = "transit"
     add_links_gdf["lanes"] = 1
-    add_links_gdf["highway"] = "transit"
     add_links_gdf["managed"] = 0
     # this is how you find me
     add_links_gdf["ref"] = "bad_bus_path"
@@ -3270,11 +3268,11 @@ def add_stations_and_links_to_roadway_network(  # noqa: PLR0912, PLR0915
         f"{roadway_net.links_df.loc[roadway_net.links_df._merge == 'both']}"
     )
     # if any of these are footway or cycleway, warn
-    if 'highway' in roadway_net.links_df.columns:
+    if 'roadway' in roadway_net.links_df.columns:
         ACTIVE_OSM_HIGHWAY = ['footway','cycleway','path','pedestrian']
         active_only = roadway_net.links_df.loc[
             (roadway_net.links_df["_merge"] == "both") &
-            roadway_net.links_df["highway"].isin(ACTIVE_OSM_HIGHWAY)
+            roadway_net.links_df["roadway"].isin(ACTIVE_OSM_HIGHWAY)
         ]
         if len(active_only) > 0:
             WranglerLogger.warning(f"Adding rail or ferry access to {len(active_only)} active links -- See debug log")
@@ -3324,8 +3322,8 @@ def add_stations_and_links_to_roadway_network(  # noqa: PLR0912, PLR0915
     station_road_links_gdf["truck_access"] = False
     station_road_links_gdf["bus_only"] = False
     station_road_links_gdf["lanes"] = 0
-    if "highway" in roadway_net.links_df.columns:
-        station_road_links_gdf["highway"] = "transit"
+    if "roadway" in roadway_net.links_df.columns:
+        station_road_links_gdf["roadway"] = "transit"
 
     # Set distance
     station_road_links_gdf.to_crs(local_crs, inplace=True)
