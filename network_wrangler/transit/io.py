@@ -62,7 +62,7 @@ def load_feed_from_path(  # noqa: PLR0915
     # Use the appropriate table names based on the model type
     model_class = Feed if wrangler_flavored else GtfsModel
     feed_possible_files = {
-        table: list(feed_path.glob(f"*{table}.{file_format}")) for table in model_class.table_names
+        table: list(feed_path.glob(f"*{table}.{file_format}")) for table in model_class.table_names + model_class.optional_table_names
     }
     WranglerLogger.debug(f"model_class={model_class}  feed_possible_files={feed_possible_files}")
 
