@@ -66,8 +66,18 @@ def load_feed_from_path(  # noqa: PLR0915
     }
     WranglerLogger.debug(f"model_class={model_class}  feed_possible_files={feed_possible_files}")
 
-    # make sure we have all the tables we need
-    _missing_files = [t for t, v in feed_possible_files.items() if not v]
+    # make sure we have all the tables we need -- missing optional is ok
+    _missing_files = []
+    for table_name in list(feed_possible_files.keys()):
+        if not feed_possible_files[table_name]:
+            # remove those that don't have files
+            del feed_possible_files[table_name]
+
+            # missiong optional is ok
+            if table_name in model_class.table_names:
+                _missing_files.append(table_name)
+
+        
 
     if _missing_files:
         WranglerLogger.debug(f"!!! Missing transit files: {_missing_files}")
