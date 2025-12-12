@@ -1414,10 +1414,10 @@ def create_links_for_failed_bus_paths(
     add_links_gdf["shape_id"] = (
         add_links_gdf["stop_id"] + " to " + add_links_gdf["next_stop_id"]
     )
-    # make ok for any transit
-    add_links_gdf["rail_only"] = True
+    # make ok for buses (but not ferry or rail, since that's confusing)
+    add_links_gdf["rail_only"] = False
+    add_links_gdf["ferry_only"] = False
     add_links_gdf["bus_only"] = True
-    add_links_gdf["ferry_only"] = True
     add_links_gdf["drive_access"] = True
     # not ok for others
     add_links_gdf["truck_access"] = False
