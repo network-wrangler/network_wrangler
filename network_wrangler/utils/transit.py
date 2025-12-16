@@ -58,7 +58,7 @@ def create_feed_frequencies(  # noqa: PLR0915
     feed_tables: dict[str, pd.DataFrame],
     timeperiods: dict[str, tuple[str, str]],
     frequency_method: str,
-    default_frequency_for_onetime_route: int = 10800,
+    default_frequency_for_onetime_route: int = 180,
     trace_shape_ids: Optional[list[str]] = None,
 ):
     """Create frequencies table and convert GTFS-style tables to Wrangler-style Feed tables.
@@ -96,8 +96,8 @@ def create_feed_frequencies(  # noqa: PLR0915
             - 'uniform_headway': timeperiod_duration / number_of_trips
             - 'mean_headway': mean of time gaps between consecutive trips
             - 'median_headway': median of time gaps between consecutive trips
-        default_frequency_for_onetime_route (int, optional): Default headway in seconds
-            for routes with only one trip in a period. Defaults to 10800 (3 hours).
+        default_frequency_for_onetime_route (int, optional): Default headway in minutes
+            for routes with only one trip in a period. Defaults to 180 (3 hours).
         trace_shape_ids (Optional[list[str]]): Shape IDs to log detailed debug output for.
 
     Returns:
@@ -3470,7 +3470,7 @@ def create_feed_from_gtfs_model(  # noqa: PLR0915
     crs_units: str,
     timeperiods: dict[str, tuple[str, str]],
     frequency_method: str,
-    default_frequency_for_onetime_route: int = 10800,
+    default_frequency_for_onetime_route: int = 180,
     add_stations_and_links: bool = True,
     max_stop_distance: Optional[float] = None,
     trace_shape_ids: Optional[list[str]] = None,
@@ -3632,8 +3632,8 @@ def create_feed_from_gtfs_model(  # noqa: PLR0915
             Example: {'EA': ('03:00','06:00'), 'AM': ('06:00','10:00')}
         frequency_method: How to calculate headways
             ('uniform_headway', 'mean_headway', or 'median_headway')
-        default_frequency_for_onetime_route: Default headway in seconds
-            for routes with one trip per period (default: 10800)
+        default_frequency_for_onetime_route: Default headway in minutes
+            for routes with one trip per period (default: 180)
         add_stations_and_links: If True, add stations to roadway network
             (recommended, False not implemented)
         max_stop_distance: Maximum distance in crs_units for matching bus stops
