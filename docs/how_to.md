@@ -33,19 +33,35 @@
     The easiest way to configure Network Wrangler parameters is using a YAML file. This is especially
     useful for users less familiar with Python, as you can simply point to a YAML file path.
 
-    **Step 1:** Create a YAML configuration file (e.g., `wrangler.config.yml`):
+    **Step 1:** Start with the configuration template
 
-    ```yaml
-    IDS:
-      ML_LINK_ID_METHOD: scalar
-      ML_LINK_ID_SCALAR: 3000000
-    MODEL_ROADWAY:
-      ML_OFFSET_METERS: -10
-    EDITS:
-      EXISTING_VALUE_CONFLICT: warn
+    Copy the template file to your project directory:
+
+    ```bash
+    cp examples/wrangler.config.yml.template wrangler.config.yml
     ```
 
-    **Step 2:** Load and use the configuration:
+    The template (`examples/wrangler.config.yml.template`) contains all available parameters with:
+    - Default values clearly documented
+    - Guidance on when you might want to change each parameter
+    - All parameters commented out by default
+
+    **Step 2:** Customize your configuration
+
+    Open `wrangler.config.yml` and uncomment only the parameters you want to change. For example:
+
+    ```yaml
+    # Only uncomment what you need to customize
+    MODEL_ROADWAY:
+      # Change managed lane offset if using different lane widths
+      ML_OFFSET_METERS: -12  # 12-foot lanes instead of default 10-foot
+    
+    EDITS:
+      # Use strict validation for production runs
+      EXISTING_VALUE_CONFLICT: error
+    ```
+
+    **Step 3:** Load and use the configuration
 
     ```python
     from network_wrangler.configs import load_wrangler_config
@@ -53,7 +69,7 @@
     from pathlib import Path
 
     # Load configuration from YAML file
-    config = load_wrangler_config("path/to/wrangler.config.yml")
+    config = load_wrangler_config("wrangler.config.yml")
 
     # Use the configuration when loading networks
     road_net = load_roadway_from_dir(
@@ -62,7 +78,7 @@
     )
     ```
 
-    **Step 3:** Or use it when building scenarios:
+    **Step 4:** Or use it when building scenarios
 
     ```python
     from network_wrangler.scenario import create_scenario, create_base_scenario
@@ -77,7 +93,17 @@
     )
     ```
 
-    See `examples/stpaul/wrangler.config.yml` for a complete example with all available parameters.
+!!! tip "Configuration Template Details"
+
+    The template file (`examples/wrangler.config.yml.template`) includes:
+    
+    - **All available parameters** organized by category (ID Generation, Model Roadway, Edits, CPU)
+    - **Default values** shown in comments for easy reference
+    - **When to change** guidance explaining common use cases for each parameter
+    - **Examples** showing proper formatting and typical values
+    
+    You only need to uncomment and modify parameters that differ from defaults. All other
+    parameters will use their default values automatically.
 
 !!! warning "Configuration Best Practices"
 
@@ -88,6 +114,10 @@
     - Allows you to use different configurations for different projects
     - Is more accessible for users less familiar with Python
     - Prevents accidental global state changes
+<<<<<<< Updated upstream
+=======
+    - Makes it clear which parameters you've customized
+>>>>>>> Stashed changes
 
 !!! tip "Alternative Configuration Methods"
 

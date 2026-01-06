@@ -1,0 +1,185 @@
+# Network Wrangler Configuration Template
+# ======================================
+# 
+# This template contains all available configuration parameters with their default values.
+# To use this file:
+#   1. Copy this file to your project directory (e.g., `wrangler.config.yml`)
+#   2. Uncomment and modify only the parameters you want to change from defaults
+#   3. Reference this file when loading networks or creating scenarios
+#
+# All parameters are commented out by default. Uncomment only what you need to customize.
+# Default values are shown in comments for reference.
+
+# ==============================================================================
+# ID GENERATION PARAMETERS
+# ==============================================================================
+# These parameters control how Network Wrangler generates new IDs for various
+# network elements (shapes, managed lane links/nodes, etc.).
+#
+# When to customize:
+#   - If your network uses a specific ID numbering scheme
+#   - If you need to avoid ID conflicts with existing network elements
+#   - If you're integrating with external systems that require specific ID ranges
+
+IDS:
+  # Method for creating shape_id for transit shapes
+  # Options: "scalar" (only option currently)
+  # Default: "scalar"
+  # When to change: Rarely needed - scalar method is standard
+  # TRANSIT_SHAPE_ID_METHOD: scalar
+  
+  # Scalar value to add to general purpose lane link_id to create a shape_id for transit shapes
+  # Default: 1000000
+  # When to change: If you need transit shape IDs in a different range to avoid conflicts
+  # TRANSIT_SHAPE_ID_SCALAR: 1000000
+  
+  # Method for creating shape_id for roadway shapes
+  # Options: "scalar" (only option currently)
+  # Default: "scalar"
+  # When to change: Rarely needed - scalar method is standard
+  # ROAD_SHAPE_ID_METHOD: scalar
+  
+  # Scalar value to add to general purpose lane link_id to create a shape_id for roadway shapes
+  # Default: 1000
+  # When to change: If you need roadway shape IDs in a different range to avoid conflicts
+  # ROAD_SHAPE_ID_SCALAR: 1000
+  
+  # Method for creating model_link_id for managed lane links
+  # Options: "range" or "scalar"
+  # Default: "scalar"
+  # When to change:
+  #   - Use "range" if you want managed lane IDs in a specific reserved range (e.g., 950000-999999)
+  #   - Use "scalar" if you want IDs calculated by adding a value to the GP lane ID
+  # ML_LINK_ID_METHOD: scalar
+  
+  # Range of model_link_ids to use when creating managed lane links (only used if ML_LINK_ID_METHOD is "range")
+  # Format: [min, max] as a list
+  # Default: [950000, 999999]
+  # When to change: If using range method and need a different reserved ID range
+  # ML_LINK_ID_RANGE: [950000, 999999]
+  
+  # Scalar value to add to general purpose lane link_id to create model_link_id for managed lanes
+  # (only used if ML_LINK_ID_METHOD is "scalar")
+  # Default: 3000000
+  # When to change: If using scalar method and need a different offset to avoid ID conflicts
+  # ML_LINK_ID_SCALAR: 3000000
+  
+  # Method for creating model_node_id for managed lane nodes
+  # Options: "range" or "scalar"
+  # Default: "range"
+  # When to change:
+  #   - Use "range" if you want managed lane node IDs in a specific reserved range (e.g., 950000-999999)
+  #   - Use "scalar" if you want IDs calculated by adding a value to the GP node ID
+  # ML_NODE_ID_METHOD: range
+  
+  # Range of model_node_ids to use when creating managed lane nodes (only used if ML_NODE_ID_METHOD is "range")
+  # Format: [min, max] as a list
+  # Default: [950000, 999999]
+  # When to change: If using range method and need a different reserved ID range
+  # ML_NODE_ID_RANGE: [950000, 999999]
+  
+  # Scalar value to add to general purpose lane node_id to create model_node_id for managed lanes
+  # (only used if ML_NODE_ID_METHOD is "scalar")
+  # Default: 15000
+  # When to change: If using scalar method and need a different offset to avoid ID conflicts
+  # ML_NODE_ID_SCALAR: 15000
+
+# ==============================================================================
+# MODEL ROADWAY PARAMETERS
+# ==============================================================================
+# These parameters control how the model roadway network is created from the
+# base roadway network, particularly for managed lanes.
+#
+# When to customize:
+#   - If your managed lanes need different geometric offsets
+#   - If you need to copy additional fields between GP and ML lanes
+#   - If you're working with specialized network data structures
+
+MODEL_ROADWAY:
+  # Offset in meters for managed lanes relative to general purpose lanes
+  # Negative values offset to the right (typical for US roadways)
+  # Positive values offset to the left
+  # Default: -10
+  # When to change:
+  #   - If your managed lanes are a different width (e.g., -12 for 12-foot lanes)
+  #   - If you're modeling left-side managed lanes (use positive value)
+  #   - If you need to match specific geometric standards
+  # ML_OFFSET_METERS: -10
+  
+  # Additional fields to copy from general purpose lanes to managed lanes
+  # Format: list of field names as strings
+  # Default: [] (empty list)
+  # When to change:
+  #   - If you have custom fields on GP lanes that should also appear on ML lanes
+  #   - If you're preserving metadata or attributes during managed lane creation
+  # Example: ["custom_field", "another_field"]
+  # ADDITIONAL_COPY_FROM_GP_TO_ML: []
+  
+  # Additional fields to copy to access and egress links
+  # Format: list of field names as strings
+  # Default: [] (empty list)
+  # When to change:
+  #   - If you have custom fields that should be propagated to access/egress links
+  #   - If you need to maintain specific attributes on connector links
+  # Example: ["custom_field", "another_field"]
+  # ADDITIONAL_COPY_TO_ACCESS_EGRESS: []
+
+# ==============================================================================
+# EDIT HANDLING PARAMETERS
+# ==============================================================================
+# These parameters control how Network Wrangler handles conflicts and existing
+# values when applying project cards and edits.
+#
+# When to customize:
+#   - If you need stricter validation (use "error" instead of "warn")
+#   - If you're doing bulk edits and want to overwrite all scoped values
+#   - If you want to skip conflicts silently during automated processing
+
+EDITS:
+  # How to handle conflicts when 'existing' value in project card doesn't match network value
+  # Options: "warn", "error", or "skip"
+  # Default: "warn"
+  # When to change:
+  #   - Use "error" for strict validation - will stop processing if values don't match
+  #   - Use "skip" for automated processing - will silently skip mismatched properties
+  #   - Use "warn" (default) for interactive work - will warn but continue processing
+  # Note: Can be overridden per-project in project card with `existing_value_conflict` field
+  # EXISTING_VALUE_CONFLICT: warn
+  
+  # How to handle conflicts with existing scoped (time-based) property values
+  # Options: "conflicting", "all", or "error"
+  # Default: "conflicting"
+  # When to change:
+  #   - Use "all" if you want to completely replace all scoped values (useful for bulk updates)
+  #   - Use "error" for strict validation - will stop if any scope overlap exists
+  #   - Use "conflicting" (default) to only overwrite values where scopes partially overlap
+  # Note: Can be overridden per-project in project card with `overwrite_scoped` field
+  # OVERWRITE_SCOPED: conflicting
+
+# ==============================================================================
+# CPU PERFORMANCE PARAMETERS
+# ==============================================================================
+# These parameters are used for performance estimation and do NOT affect network
+# outcomes or results. They help Network Wrangler estimate processing times.
+#
+# When to customize:
+#   - If you're running on significantly faster/slower hardware
+#   - If you want more accurate time estimates for your specific system
+#   - Generally not needed unless you're doing performance analysis
+
+CPU:
+  # Estimated read speed in seconds per MB for different file formats
+  # These values are used for progress estimation only
+  # Format: dictionary with file format as key and seconds/MB as value
+  # Default values shown below
+  # When to change:
+  #   - If you have measured different read speeds on your system
+  #   - If you're using different storage (SSD vs HDD, network storage, etc.)
+  #   - Generally not necessary unless doing performance tuning
+  # EST_PD_READ_SPEED:
+  #   csv: 0.03
+  #   parquet: 0.005
+  #   geojson: 0.03
+  #   json: 0.15
+  #   txt: 0.04
+
