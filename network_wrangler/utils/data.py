@@ -468,7 +468,7 @@ def segment_data_by_selection_min_overlap(
     field = "i"
     replacements_list = [2,22,33]
 
-    returns:
+    Returns:
         [22,33]
         [1], [2,3,4,5], [6]
 
