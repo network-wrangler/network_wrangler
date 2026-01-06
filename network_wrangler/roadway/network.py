@@ -600,7 +600,7 @@ class RoadwayNetwork(BaseModel):
                 If False, will only remove nodes if they are not associated with any links.
                 Defaults to False.
 
-        raises:
+        Raises:
             NodeDeletionError: If not ignore_missing and selected nodes to delete aren't in network
         """
         if not isinstance(selection_dict, SelectNodesDict):
