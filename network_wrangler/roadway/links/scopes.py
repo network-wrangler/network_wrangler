@@ -32,8 +32,10 @@ model_links_df["lanes_AM_sov"] = prop_for_scope(links_df, ["6:00":"9:00"], categ
 
 """
 
+from __future__ import annotations
+
 import copy
-from typing import Any, TypeGuard, Union
+from typing import Any, Union
 
 import pandas as pd
 from pandera.typing import DataFrame
@@ -88,7 +90,6 @@ def _filter_to_matching_timespan_scopes(
     if timespan == DEFAULT_TIMESPAN:
         return scoped_values
     times_dt = list(map(str_to_time, timespan))
-    # typeguard - mypy suggested this b/c we cannot guarantee we got rid of all the Nones
     return [
         s
         for s in scoped_values
@@ -146,29 +147,23 @@ def _filter_to_overlapping_timespan_scopes(
     if timespan == DEFAULT_TIMESPAN:
         return scoped_values
     q_timespan_dt = list(map(str_to_time, timespan))
-    # typeguard - mypy suggested this b/c we cannot guarantee we got rid of all the Nones
     return [
         s
         for s in scoped_values
         if (
             _islist(s.timespan)
-            and dt_list_overlaps([q_timespan_dt, [str_to_time(i) for i in _islist(s.timespan)]])
+            and dt_list_overlaps([q_timespan_dt, [str_to_time(i) for i in s.timespan]])
         )
         or s.timespan == DEFAULT_TIMESPAN
     ]
 
 
-def _islist(s: Any) -> TypeGuard[list]:
-    """Typeguard for list to make mypy not complain."""
-    if s is list:
-        return s
-    if isinstance(s, list):
-        return s  # type: ignore  # noqa: PGH003
-    is_list = bool(issubclass(type(s), list))
-    if is_list:
-        return s
-    msg = f"{s} is not a list but is required to be one."
-    raise TypeError(msg)
+def _islist(s: Any) -> TypeGuard[list[str]]:
+    """Type guard for list to make mypy not complain.
+    
+    Returns True if s is a list, allowing mypy to narrow the type.
+    """
+    return isinstance(s, list)
 
 
 def _filter_to_overlapping_scopes(
