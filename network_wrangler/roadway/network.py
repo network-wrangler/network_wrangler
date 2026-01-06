@@ -28,7 +28,7 @@ import networkx as nx
 import pandas as pd
 from pandera.typing import DataFrame
 from projectcard import ProjectCard, SubProject
-from pydantic import BaseModel, field_validator
+from pydantic import BaseModel, ConfigDict, field_validator
 
 from ..configs import DefaultConfig, WranglerConfig, load_wrangler_config
 from ..errors import (
@@ -145,9 +145,11 @@ class RoadwayNetwork(BaseModel):
         config (WranglerConfig): wrangler configuration object
     """
 
-    nodes_df: DataFrame[RoadNodesTable]
-    links_df: DataFrame[RoadLinksTable]
-    _shapes_df: Optional[DataFrame[RoadShapesTable]] = None
+    model_config = ConfigDict(arbitrary_types_allowed=True)
+
+    nodes_df: pd.DataFrame
+    links_df: pd.DataFrame
+    _shapes_df: Optional[pd.DataFrame] = None
 
     _links_file: Optional[Path] = None
     _nodes_file: Optional[Path] = None
@@ -164,19 +166,34 @@ class RoadwayNetwork(BaseModel):
         """Validate config."""
         return load_wrangler_config(v)
 
-    @field_validator("nodes_df", "links_df")
-    def coerce_crs(cls, v):
-        """Coerce crs of nodes_df and links_df to LAT_LON_CRS."""
-        if v.crs != LAT_LON_CRS:
+    @field_validator("nodes_df", mode="before")
+    @classmethod
+    def validate_nodes_df(cls, v):
+        """Validate nodes_df to RoadNodesTable and coerce CRS."""
+        v = validate_df_to_model(v, RoadNodesTable)
+        if hasattr(v, "crs") and v.crs != LAT_LON_CRS:
+            WranglerLogger.warning(
+                f"CRS of nodes_df ({v.crs}) doesn't match network crs {LAT_LON_CRS}. \
+                    Changing to network crs."
+            )
+            v = v.to_crs(LAT_LON_CRS)
+        return v
+
+    @field_validator("links_df", mode="before")
+    @classmethod
+    def validate_links_df(cls, v):
+        """Validate links_df to RoadLinksTable and coerce CRS."""
+        v = validate_df_to_model(v, RoadLinksTable)
+        if hasattr(v, "crs") and v.crs != LAT_LON_CRS:
             WranglerLogger.warning(
                 f"CRS of links_df ({v.crs}) doesn't match network crs {LAT_LON_CRS}. \
                     Changing to network crs."
             )
-            v.to_crs(LAT_LON_CRS)
+            v = v.to_crs(LAT_LON_CRS)
         return v
 
     @property
-    def shapes_df(self) -> DataFrame[RoadShapesTable]:
+    def shapes_df(self) -> pd.DataFrame:
         """Load and return RoadShapesTable.
 
         If not already loaded, will read from shapes_file and return. If shapes_file is None,
