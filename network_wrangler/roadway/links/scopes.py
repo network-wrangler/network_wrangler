@@ -95,7 +95,7 @@ def _filter_to_matching_timespan_scopes(
         for s in scoped_values
         if (
             _islist(s.timespan)
-            and dt_contains([str_to_time(i) for i in _islist(s.timespan)], times_dt)
+            and dt_contains([str_to_time(i) for i in s.timespan], times_dt)
         )
         or s.timespan == DEFAULT_TIMESPAN
     ]
