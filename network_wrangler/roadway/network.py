@@ -289,7 +289,7 @@ class RoadwayNetwork(BaseModel):
             min_overlap_minutes: If strict_timespan_match is False, will return links that overlap
                 with the timespan by at least this many minutes. Defaults to 60.
         """
-        from .links.scopes import prop_for_scope  # noqa: PLC0415
+        from .links.scopes import prop_for_scope
 
         return prop_for_scope(
             self.links_df,
@@ -353,7 +353,7 @@ class RoadwayNetwork(BaseModel):
         Args:
             mode: mode of the network, one of `drive`,`transit`,`walk`, `bike`
         """
-        from .graph import net_to_graph  # noqa: PLC0415
+        from .graph import net_to_graph
 
         if self._modal_graphs[mode]["hash"] != self.modal_graph_hash(mode):
             self._modal_graphs[mode]["graph"] = net_to_graph(self, mode)
@@ -629,7 +629,7 @@ class RoadwayNetwork(BaseModel):
 
     def clean_unused_shapes(self):
         """Removes any unused shapes from network that aren't referenced by links_df."""
-        from .shapes.shapes import shape_ids_without_links  # noqa: PLC0415
+        from .shapes.shapes import shape_ids_without_links
 
         del_shape_ids = shape_ids_without_links(self.shapes_df, self.links_df)
         self.shapes_df = self.shapes_df.drop(del_shape_ids)
@@ -639,7 +639,7 @@ class RoadwayNetwork(BaseModel):
 
         NOTE: does not check if these nodes are used by transit, so use with caution.
         """
-        from .nodes.nodes import node_ids_without_links  # noqa: PLC0415
+        from .nodes.nodes import node_ids_without_links
 
         node_ids = node_ids_without_links(self.nodes_df, self.links_df)
         self.nodes_df = self.nodes_df.drop(node_ids)

@@ -249,7 +249,7 @@ def write_feed_geo(
         out_prefix: prefix to add to the file name
         overwrite: if True, will overwrite the files if they already exist. Defaults to True
     """
-    from .geo import shapes_to_shape_links_gdf  # noqa: PLC0415
+    from .geo import shapes_to_shape_links_gdf
 
     out_dir = Path(out_dir)
     if not out_dir.is_dir():
