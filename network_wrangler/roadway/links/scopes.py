@@ -274,9 +274,12 @@ def _create_exploded_df_for_scoped_prop(
     return exp_df
 
 
-@validate_call(config={"arbitrary_types_allowed": True})
+@validate_call(
+    config={"arbitrary_types_allowed": True},
+    validate_return=False,
+)
 def _filter_exploded_df_to_scope(
-    exp_scoped_prop_df: DataFrame[ExplodedScopedLinkPropertyTable],
+    exp_scoped_prop_df: pd.DataFrame,
     timespan: list[TimeString] = DEFAULT_TIMESPAN,
     category: Union[str, int] = DEFAULT_CATEGORY,
     strict_timespan_match: bool = False,
