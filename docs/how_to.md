@@ -28,6 +28,73 @@
 
 ## Change Wrangler Configuration
 
+!!! example "Using YAML Configuration File (Recommended)"
+
+    The easiest way to configure Network Wrangler parameters is using a YAML file. This is especially
+    useful for users less familiar with Python, as you can simply point to a YAML file path.
+
+    **Step 1:** Create a YAML configuration file (e.g., `wrangler.config.yml`):
+
+    ```yaml
+    IDS:
+      ML_LINK_ID_METHOD: scalar
+      ML_LINK_ID_SCALAR: 3000000
+    MODEL_ROADWAY:
+      ML_OFFSET_METERS: -10
+    EDITS:
+      EXISTING_VALUE_CONFLICT: warn
+    ```
+
+    **Step 2:** Load and use the configuration:
+
+    ```python
+    from network_wrangler.configs import load_wrangler_config
+    from network_wrangler import load_roadway_from_dir
+    from pathlib import Path
+
+    # Load configuration from YAML file
+    config = load_wrangler_config("path/to/wrangler.config.yml")
+
+    # Use the configuration when loading networks
+    road_net = load_roadway_from_dir(
+        "path/to/roadway",
+        config=config
+    )
+    ```
+
+    **Step 3:** Or use it when building scenarios:
+
+    ```python
+    from network_wrangler.scenario import create_scenario, create_base_scenario
+
+    base_scenario = create_base_scenario(
+        roadway={"dir": "path/to/roadway"},
+        config=config
+    )
+    my_scenario = create_scenario(
+        base_scenario=base_scenario,
+        config=config
+    )
+    ```
+
+    See `examples/stpaul/wrangler.config.yml` for a complete example with all available parameters.
+
+!!! warning "Configuration Best Practices"
+
+    **Always use YAML or TOML configuration files** for setting Wrangler parameters. Do not modify
+    `DefaultConfig` or other Python code to change configuration values. Using configuration files:
+    
+    - Makes it easy to track and version control your settings
+    - Allows you to use different configurations for different projects
+    - Is more accessible for users less familiar with Python
+    - Prevents accidental global state changes
+
+!!! tip "Alternative Configuration Methods"
+
+    For advanced use cases, you can also pass a dictionary directly to configuration functions.
+    However, YAML/TOML files are strongly recommended. See the full API documentation below for
+    all options.
+
 ::: network_wrangler.configs.wrangler
     options:
         heading_level: 3

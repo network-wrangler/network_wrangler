@@ -4,6 +4,34 @@ Users can change a handful of parameters which control the way Wrangler runs.  T
 can be saved as a wrangler config file which can be read in repeatedly to make sure the same
 parameters are used each time.
 
+!!! tip "YAML Configuration (Recommended)"
+    
+    The easiest way to configure parameters is using a YAML file. This is especially useful for
+    users who are less familiar with Python, as you can simply point to a YAML file path rather
+    than writing Python code.
+
+    Create a YAML file (e.g., `wrangler.config.yml`) with your parameter settings:
+
+    ```yaml
+    IDS:
+      ML_LINK_ID_METHOD: scalar
+      ML_LINK_ID_SCALAR: 3000000
+    MODEL_ROADWAY:
+      ML_OFFSET_METERS: -10
+    EDITS:
+      EXISTING_VALUE_CONFLICT: warn
+    ```
+
+    Then load it in your code:
+
+    ```python
+    from network_wrangler.configs import load_wrangler_config
+    
+    config = load_wrangler_config("path/to/wrangler.config.yml")
+    ```
+
+    See `examples/stpaul/wrangler.config.yml` for a complete example with all available parameters.
+
 Usage:
     At runtime, you can specify configurable parameters at the scenario level which will then also
     be assigned and accessible to the roadway and transit networks.
@@ -47,7 +75,7 @@ If not provided, Wrangler will use reasonable defaults.
         ML_NODE_ID_RANGE: (950000, 999999)
         ML_NODE_ID_SCALAR: 15000
     EDITS:
-        EXISTING_VALUE_CONFLIC: warn
+        EXISTING_VALUE_CONFLICT: warn
         OVERWRITE_SCOPED: conflicting
     MODEL_ROADWAY:
         ML_OFFSET_METERS: int = -10
@@ -63,40 +91,33 @@ If not provided, Wrangler will use reasonable defaults.
     ```
 
 Extended usage:
-    Load the default configuration:
+    !!! warning "Do Not Modify DefaultConfig in Python"
+    
+        **Do not modify `DefaultConfig` directly in Python code.** Instead, always use YAML or TOML
+        configuration files. Modifying `DefaultConfig` directly can lead to unexpected behavior
+        and makes it difficult to track configuration changes.
 
-    ```python
-    from network_wrangler.configs import DefaultConfig
-    ```
-
-    Access the configuration:
-
-    ```python
-    from network_wrangler.configs import DefaultConfig
-    DefaultConfig.MODEL_ROADWAY.ML_OFFSET_METERS
-    >> -10
-    ```
-
-    Modify the default configuration in-line:
-
-    ```python
-    from network_wrangler.configs import DefaultConfig
-
-    DefaultConfig.MODEL_ROADWAY.ML_OFFSET_METERS = 20
-    ```
-
-    Load a configuration from a file:
+    **Recommended approach - Use YAML/TOML configuration files:**
 
     ```python
     from network_wrangler.configs import load_wrangler_config
 
-    config = load_wrangler_config("path/to/config.yaml")
+    # Load configuration from a YAML or TOML file
+    config = load_wrangler_config("path/to/wrangler.config.yml")
+    
+    # Use the config when loading networks or creating scenarios
+    road_net = load_roadway_from_dir("path/to/roadway", config=config)
     ```
 
-    Set a configuration value:
+    **Accessing default values (read-only):**
+
+    If you need to read the default configuration values (without modifying them):
 
     ```python
-    config.MODEL_ROADWAY.ML_OFFSET_METERS = 10
+    from network_wrangler.configs import DefaultConfig
+    
+    # Read default value (read-only)
+    default_offset = DefaultConfig.MODEL_ROADWAY.ML_OFFSET_METERS
     ```
 
 """
