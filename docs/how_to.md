@@ -28,87 +28,7 @@
 
 ## Change Wrangler Configuration
 
-The easiest way to configure Network Wrangler parameters is using a YAML file. This is especially
-useful for users less familiar with Python, as you can simply point to a YAML file path rather
-than writing Python code.
-
-### Step 1: Get the Configuration Template
-
-The configuration template contains all available parameters with default values and guidance on
-when to change them. All parameters are commented out by default, so you only uncomment what
-you need to customize.
-
-??? note "View Full Configuration Template"
-    Click to expand and view the complete configuration template. You can copy this entire file
-    to create your own `wrangler.config.yml`:
-
-    ```yaml
-{! ../examples/wrangler.config.yml.template !}
-    ```
-
-### Step 2: Customize Your Configuration
-
-Open your `wrangler.config.yml` file and uncomment only the parameters you want to change from
-their defaults.
-
-!!! example "Example: Customizing Configuration"
-    Here's an example of a customized configuration file:
-
-    ```yaml
-    # Only uncomment what you need to customize
-    MODEL_ROADWAY:
-      # Change managed lane offset if using different lane widths
-      ML_OFFSET_METERS: -12  # 12-foot lanes instead of default 10-foot
-    
-    EDITS:
-      # Use strict validation for production runs
-      EXISTING_VALUE_CONFLICT: error
-    ```
-
-    All other parameters will use their default values automatically.
-
-### Step 3: Load and Use the Configuration
-
-!!! example "Loading Configuration in Python"
-    ```python
-    from network_wrangler.configs import load_wrangler_config
-    from network_wrangler import load_roadway_from_dir
-    from pathlib import Path
-
-    # Load configuration from YAML file
-    config = load_wrangler_config("wrangler.config.yml")
-
-    # Use the configuration when loading networks
-    road_net = load_roadway_from_dir(
-        "path/to/roadway",
-        config=config
-    )
-    ```
-
-!!! example "Using Configuration with Scenarios"
-    ```python
-    from network_wrangler.scenario import create_scenario, create_base_scenario
-
-    base_scenario = create_base_scenario(
-        roadway={"dir": "path/to/roadway"},
-        config=config
-    )
-    my_scenario = create_scenario(
-        base_scenario=base_scenario,
-        config=config
-    )
-    ```
-
-!!! tip "Configuration Template Details"
-    The template includes:
-    
-    - **All available parameters** organized by category (ID Generation, Model Roadway, Edits, CPU)
-    - **Default values** shown in comments for easy reference
-    - **When to change** guidance explaining common use cases for each parameter
-    - **Examples** showing proper formatting and typical values
-    
-    You only need to uncomment and modify parameters that differ from defaults. All other
-    parameters will use their default values automatically.
+The easiest way to configure Network Wrangler parameters is using a YAML file. This is especially useful for users less familiar with Python, as you can simply point to a YAML file path rather than writing Python code.
 
 !!! warning "Configuration Best Practices"
 
@@ -121,21 +41,94 @@ their defaults.
     - Prevents accidental global state changes
     - Makes it clear which parameters you've customized
 
-!!! tip "Alternative Configuration Methods"
+### Step 1: Get the Configuration Template
 
-    For advanced use cases, you can also pass a dictionary directly to configuration functions.
-    However, YAML/TOML files are strongly recommended. See the full API documentation below for
-    all options.
+The configuration template contains all available parameters with default values and guidance on when to change them. All parameters are commented out by default, so you only uncomment what you need to customize.
 
-::: network_wrangler.configs.wrangler
-    options:
-        heading_level: 3
-    handlers:
-      python:
-        options:
-          show_root_toc_entry: false
+??? note "Configuration Template to Copy"
+    Click to expand and view the complete configuration template. You can copy this entire file to create your own `wrangler.config.yml`:
 
-## Review changes beetween networks
+    ```yaml
+    --8<-- "examples/wrangler.config.yml.template"
+    ```
+
+!!! tip "Configuration Template Details"
+    The template includes:
+    - **All available parameters** organized by category (ID Generation, Model Roadway, Edits, CPU)
+    - **Default values** shown in comments for easy reference
+    - **When to change** guidance explaining common use cases for each parameter
+    - **Examples** showing proper formatting and typical values
+
+    You only need to uncomment and modify parameters that differ from defaults. All other parameters will use their default values automatically.
+
+### Step 2: Customize Your Configuration
+
+Open your `wrangler.config.yml` file and uncomment only the parameters you want to change from their defaults. All other parameters will use their default values automatically.
+
+!!! example "Example: Customizing Configuration"
+
+    ```yaml
+    # Only uncomment what you need to customize
+    MODEL_ROADWAY:
+      # Change managed lane offset if using different lane widths
+      ML_OFFSET_METERS: -12  # 12-foot lanes instead of default 10-foot
+    
+    EDITS:
+      # Use strict validation for production runs
+      EXISTING_VALUE_CONFLICT: error
+    ```
+
+### Step 3: Load Your Configuration
+
+!!! example "Loading Configuration from YAML File"
+    ```python
+    from network_wrangler.configs import load_wrangler_config
+
+    # Load configuration from YAML file
+    config = load_wrangler_config("wrangler.config.yml")
+    ```
+
+??? danger "Edit an Existing Configuration in Python"
+    You can also modify an existing configuration programmatically, including the default configuration:
+
+    ```python
+    from network_wrangler.configs import DefaultConfig
+
+    config = DefaultConfig()
+    
+    config.MODEL_ROADWAY.ML_OFFSET_METERS = -12
+    config.EDITS.EXISTING_VALUE_CONFLICT = "error"
+    ```
+
+    **NOTE** this is less traceable than storing your configurations in config files and should be used with caution.
+
+### Step 4: Use Your Configuration
+
+When loading networks or creating scenarios, pass your configuration using the `config=` parameter. If you don't provide a `config=` parameter, Network Wrangler will use the default configuration values.
+
+!!! example "Using Configurations"
+    ```python
+    from network_wrangler.scenario import create_scenario, create_base_scenario
+    from network_wrangler import load_roadway_from_dir
+
+    base_scenario = create_base_scenario(
+        roadway={"dir": "path/to/roadway"},
+        config=config  # Without this, defaults will be used
+    )
+    
+    my_scenario = create_scenario(
+        base_scenario=base_scenario,
+        config=config  # Without this, defaults will be used
+    )
+
+    # Use the configuration when loading networks
+    road_net = load_roadway_from_dir(
+        "path/to/roadway",
+        config=config  # Without this, defaults will be used
+    )
+    ```
+
+## Review changes between networks
 
 !!! example "Review Added Managed Lanes"
 

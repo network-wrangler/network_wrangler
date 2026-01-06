@@ -29,6 +29,7 @@ plugins:
   - include-markdown:
       opening_tag: "{!"
       closing_tag: "!}"
+  - codeinclude
   - mermaid2
   - mike
   - mkdocs-jupyter:
@@ -49,6 +50,8 @@ plugins:
 
 watch:
  - network_wrangler
+ - docs
+ - examples
 
 extra:
   version:
@@ -78,6 +81,9 @@ markdown_extensions:
       custom_checkbox: true
   - pymdownx.tabbed:
       alternate_style: true
+  - pymdownx.snippets:
+      base_path: .
+      check_paths: false
   - pymdownx.superfences:
       custom_fences:
         - name: mermaid
