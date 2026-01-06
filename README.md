@@ -21,22 +21,22 @@ pip install network-wrangler
 ### From GitHub
 
 ```bash
-pip install git+https://github.com/wsp-sag/network_wrangler.git@master#egg=network_wrangler
+pip install git+https://github.com/network-wrangler/network_wrangler.git@main#egg=network_wrangler
 ```
 
-If you wanted to install from a specific tag/version number or branch, replace `@master` with `@<branchname>`  or `@tag`
+If you wanted to install from a specific tag/version number or branch, replace `@main` with `@<branchname>`  or `@tag`
 
 ### From Clone
 
 If you are going to be working on Network Wrangler locally, you might want to clone it to your local machine and install it from the clone.  The -e will install it in [editable mode](https://pip.pypa.io/en/stable/reference/pip_install/?highlight=editable#editable-installs).
 
-If you have [GitHub desktop](https://desktop.github.com/) installed, you can either do this by using the GitHub user interface by clicking on the green button "clone or download" in the [main network wrangler repository page](https://github.com/wsp-sag/network_wrangler).
+If you have [GitHub desktop](https://desktop.github.com/) installed, you can either do this by using the GitHub user interface by clicking on the green button "clone or download" in the [main network wrangler repository page](https://github.com/network-wrangler/network_wrangler).
 
 Otherwise, you can use the command prompt to navigate to the directory that you would like to store your network wrangler clone and then using a [git command](https://git-scm.com/downloads) to clone it.
 
 ```bash
 cd path to where you want to put wrangler
-git clone https://github.com/wsp-sag/network_wrangler
+git clone https://github.com/network-wrangler/network_wrangler
 ```
 
 Then you should be able to install Network Wrangler in "develop" mode.

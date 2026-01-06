@@ -6,6 +6,7 @@ from typing import Optional, Union
 
 import pandas as pd
 import pandera as pa
+from pandera.dtypes import DataType
 from pandera.engines import pandas_engine
 
 
@@ -18,7 +19,7 @@ class HttpURL(pandas_engine.NpString):
 
     def check(
         self,
-        pandera_dtype: pa.dtypes.DataType,
+        pandera_dtype: DataType,
         data_container: pd.Series,
     ) -> Union[bool, Iterable[bool]]:
         """Check if the data is a valid HTTP URL."""

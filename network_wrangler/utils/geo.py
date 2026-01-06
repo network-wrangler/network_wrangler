@@ -9,6 +9,7 @@ from typing import TYPE_CHECKING, Optional, Union
 
 import geopandas as gpd
 import pandas as pd
+import pyarrow as pa
 from geographiclib.geodesic import Geodesic
 from pyproj import CRS, Proj, Transformer
 from shapely.geometry import LineString, Point
@@ -402,7 +403,7 @@ def get_bounding_polygon(
     Returns:
         gpd.GeoSeries: The polygon geometry representing the bounding polygon.
     """
-    import osmnx as ox
+    import osmnx as ox  # noqa: PLC0415
 
     nargs = sum(x is not None for x in [boundary_gdf, boundary_geocode, boundary_file])
     if nargs == 0:

@@ -146,15 +146,20 @@ def test_change_multiple_properties_multiple_links_existing_set(request, stpaul_
 
     WranglerLogger.debug(f"_p_to_track: {_p_to_track}")
 
+    # Store the selected link indices before applying the project
+    # since the project changes (especially drive_access=0) will affect routing
+    _selected_link_indices = _selection.selected_links
+
     _orig_links = pd.DataFrame(copy.deepcopy(net.links_df))
-    _orig_links = _orig_links.loc[_selection.selected_links, _p_to_track]
+    _orig_links = _orig_links.loc[_selected_link_indices, _p_to_track]
     WranglerLogger.debug(f"_orig_links: \n{_orig_links}")
 
     # apply change
     net = net.apply(_project_card_dict)
 
     _rev_links = pd.DataFrame(net.links_df)
-    _rev_links = _rev_links.loc[_selection.selected_links, _p_to_track]
+    # Use the stored indices instead of trying to get selection again
+    _rev_links = _rev_links.loc[_selected_link_indices, _p_to_track]
     WranglerLogger.debug(f"_rev_links: \n{_rev_links}")
 
     WranglerLogger.debug(f"ORIGINAL to REVISED Comparison\n {_orig_links.compare(_rev_links)}")

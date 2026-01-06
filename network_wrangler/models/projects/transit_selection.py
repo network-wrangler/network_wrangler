@@ -4,10 +4,10 @@ from __future__ import annotations
 
 from typing import Annotated, ClassVar, Literal, Optional
 
-from pydantic import ConfigDict, Field
+from pydantic import ConfigDict, Field, field_validator
 
 from .._base.records import RecordModel
-from .._base.types import AnyOf, ForcedStr, OneOf, TimespanString
+from .._base.types import AnyOf, ForcedStr, OneOf, TimespanString, validate_timespan_string
 
 SelectionRequire = Literal["any", "all"]
 
@@ -131,3 +131,11 @@ class SelectTransitTrips(RecordModel):
         exclude_none=True,
         protected_namespaces=(),
     )
+
+    @field_validator("timespans", mode="before")
+    @classmethod
+    def validate_timespans(cls, v):
+        """Validate the timespans field."""
+        if v is not None:
+            return [validate_timespan_string(ts) for ts in v]
+        return v

@@ -5,6 +5,8 @@ from __future__ import annotations
 from pathlib import Path
 from typing import TYPE_CHECKING, Optional, Union
 
+import pyarrow as pa
+import pyarrow.parquet as pq
 from geopandas import GeoDataFrame
 
 from ..configs import ConfigInputTypes, DefaultConfig, WranglerConfig, load_wrangler_config
@@ -61,7 +63,7 @@ def load_roadway(
 
     Returns: a RoadwayNetwork instance
     """
-    from .network import RoadwayNetwork
+    from .network import RoadwayNetwork  # noqa: PLC0415
 
     if not isinstance(config, WranglerConfig):
         config = load_wrangler_config(config)
@@ -281,7 +283,7 @@ def convert_roadway_file_serialization(
             Chunking will only apply to converting from json to parquet files.
     """
     links_in_file, nodes_in_file, shapes_in_file = id_roadway_file_paths_in_dir(in_path, in_format)
-    from ..utils.io_table import convert_file_serialization
+    from ..utils.io_table import convert_file_serialization  # noqa: PLC0415
 
     nodes_out_file = Path(out_dir / f"{out_prefix}_nodes.{out_format}")
     convert_file_serialization(

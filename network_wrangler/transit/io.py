@@ -5,6 +5,7 @@ from typing import Literal, Optional, Union
 
 import geopandas as gpd
 import pandas as pd
+import pyarrow as pa
 
 from ..configs import DefaultConfig, WranglerConfig
 from ..errors import FeedReadError
@@ -248,7 +249,7 @@ def write_feed_geo(
         out_prefix: prefix to add to the file name
         overwrite: if True, will overwrite the files if they already exist. Defaults to True
     """
-    from .geo import shapes_to_shape_links_gdf
+    from .geo import shapes_to_shape_links_gdf  # noqa: PLC0415
 
     out_dir = Path(out_dir)
     if not out_dir.is_dir():
