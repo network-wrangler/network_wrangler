@@ -162,6 +162,7 @@ class RoadwayNetwork(BaseModel):
     _modal_graphs: dict[str, dict] = defaultdict(lambda: {"graph": None, "hash": None})
 
     @field_validator("config")
+    @classmethod
     def validate_config(cls, v):
         """Validate config."""
         return load_wrangler_config(v)
