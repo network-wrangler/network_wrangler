@@ -134,7 +134,7 @@ ignore = [
     "UP045", # Use `X | None` for type annotations (breaks Python 3.9 compatibility)
     "PLC0415", # `import` should be at the top-level (intentional lazy imports to avoid circular deps)
     "C416", # non pep-604 annotations.
-    "PLR0913" # too many args
+    "PLR0913", # too many args
     "UP007", # non pep-604 annotations.
     "PLR0913", # too many args
     "UP045", # Use `X | None` for type annotations
