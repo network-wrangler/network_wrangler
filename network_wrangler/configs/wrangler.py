@@ -10,16 +10,12 @@ parameters are used each time.
     users who are less familiar with Python, as you can simply point to a YAML file path rather
     than writing Python code.
 
-    Create a YAML file (e.g., `wrangler.config.yml`) with your parameter settings:
+    **Start with the template:** Copy `examples/wrangler.config.yml.template` to your project
+    directory. The template contains all available parameters with default values and guidance
+    on when to change them. Simply uncomment and modify only the parameters you need.
 
-    ```yaml
-    IDS:
-      ML_LINK_ID_METHOD: scalar
-      ML_LINK_ID_SCALAR: 3000000
-    MODEL_ROADWAY:
-      ML_OFFSET_METERS: -10
-    EDITS:
-      EXISTING_VALUE_CONFLICT: warn
+    ```bash
+    cp examples/wrangler.config.yml.template wrangler.config.yml
     ```
 
     Then load it in your code:
@@ -27,10 +23,11 @@ parameters are used each time.
     ```python
     from network_wrangler.configs import load_wrangler_config
     
-    config = load_wrangler_config("path/to/wrangler.config.yml")
+    config = load_wrangler_config("wrangler.config.yml")
     ```
 
-    See `examples/stpaul/wrangler.config.yml` for a complete example with all available parameters.
+    See `examples/wrangler.config.yml.template` for the complete template with all parameters
+    and documentation, or `examples/stpaul/wrangler.config.yml` for a working example.
 
 Usage:
     At runtime, you can specify configurable parameters at the scenario level which will then also
