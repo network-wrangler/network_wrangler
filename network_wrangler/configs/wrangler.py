@@ -207,22 +207,6 @@ class CpuConfig(ConfigItem):
     )
 
 
-def _default_id_config():
-    return IdGenerationConfig()
-
-
-def _default_model_roadway_config():
-    return ModelRoadwayConfig()
-
-
-def _default_cpu_config():
-    return CpuConfig()
-
-
-def _default_edits_config():
-    return EditsConfig()
-
-
 @dataclass
 class WranglerConfig(ConfigItem):
     """Configuration for Network Wrangler.
@@ -234,10 +218,10 @@ class WranglerConfig(ConfigItem):
         EDITS: Parameters governing how edits are handled.
     """
 
-    IDS: IdGenerationConfig = Field(default_factory=_default_id_config)
-    MODEL_ROADWAY: ModelRoadwayConfig = Field(default_factory=_default_model_roadway_config)
-    CPU: CpuConfig = Field(default_factory=_default_cpu_config)
-    EDITS: EditsConfig = Field(default_factory=_default_edits_config)
+    IDS: IdGenerationConfig = Field(default_factory=IdGenerationConfig)
+    MODEL_ROADWAY: ModelRoadwayConfig = Field(default_factory=ModelRoadwayConfig)
+    CPU: CpuConfig = Field(default_factory=CpuConfig)
+    EDITS: EditsConfig = Field(default_factory=EditsConfig)
 
 
 DefaultConfig = WranglerConfig()
