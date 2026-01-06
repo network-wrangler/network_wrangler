@@ -321,7 +321,7 @@ def _filter_exploded_df_to_scope(
 
 @validate_call_pyd
 def prop_for_scope(
-    links_df: DataFrame[RoadLinksTable],
+    links_df: pd.DataFrame,
     prop_name: str,
     timespan: Union[None, list[TimeString]] = DEFAULT_TIMESPAN,
     category: Union[str, int, None] = DEFAULT_CATEGORY,
