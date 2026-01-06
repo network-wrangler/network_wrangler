@@ -28,27 +28,31 @@
 
 ## Change Wrangler Configuration
 
-!!! example "Using YAML Configuration File (Recommended)"
+The easiest way to configure Network Wrangler parameters is using a YAML file. This is especially
+useful for users less familiar with Python, as you can simply point to a YAML file path rather
+than writing Python code.
 
-    The easiest way to configure Network Wrangler parameters is using a YAML file. This is especially
-    useful for users less familiar with Python, as you can simply point to a YAML file path.
+### Step 1: Get the Configuration Template
 
-    **Step 1:** Start with the configuration template
+The configuration template contains all available parameters with default values and guidance on
+when to change them. All parameters are commented out by default, so you only uncomment what
+you need to customize.
 
-    Copy the template file to your project directory:
+??? note "View Full Configuration Template"
+    Click to expand and view the complete configuration template. You can copy this entire file
+    to create your own `wrangler.config.yml`:
 
-    ```bash
-    cp examples/wrangler.config.yml.template wrangler.config.yml
+    ```yaml
+{! ../examples/wrangler.config.yml.template !}
     ```
 
-    The template (`examples/wrangler.config.yml.template`) contains all available parameters with:
-    - Default values clearly documented
-    - Guidance on when you might want to change each parameter
-    - All parameters commented out by default
+### Step 2: Customize Your Configuration
 
-    **Step 2:** Customize your configuration
+Open your `wrangler.config.yml` file and uncomment only the parameters you want to change from
+their defaults.
 
-    Open `wrangler.config.yml` and uncomment only the parameters you want to change. For example:
+!!! example "Example: Customizing Configuration"
+    Here's an example of a customized configuration file:
 
     ```yaml
     # Only uncomment what you need to customize
@@ -61,8 +65,11 @@
       EXISTING_VALUE_CONFLICT: error
     ```
 
-    **Step 3:** Load and use the configuration
+    All other parameters will use their default values automatically.
 
+### Step 3: Load and Use the Configuration
+
+!!! example "Loading Configuration in Python"
     ```python
     from network_wrangler.configs import load_wrangler_config
     from network_wrangler import load_roadway_from_dir
@@ -78,8 +85,7 @@
     )
     ```
 
-    **Step 4:** Or use it when building scenarios
-
+!!! example "Using Configuration with Scenarios"
     ```python
     from network_wrangler.scenario import create_scenario, create_base_scenario
 
@@ -94,8 +100,7 @@
     ```
 
 !!! tip "Configuration Template Details"
-
-    The template file (`examples/wrangler.config.yml.template`) includes:
+    The template includes:
     
     - **All available parameters** organized by category (ID Generation, Model Roadway, Edits, CPU)
     - **Default values** shown in comments for easy reference
@@ -114,10 +119,7 @@
     - Allows you to use different configurations for different projects
     - Is more accessible for users less familiar with Python
     - Prevents accidental global state changes
-<<<<<<< Updated upstream
-=======
     - Makes it clear which parameters you've customized
->>>>>>> Stashed changes
 
 !!! tip "Alternative Configuration Methods"
 
