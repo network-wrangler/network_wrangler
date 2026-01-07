@@ -76,6 +76,7 @@ tests = [
     "snakeviz",
     "vulture",
     "network-wrangler[viz]",
+    "network-wrangler[docs]",
 ]
 
 
