@@ -1,5 +1,5 @@
 [build-system]
-requires = ["setuptools", "setuptools-scm", "wheel"]
+requires = ["setuptools<69.0", "setuptools-scm", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
@@ -61,6 +61,8 @@ docs = [
     "mkdocs-mermaid2-plugin",
     "mkdocstrings",
     "mkdocstrings-python",
+    "setuptools<69.0",  # Pin setuptools for EntryPoints API compatibility with mkdocs plugins
+    "importlib-metadata<6.0.0",  # Pin importlib_metadata for EntryPoints API compatibility
 ]
 tests = [
     "coverage",
