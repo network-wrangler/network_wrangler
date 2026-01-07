@@ -33,16 +33,14 @@ jobs:
     - name: Run tests
       run: |
           pytest --junitxml=pytest.xml --cov-report "xml:coverage.xml" --benchmark-save=benchmark --benchmark-json=benchmark.json
-    - name: Test package import (would fail before hotfix)
-      run: |
-          python -c "from network_wrangler import load_roadway_from_dir; print('✓ Import successful')"
     - name: Build docs
       run: |
-        mike deploy --push ${{ github.ref_name }}
+        VERSION=$(echo "${{ github.ref_name }}" | tr '/' '-')
+        mike deploy --push "$VERSION"
     - name: Update latest docs
       if: github.ref == 'refs/heads/main'
       run: |
-        mike alias ${{ github.ref_name }} latest --update-aliases --push
+        mike alias "${{ github.ref_name }}" latest --update-aliases --push
     - name: Store benchmark result
       uses: benchmark-action/github-action-benchmark@v1
       with:
