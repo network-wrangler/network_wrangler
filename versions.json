@@ -12,6 +12,11 @@
     ]
   },
   {
+    "version": "hotfix-pandera-pandas-compatibility",
+    "title": "hotfix-pandera-pandas-compatibility",
+    "aliases": []
+  },
+  {
     "version": "hotfix-pandaspanderacompatibility",
     "title": "hotfix-pandaspanderacompatibility",
     "aliases": []
