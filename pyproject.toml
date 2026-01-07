@@ -1,5 +1,5 @@
 [build-system]
-requires = ["setuptools<69.0", "setuptools-scm", "wheel", "importlib-metadata<6.0.0; python_version<'3.12'"]
+requires = ["setuptools<69.0", "setuptools-scm", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
@@ -62,7 +62,6 @@ docs = [
     "mkdocstrings",
     "mkdocstrings-python",
     "setuptools<69.0",  # Pin setuptools for EntryPoints API compatibility with mkdocs plugins
-    "importlib-metadata<6.0.0; python_version<'3.12'",  # Pin importlib_metadata for Python < 3.12 (3.12+ has it built-in)
 ]
 tests = [
     "coverage",
