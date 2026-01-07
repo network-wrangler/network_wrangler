@@ -1,5 +1,5 @@
 [build-system]
-requires = ["setuptools<69.0", "setuptools-scm", "wheel"]
+requires = ["setuptools<69.0", "setuptools-scm", "wheel", "importlib-metadata<6.0.0; python_version<'3.12'"]
 build-backend = "setuptools.build_meta"
 
 [project]
@@ -50,7 +50,7 @@ viz = [
 docs = [
     "fontawesome_markdown",
     "jupyter",
-    "markdown == 3.3.1",
+    "markdown>=3.4.0,<4.0",  # 3.4.0+ supports new EntryPoints API
     "mike",
     "mkdocs",
     "mkdocs-autorefs",
@@ -62,7 +62,7 @@ docs = [
     "mkdocstrings",
     "mkdocstrings-python",
     "setuptools<69.0",  # Pin setuptools for EntryPoints API compatibility with mkdocs plugins
-    "importlib-metadata<6.0.0",  # Pin importlib_metadata for EntryPoints API compatibility
+    "importlib-metadata<6.0.0; python_version<'3.12'",  # Pin importlib_metadata for Python < 3.12 (3.12+ has it built-in)
 ]
 tests = [
     "coverage",
