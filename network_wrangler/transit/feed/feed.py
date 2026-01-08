@@ -103,81 +103,27 @@ class Feed(DBModelMixin):
         for k, v in extra_attr.items():
             self.__setattr__(k, v)
 
-    def __repr__(self) -> str:  # noqa: PLR0912
+    @property
+    def summary(self) -> dict:
+        """A high level summary of the GTFS model object and public attributes"""
+
+        summary_dict = {}
+        for table_name in self._table_models:
+            if hasattr(self, table_name):
+                table = getattr(self, table_name)
+                table_type = type(table)
+                summary_dict[table_name] = f"{len(getattr(self, table_name)):,} {table_name} (type={table_type})"
+            else:
+                summary_dict[table_name] = "not set"
+
+        return summary_dict
+
+    def __repr__(self) -> str:
         """Return a string representation of the Feed with table summaries."""
         lines = ["Feed (Wrangler GTFS):"]
 
-        # Add agency info if available
-        if hasattr(self, "agency") and self.agency is not None and len(self.agency) > 0:
-            agency_names = self.agency.agency_name.tolist()[:MAX_AGENCIES_DISPLAY]
-            if len(self.agency) > MAX_AGENCIES_DISPLAY:
-                agency_names.append(f"... and {len(self.agency) - MAX_AGENCIES_DISPLAY} more")
-            lines.append(
-                f"  Agencies ({len(self.agency)}): {', '.join(str(a) for a in agency_names)}"
-            )
-
-        # Add summary for each table
-        table_summaries = []
-        if hasattr(self, "routes") and self.routes is not None:
-            table_summaries.append(f"{len(self.routes)} routes")
-        if hasattr(self, "trips") and self.trips is not None:
-            table_summaries.append(f"{len(self.trips)} trips")
-        if hasattr(self, "stops") and self.stops is not None:
-            table_summaries.append(f"{len(self.stops)} stops")
-        if hasattr(self, "stop_times") and self.stop_times is not None:
-            table_summaries.append(f"{len(self.stop_times)} stop_times")
-        if hasattr(self, "shapes") and self.shapes is not None:
-            n_shapes = len(self.shapes.shape_id.unique()) if len(self.shapes) > 0 else 0
-            table_summaries.append(f"{n_shapes} shapes ({len(self.shapes)} points)")
-        if (
-            hasattr(self, "frequencies")
-            and self.frequencies is not None
-            and len(self.frequencies) > 0
-        ):
-            table_summaries.append(f"{len(self.frequencies)} frequencies")
-
-        if table_summaries:
-            lines.append(f"  Tables: {', '.join(table_summaries)}")
-
-        # Add type information for each table
-        type_info = []
-        for table_name in [
-            "agency",
-            "routes",
-            "trips",
-            "stops",
-            "stop_times",
-            "shapes",
-            "frequencies",
-        ]:
-            if hasattr(self, table_name) and getattr(self, table_name) is not None:
-                table = getattr(self, table_name)
-                if isinstance(table, gpd.GeoDataFrame):
-                    type_info.append(f"{table_name}: GeoDataFrame")
-                else:
-                    type_info.append(f"{table_name}: DataFrame")
-
-        if type_info:
-            lines.append(f"  Types: {', '.join(type_info)}")
-
-        # Add route type breakdown if routes exist
-        if hasattr(self, "routes") and self.routes is not None and len(self.routes) > 0:
-            route_type_counts = self.routes.route_type.value_counts().sort_index()
-            route_type_names = {
-                0: "Tram",
-                1: "Metro",
-                2: "Rail",
-                3: "Bus",
-                4: "Ferry",
-                5: "Cable",
-                6: "Gondola",
-                7: "Funicular",
-            }
-            route_types = []
-            for rt, count in route_type_counts.items():
-                name = route_type_names.get(rt, f"Type{rt}")
-                route_types.append(f"{name}:{count}")
-            lines.append(f"  Route types: {', '.join(route_types)}")
+        for k,v in self.summary.items():
+            lines.append(f"  {k}: {v}")
 
         # Add note about model_node_ids if stops have them
         if hasattr(self, "stops") and self.stops is not None and "stop_id" in self.stops.columns:
