@@ -695,7 +695,7 @@ def dict_fields_in_df(d: dict, df: pd.DataFrame) -> bool:
 
 def concat_with_attr(dfs: list[pd.DataFrame], **kwargs) -> pd.DataFrame:
     """Concatenate a list of dataframes and retain the attributes of the first dataframe."""
-    import copy  # noqa: PLC0415
+    import copy
 
     if not dfs:
         msg = "No dataframes to concatenate."

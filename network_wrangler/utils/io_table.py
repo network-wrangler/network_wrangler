@@ -338,8 +338,8 @@ def _append_parquet_table(
     Returns:
         Path: The path to the output directory.
     """
-    import pyarrow as pa  # noqa: PLC0415
-    import pyarrow.parquet as pq  # noqa: PLC0415
+    import pyarrow as pa
+    import pyarrow.parquet as pq
 
     if directory is None:
         temp_dir = tempfile.mkdtemp()
@@ -366,12 +366,12 @@ def _json_to_parquet_in_chunks(input_file: Path, output_file: Path, chunk_size: 
         chunk_size: Number of JSON objects to process in each chunk.
     """
     try:
-        import ijson  # noqa: PLC0415
+        import ijson
     except ModuleNotFoundError as err:
         msg = "ijson is required for chunked JSON processing."
         raise ModuleNotFoundError(msg) from err
 
-    import pyarrow.parquet as pq  # noqa: PLC0415
+    import pyarrow.parquet as pq
 
     base_filename = Path(output_file).stem
     directory = None

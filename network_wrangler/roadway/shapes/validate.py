@@ -47,7 +47,7 @@ def validate_shapes_df(
     is_valid = True
 
     if not strict:
-        from .create import df_to_shapes_df  # noqa: PLC0415
+        from .create import df_to_shapes_df
 
         try:
             shapes_df = df_to_shapes_df(shapes_df)

@@ -39,8 +39,6 @@ plugins:
       handlers:
         python:
           paths: [.]
-          selection:
-            new_path_syntax: true
           rendering:
             show_root_heading: true
             show_source: true

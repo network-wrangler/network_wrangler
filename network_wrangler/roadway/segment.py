@@ -396,7 +396,7 @@ def identify_segment_endpoints(
             _links_df,
         )
     )
-    from .network import add_incident_link_data_to_nodes  # noqa: PLC0415
+    from .network import add_incident_link_data_to_nodes
 
     _nodes_df = add_incident_link_data_to_nodes(
         links_df=_links_df,
