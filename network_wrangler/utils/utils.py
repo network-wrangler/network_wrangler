@@ -51,7 +51,7 @@ def topological_sort(adjacency_list, visited_list):
 def make_slug(text: str, delimiter: str = "_") -> str:
     """Makes a slug from text."""
     text = re.sub("[,.;@#?!&$']+", "", text.lower())
-    return re.sub("[\ ]+", delimiter, text)
+    return re.sub(r"[ ]+", delimiter, text)
 
 
 def delete_keys_from_dict(dictionary: dict, keys: list) -> dict:

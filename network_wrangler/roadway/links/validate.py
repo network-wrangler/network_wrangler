@@ -3,7 +3,10 @@
 from pathlib import Path
 from typing import Optional
 
+import ijson
 import pandas as pd
+import pyarrow as pa
+import pyarrow.parquet as pq
 
 from ...errors import NodesInLinksMissingError
 from ...logger import WranglerLogger

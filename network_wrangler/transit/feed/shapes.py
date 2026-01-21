@@ -2,7 +2,10 @@
 
 from __future__ import annotations
 
+import ijson
 import pandas as pd
+import pyarrow as pa
+import pyarrow.parquet as pq
 from pandera.typing import DataFrame
 
 from ...logger import WranglerLogger
@@ -37,8 +40,6 @@ def shapes_for_trip_id(
     shapes: DataFrame[WranglerShapesTable], trips: DataFrame[WranglerTripsTable], trip_id: str
 ) -> DataFrame[WranglerShapesTable]:
     """Returns shape records for a single given trip_id."""
-    from .shapes import shape_id_for_trip_id
-
     shape_id = shape_id_for_trip_id(trips, trip_id)
     return shapes.loc[shapes.shape_id == shape_id]
 

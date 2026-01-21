@@ -38,11 +38,12 @@ jobs:
           python -c "from network_wrangler import load_roadway_from_dir; print('✓ Import successful')"
     - name: Build docs
       run: |
-        mike deploy --push ${{ github.ref_name }}
+        VERSION=$(echo "${{ github.ref_name }}" | tr '/' '-')
+        mike deploy --push "$VERSION"
     - name: Update latest docs
       if: github.ref == 'refs/heads/main'
       run: |
-        mike alias ${{ github.ref_name }} latest --update-aliases --push
+        mike alias "${{ github.ref_name }}" latest --update-aliases --push
     - name: Store benchmark result
       uses: benchmark-action/github-action-benchmark@v1
       with:

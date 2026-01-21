@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from typing import Union
 
+import pyarrow as pa
 from pandera.typing import DataFrame
 
 from ...logger import WranglerLogger

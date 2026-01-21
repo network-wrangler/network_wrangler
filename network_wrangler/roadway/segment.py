@@ -27,6 +27,7 @@ from typing import TYPE_CHECKING, Union
 
 import numpy as np
 import pandas as pd
+import pyarrow as pa
 from pandera.typing import DataFrame
 
 from ..errors import SegmentFormatError, SegmentSelectionError, SubnetCreationError

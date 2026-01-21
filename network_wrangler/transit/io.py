@@ -5,6 +5,7 @@ from typing import Literal, Optional, Union
 
 import geopandas as gpd
 import pandas as pd
+import pyarrow as pa
 
 from ..configs import DefaultConfig, WranglerConfig
 from ..errors import FeedReadError

@@ -5,6 +5,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, Optional
 
 import geopandas as gpd
+import pyarrow as pa
 from pandera.typing import DataFrame
 from shapely import LineString
 

@@ -5,6 +5,8 @@ from __future__ import annotations
 from pathlib import Path
 from typing import TYPE_CHECKING, Optional, Union
 
+import pyarrow as pa
+import pyarrow.parquet as pq
 from geopandas import GeoDataFrame
 
 from ..configs import ConfigInputTypes, DefaultConfig, WranglerConfig, load_wrangler_config

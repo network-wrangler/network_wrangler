@@ -10,6 +10,7 @@ from typing import Optional, Union
 
 import geopandas as gpd
 import pandas as pd
+import psutil
 
 from ..configs import DefaultConfig
 from ..logger import WranglerLogger
@@ -200,9 +201,11 @@ def _read_parquet_table(filename, mask_gdf) -> Union[gpd.GeoDataFrame, pd.DataFr
             try:
                 df = gpd.read_parquet(filename, bbox=mask_gdf.total_bounds)
             except TypeError:
-                WranglerLogger.warning(f"Could not filter to bounding box {mask_gdf}.\
+                WranglerLogger.warning(
+                    f"Could not filter to bounding box {mask_gdf}.\
                                         Try upgrading to geopandas > 1.0.\
-                                        Returning unfiltered data.")
+                                        Returning unfiltered data."
+                )
                 df = gpd.read_parquet(filename)
     except:
         df = pd.read_parquet(filename)
@@ -276,8 +279,6 @@ def convert_file_serialization(
 
 def _available_memory():
     """Return the available memory in bytes."""
-    import psutil
-
     return psutil.virtual_memory().available
 
 

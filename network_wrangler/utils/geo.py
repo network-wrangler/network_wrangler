@@ -9,6 +9,7 @@ from typing import TYPE_CHECKING, Optional, Union
 
 import geopandas as gpd
 import pandas as pd
+import pyarrow as pa
 from geographiclib.geodesic import Geodesic
 from pyproj import CRS, Proj, Transformer
 from shapely.geometry import LineString, Point

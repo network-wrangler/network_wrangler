@@ -24,9 +24,11 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Any, Optional, Union
 
 import geopandas as gpd
+import ijson
 import networkx as nx
 import pandas as pd
-from pandera.typing import DataFrame
+import pyarrow as pa
+import pyarrow.parquet as pq
 from projectcard import ProjectCard, SubProject
 from pydantic import BaseModel, ConfigDict, field_validator
 
@@ -46,11 +48,13 @@ from ..models.roadway.tables import RoadLinksTable, RoadNodesTable, RoadShapesTa
 from ..params import DEFAULT_CATEGORY, DEFAULT_TIMESPAN, LAT_LON_CRS
 from ..utils.data import concat_with_attr
 from ..utils.models import empty_df_from_datamodel, validate_df_to_model
+from .graph import net_to_graph
 from .links.create import data_to_links_df
 from .links.delete import delete_links_by_ids
 from .links.edit import edit_link_geometry_from_nodes
 from .links.filters import filter_links_to_ids, filter_links_to_node_ids
 from .links.links import node_ids_unique_to_link_ids, shape_ids_unique_to_link_ids
+from .links.scopes import prop_for_scope
 from .model_roadway import ModelRoadwayNetwork
 from .nodes.create import data_to_nodes_df
 from .nodes.delete import delete_nodes_by_ids
@@ -72,6 +76,7 @@ from .shapes.create import df_to_shapes_df
 from .shapes.delete import delete_shapes_by_ids
 from .shapes.edit import edit_shape_geometry_from_nodes
 from .shapes.io import read_shapes
+from .shapes.shapes import shape_ids_without_links
 
 if TYPE_CHECKING:
     from networkx import MultiDiGraph
@@ -423,15 +428,15 @@ class RoadwayNetwork(BaseModel):
         msg = f"Invalid Project Card Category: {change.change_type}"
         raise ProjectCardError(msg)
 
-    def links_with_link_ids(self, link_ids: list[int]) -> DataFrame[RoadLinksTable]:
+    def links_with_link_ids(self, link_ids: list[int]) -> pd.DataFrame:
         """Return subset of links_df based on link_ids list."""
         return filter_links_to_ids(self.links_df, link_ids)
 
-    def links_with_nodes(self, node_ids: list[int]) -> DataFrame[RoadLinksTable]:
+    def links_with_nodes(self, node_ids: list[int]) -> pd.DataFrame:
         """Return subset of links_df based on node_ids list."""
         return filter_links_to_node_ids(self.links_df, node_ids)
 
-    def nodes_in_links(self) -> DataFrame[RoadNodesTable]:
+    def nodes_in_links(self) -> pd.DataFrame:
         """Returns subset of self.nodes_df that are in self.links_df."""
         return filter_nodes_to_links(self.links_df, self.nodes_df)
 
@@ -447,7 +452,7 @@ class RoadwayNetwork(BaseModel):
 
     def add_links(
         self,
-        add_links_df: Union[pd.DataFrame, DataFrame[RoadLinksTable]],
+        add_links_df: pd.DataFrame,
         in_crs: int = LAT_LON_CRS,
     ):
         """Validate combined links_df with LinksSchema before adding to self.links_df.
@@ -474,7 +479,7 @@ class RoadwayNetwork(BaseModel):
 
     def add_nodes(
         self,
-        add_nodes_df: Union[pd.DataFrame, DataFrame[RoadNodesTable]],
+        add_nodes_df: pd.DataFrame,
         in_crs: int = LAT_LON_CRS,
     ):
         """Validate combined nodes_df with NodesSchema before adding to self.nodes_df.
@@ -502,7 +507,7 @@ class RoadwayNetwork(BaseModel):
 
     def add_shapes(
         self,
-        add_shapes_df: Union[pd.DataFrame, DataFrame[RoadShapesTable]],
+        add_shapes_df: pd.DataFrame,
         in_crs: int = LAT_LON_CRS,
     ):
         """Validate combined shapes_df with RoadShapesTable efore adding to self.shapes_df.
@@ -641,7 +646,7 @@ class RoadwayNetwork(BaseModel):
 
     def move_nodes(
         self,
-        node_geometry_change_table: DataFrame[NodeGeometryChangeTable],
+        node_geometry_change_table: pd.DataFrame,
     ):
         """Moves nodes based on updated geometry along with associated links and shape geometry.
 
@@ -693,10 +698,10 @@ class RoadwayNetwork(BaseModel):
 
 
 def add_incident_link_data_to_nodes(
-    links_df: DataFrame[RoadLinksTable],
-    nodes_df: DataFrame[RoadNodesTable],
+    links_df: pd.DataFrame,
+    nodes_df: pd.DataFrame,
     link_variables: Optional[list] = None,
-) -> DataFrame[RoadNodesTable]:
+) -> pd.DataFrame:
     """Add data from links going to/from nodes to node.
 
     Args:
