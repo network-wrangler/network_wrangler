@@ -691,6 +691,7 @@ def add_unmatched_bus_stops_to_network(
     local_crs: str,
     max_distance: float,
     trace_shape_ids: Optional[list[str]] = None,
+    default_node_attribute_dict: Optional[dict[str, any]] = None,
 ) -> gpd.GeoDataFrame:
     """Add unmatched bus stops as new nodes in the roadway network.
 
@@ -827,6 +828,12 @@ def add_unmatched_bus_stops_to_network(
         f"Creating {len(new_nodes_gdf)} new roadway nodes "
         f"(IDs {max_node_id + 1} to {max_node_id + len(new_nodes_gdf)})"
     )
+    
+    # Apply default node attributes if provided
+    if default_node_attribute_dict:
+        for attr, value in default_node_attribute_dict.items():
+            new_nodes_gdf[attr] = value
+    
     WranglerLogger.debug(f"Before adding nodes, roadway network has {len(roadway_net.nodes_df)} nodes")
     roadway_net.add_nodes(new_nodes_gdf)
     WranglerLogger.debug(f"After adding nodes, roadway network has {len(roadway_net.nodes_df)} nodes")
@@ -875,6 +882,7 @@ def create_connector_links_for_poor_match_stops(
         local_crs: str,
         crs_units: str,
         trace_shape_ids: Optional[list[str]] = None,
+        default_link_attribute_dict: Optional[dict[str, any]] = None,
     ):
     """Create connector links between poor match bus stop nodes and nearest bus-accessible nodes.
 
@@ -997,6 +1005,12 @@ def create_connector_links_for_poor_match_stops(
         f"connector_links_gdf:\n{connector_links_gdf}"
     )
 
+    # Apply default link attributes
+    if default_link_attribute_dict is None:
+        default_link_attribute_dict = {}
+    for colname, default_value in default_link_attribute_dict.items():
+        connector_links_gdf[colname] = default_value
+
     # Add to roadway network
     roadway_net.add_links(connector_links_gdf)
     roadway_net.add_shapes(connector_links_gdf)
@@ -1008,6 +1022,7 @@ def create_links_for_failed_bus_paths(
         local_crs: str,
         crs_units: str,
         trace_shape_ids: Optional[list[str]] = None,
+        default_link_attribute_dict: Optional[dict[str, any]] = None,
     ):
     """Create direct transit-only links for bus stop pairs that couldn't be routed.
 
@@ -1132,6 +1147,13 @@ def create_links_for_failed_bus_paths(
 
     # Add links
     WranglerLogger.debug(f"add_links_gdf:\n{add_links_gdf}")
+    
+    # Apply default link attributes
+    if default_link_attribute_dict is None:
+        default_link_attribute_dict = {}
+    for colname, default_value in default_link_attribute_dict.items():
+        add_links_gdf[colname] = default_value
+    
     roadway_net.add_links(add_links_gdf)
     WranglerLogger.info(f"Adding {len(add_links_gdf):,} links for failed bus paths")
 
@@ -1147,6 +1169,7 @@ def create_bus_routes(  # noqa: PLR0912, PLR0915
     crs_units: str,
     trace_shape_ids: Optional[list[str]] = None,
     errors: Literal["raise", "ignore"] = "raise",
+    default_link_attribute_dict: Optional[dict[str, any]] = None,
 ):
     """Find shortest paths through the bus network between consecutive bus stops.
 
@@ -1491,7 +1514,8 @@ def create_bus_routes(  # noqa: PLR0912, PLR0915
             no_bus_path_gdf=no_bus_path_gdf,
             local_crs=local_crs,
             crs_units=crs_units,
-            trace_shape_ids=trace_shape_ids
+            trace_shape_ids=trace_shape_ids,
+            default_link_attribute_dict=default_link_attribute_dict
         )
 
     # create bus shapes
@@ -2488,6 +2512,8 @@ def add_stations_and_links_to_roadway_network(  # noqa: PLR0912, PLR0915
     local_crs: str,
     crs_units: str,
     trace_shape_ids: Optional[list[str]] = None,
+    default_node_attribute_dict: Optional[dict[str, any]] = None,
+    default_link_attribute_dict: Optional[dict[str, any]] = None,
 ) -> tuple[dict[str, int], gpd.GeoDataFrame]:
     """Add transit station nodes and dedicated transit links to the roadway network.
 
@@ -2825,6 +2851,13 @@ def add_stations_and_links_to_roadway_network(  # noqa: PLR0912, PLR0915
     max_node_num = roadway_net.nodes_df.model_node_id.max()
     new_station_stop_ids_gdf["model_node_id"] = new_station_stop_ids_gdf.index + max_node_num + 1
     new_station_stop_ids_gdf.drop(columns=['index'], inplace=True)
+    
+    # Apply default node attributes
+    if default_node_attribute_dict is None:
+        default_node_attribute_dict = {}
+    for colname, default_value in default_node_attribute_dict.items():
+        new_station_stop_ids_gdf[colname] = default_value
+    
     WranglerLogger.info(f"Adding {len(new_station_stop_ids_gdf):,} nodes to roadway network")
     WranglerLogger.debug(f"new_station_stop_ids_gdf:\n{new_station_stop_ids_gdf}")
     WranglerLogger.debug(f"Before adding nodes, {len(roadway_net.nodes_df)=:,}")
@@ -2994,6 +3027,12 @@ def add_stations_and_links_to_roadway_network(  # noqa: PLR0912, PLR0915
                 f"{station_road_links_gdf.loc[station_road_links_gdf['shape_ids'].apply(lambda x, tid=trace_shape_id: isinstance(x, list) and tid in x)]}"
             )
 
+    # Apply default link attributes
+    if default_link_attribute_dict is None:
+        default_link_attribute_dict = {}
+    for colname, default_value in default_link_attribute_dict.items():
+        station_road_links_gdf[colname] = default_value
+
     WranglerLogger.debug(f"Before adding links, {len(roadway_net.links_df)=:,}")
     roadway_net.add_links(station_road_links_gdf)
     WranglerLogger.debug(f"After adding links, {len(roadway_net.links_df)=:,}")
@@ -3122,6 +3161,8 @@ def create_feed_from_gtfs_model(  # noqa: PLR0915
     max_stop_distance: Optional[float] = None,
     trace_shape_ids: Optional[list[str]] = None,
     errors: Literal["raise", "ignore"] = "raise",
+    default_node_attribute_dict: Optional[dict[str, any]] = None,
+    default_link_attribute_dict: Optional[dict[str, any]] = None,
 ) -> Feed:
     """Convert GTFS model to Wrangler Feed with stops mapped to roadway network.
 
@@ -3287,6 +3328,10 @@ def create_feed_from_gtfs_model(  # noqa: PLR0915
             to roadway nodes. If None, uses default MAX_DISTANCE_STOP values
         trace_shape_ids: Shape IDs for detailed debug logging
         errors: How to handle routing errors ('raise' or 'ignore')
+        default_node_attribute_dict: node attributes to set for new transit nodes.
+            Defaults to None.
+        default_link_attribute_dict: link attributes to set for new transit links.
+            Defaults to None.
 
     Returns:
         Feed: Wrangler Feed object with:
@@ -3391,13 +3436,15 @@ def create_feed_from_gtfs_model(  # noqa: PLR0915
         roadway_net,
         local_crs,
         max_stop_distance,
-        trace_shape_ids
+        trace_shape_ids,
+        default_node_attribute_dict
     )
 
     # for fixed route transit, add the links and stops to the roadway network
     station_id_to_model_node_id_dict, bus_stop_links_gdf = (
         add_stations_and_links_to_roadway_network(
-            feed_tables, roadway_net, local_crs, crs_units, trace_shape_ids
+            feed_tables, roadway_net, local_crs, crs_units, trace_shape_ids,
+            default_node_attribute_dict, default_link_attribute_dict
         )
     )
 
@@ -3408,7 +3455,8 @@ def create_feed_from_gtfs_model(  # noqa: PLR0915
             unmatched_stops_gdf=unmatched_stops_nodes_gdf,
             local_crs=local_crs,
             crs_units=crs_units,
-            trace_shape_ids=trace_shape_ids
+            trace_shape_ids=trace_shape_ids,
+            default_link_attribute_dict=default_link_attribute_dict
         )
 
     WranglerLogger.debug(f"bus_stop_links_gdf:\n{bus_stop_links_gdf}")
@@ -3417,7 +3465,8 @@ def create_feed_from_gtfs_model(  # noqa: PLR0915
     # between bus stops and update stops and shapes accordingly
     try:
         create_bus_routes(
-            bus_stop_links_gdf, feed_tables, roadway_net, local_crs, crs_units, trace_shape_ids, errors
+            bus_stop_links_gdf, feed_tables, roadway_net, local_crs, crs_units, trace_shape_ids, errors,
+            default_link_attribute_dict
         )
     except Exception as e:
         raise e
