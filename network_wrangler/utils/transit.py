@@ -40,7 +40,7 @@ __all__ = [
     "add_unmatched_bus_stops_to_network",
     "create_connector_links_for_poor_match_stops",
     "create_links_for_failed_bus_paths",
-    "create_bus_routes",
+    "route_shapes_between_stops",
     "add_additional_data_to_stops",
     "add_additional_data_to_shapes",
     "add_stations_and_links_to_roadway_network",
@@ -62,7 +62,7 @@ NAME_MATCH_WEIGHT = 0.9
 MIN_SUBSTRING_MATCH_LENGTH = 3
 """Minimum string length required for substring matching in assess_stop_name_roadway_compatibility(). Prevents spurious matches with single letters."""
 SHAPE_DISTANCE_TOLERANCE = 1.10
-"""Maximum ratio of path distance to shortest distance in shape-aware routing. Used in create_bus_routes() and find_shape_aware_shortest_path(). 1.10 means paths up to 110% of shortest distance are considered."""
+"""Maximum ratio of path distance to shortest distance in shape-aware routing. Used in route_shapes_between_stops() and find_shape_aware_shortest_path(). 1.10 means paths up to 110% of shortest distance are considered."""
 MAX_SHAPE_CANDIDATE_PATHS = 20
 """Maximum number of candidate paths to evaluate in find_shape_aware_shortest_path() when doing shape-aware routing."""
 NEAREST_K_SHAPES_TO_STOPS = 20
@@ -1161,7 +1161,7 @@ def create_links_for_failed_bus_paths(
     roadway_net.add_shapes(add_links_gdf)
 
 
-def create_bus_routes(  # noqa: PLR0912, PLR0915
+def route_shapes_between_stops(  # noqa: PLR0912, PLR0915
     bus_stop_links_gdf: gpd.GeoDataFrame,
     feed_tables: dict[str, pd.DataFrame],
     roadway_net: RoadwayNetwork,
@@ -1591,7 +1591,7 @@ def create_bus_routes(  # noqa: PLR0912, PLR0915
         debug_cols = ["shape_pt_sequence","stop_sequence","stop_id","stop_name","shape_model_node_id"]
         for trace_shape_id in trace_shape_ids:
             WranglerLogger.debug(
-                f"trace feed_tables['shapes'] for {trace_shape_id} at the end of create_bus_routes():\n"
+                f"trace feed_tables['shapes'] for {trace_shape_id} at the end of route_shapes_between_stops():\n"
                 f"{feed_tables['shapes'].loc[feed_tables['shapes']['shape_id'] == trace_shape_id, debug_cols]}"
             )
 
@@ -3270,7 +3270,7 @@ def create_feed_from_gtfs_model(  # noqa: PLR0915
         - Modifies roadway_net.shapes: adds link geometries
 
     8. Route bus services through road network:
-       - Calls: [`create_bus_routes()`][network_wrangler.utils.transit.create_bus_routes]
+       - Calls: [`route_shapes_between_stops()`][network_wrangler.utils.transit.route_shapes_between_stops]
        - Gets bus modal graph (DiGraph for pathfinding)
        - For each consecutive bus stop pair (A->B):
            - Check: If either node not in bus graph (e.g., poor_match):
@@ -3464,7 +3464,7 @@ def create_feed_from_gtfs_model(  # noqa: PLR0915
     # finally, we need to find shortest paths through the bus network
     # between bus stops and update stops and shapes accordingly
     try:
-        create_bus_routes(
+        route_shapes_between_stops(
             bus_stop_links_gdf, feed_tables, roadway_net, local_crs, crs_units, trace_shape_ids, errors,
             default_link_attribute_dict
         )
