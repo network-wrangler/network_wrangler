@@ -199,6 +199,7 @@ class RoadwayNetwork(BaseModel):
             v.to_crs(LAT_LON_CRS)
         return v
 
+    # TODO: This may be overkill if many edits are being made.
     @model_validator(mode="after")
     def validate_referential_integrity(self):
         """Validate that all nodes referenced in links exist in nodes table."""
@@ -666,6 +667,10 @@ class RoadwayNetwork(BaseModel):
 
         Raises:
             ValueError: If the link doesn't exist, fraction is invalid, or new_model_node_id already exists.
+
+        TODO: Use SelectionDictionary rather than A,B?
+        TODO: Make new_model_node_id an optional argument because we can use
+              `network_wrangler.roadway.nodes.create.generate_node_ids()`
         """
         WranglerLogger.debug(f"split_link() self.links_df.head():\n{self.links_df.head()}")
         # Find the link with given A and B nodes
