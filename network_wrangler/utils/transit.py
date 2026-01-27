@@ -9,6 +9,7 @@ import numpy as np
 import pandas as pd
 import shapely.geometry
 
+from ..configs import DefaultConfig, WranglerConfig
 from ..errors import NodeNotFoundError, TransitValidationError
 from ..logger import WranglerLogger
 from ..models.gtfs.converters import (
@@ -54,36 +55,12 @@ __all__ = [
     "truncate_route_at_stop",
 ]
 
-# Constants
-K_NEAREST_CANDIDATES = 20
-"""Number of nearest candidate nodes to consider in match_bus_stops_to_roadway_nodes() when using name scoring."""
-NAME_MATCH_WEIGHT = 0.9
-"""Weight for name match score in combined scoring in match_bus_stops_to_roadway_nodes(). 0.9 means 90% name match, 10% distance."""
-MIN_SUBSTRING_MATCH_LENGTH = 3
-"""Minimum string length required for substring matching in assess_stop_name_roadway_compatibility(). Prevents spurious matches with single letters."""
-SHAPE_DISTANCE_TOLERANCE = 1.10
-"""Maximum ratio of path distance to shortest distance in shape-aware routing. Used in route_shapes_between_stops() and find_shape_aware_shortest_path(). 1.10 means paths up to 110% of shortest distance are considered."""
-MAX_SHAPE_CANDIDATE_PATHS = 20
-"""Maximum number of candidate paths to evaluate in find_shape_aware_shortest_path() when doing shape-aware routing."""
-NEAREST_K_SHAPES_TO_STOPS = 20
-"""Number of nearest shape points to check for each stop"""
-FIRST_LAST_SHAPE_STOP_IDX = 10
-"""For loops, the first stop much match one of the first FIRST_LAST_SHAPE_STOP_IDX shapes,
-and the last stop must match one of the last FIRST_LAST_SHAPE_STOP_IDX shapes"""
-
-MAX_DISTANCE_STOP = {
-    "feet": 0.10 * FEET_PER_MILE,
-    "meters": 0.15 * METERS_PER_KILOMETER,
-}
-"""Maximum distance for a stop to match to a node."""
-
-
-
 
 def assess_stop_name_roadway_compatibility(
     stop_name: str,
     node_link_names: list[str],
-    threshold: float = 0.5
+    threshold: float = 0.5,
+    config: WranglerConfig = DefaultConfig,
 ) -> tuple[bool, float, list[str]]:
     """Assess if a transit stop name is compatible with a roadway node's link names.
 
@@ -142,7 +119,7 @@ def assess_stop_name_roadway_compatibility(
             # Check if the street name is contained in the node link name or vice versa
             # Only do substring matching if both strings meet minimum length to avoid
             # spurious matches with single letters (e.g., "E" matching "Deer Creek")
-            if len(street_normalized) >= MIN_SUBSTRING_MATCH_LENGTH and len(node_link) >= MIN_SUBSTRING_MATCH_LENGTH:
+            if len(street_normalized) >= config.TRANSIT.MIN_SUBSTRING_MATCH_LENGTH and len(node_link) >= config.TRANSIT.MIN_SUBSTRING_MATCH_LENGTH:
                 if street_normalized in node_link or node_link in street_normalized:
                     matched_streets.append(street)
                     break
@@ -167,8 +144,8 @@ def assess_stop_name_roadway_compatibility(
 
             # Apply same minimum length requirement for suffix-removed matching
             if (street_base and node_base and
-                len(street_base) >= MIN_SUBSTRING_MATCH_LENGTH and
-                len(node_base) >= MIN_SUBSTRING_MATCH_LENGTH and
+                len(street_base) >= config.TRANSIT.MIN_SUBSTRING_MATCH_LENGTH and
+                len(node_base) >= config.TRANSIT.MIN_SUBSTRING_MATCH_LENGTH and
                 (street_base in node_base or node_base in street_base)):
                 matched_streets.append(street)
                 break
@@ -193,7 +170,8 @@ def match_bus_stops_to_roadway_nodes(  # noqa: PLR0912, PLR0915
     max_distance: float,
     trace_shape_ids: Optional[list[str]] = None,
     use_name_matching: bool = True,
-    name_match_weight: float = NAME_MATCH_WEIGHT,
+    name_match_weight: Optional[float] = None,
+    config: WranglerConfig = DefaultConfig,
 ):
     """Match bus stops to bus-accessible nodes in the roadway network.
 
@@ -202,6 +180,7 @@ def match_bus_stops_to_roadway_nodes(  # noqa: PLR0912, PLR0915
     Updates stop and shape locations to snap to road nodes.
 
     Process Steps:
+
     1. Identifies bus stops (route_types BUS or TROLLEYBUS) in feed_tables['stops']
     2. Builds bus network graph from roadway to find accessible nodes
     3. Projects geometries to local CRS for accurate distance calculations
@@ -217,7 +196,8 @@ def match_bus_stops_to_roadway_nodes(  # noqa: PLR0912, PLR0915
 
     Modifies feed_tables in place:
 
-    feed_tables['stops'] - Adds/modifies columns:
+    * feed_tables['stops'] - Adds/modifies columns:
+
         - is_bus_stop (bool): True if stop serves BUS or TROLLEYBUS routes
         - model_node_id (int): Matched roadway node ID (None if no close match)
         - match_distance_{crs_units} (float): Distance to matched node
@@ -225,12 +205,14 @@ def match_bus_stops_to_roadway_nodes(  # noqa: PLR0912, PLR0915
         - poor_match (bool): True if combined_score > 0.9 AND stop doesn't serve station routes (only when name matching enabled)
         - stop_lon, stop_lat, geometry: Updated to road node location if close_match and not poor_match
 
-    feed_tables['shapes'] - Adds/modifies columns:
+    * feed_tables['shapes'] - Adds/modifies columns:
+
         - shape_model_node_id (int): Matched roadway node ID for bus stops
         - match_distance_{crs_units} (float): Distance to matched node
         - shape_pt_lon, shape_pt_lat, geometry: Updated to road node location if valid match
 
-    feed_tables['stop_times'] - If GeoDataFrame, updates:
+    * feed_tables['stop_times'] - If GeoDataFrame, updates:
+
         - geometry: Updated to matched road node location for bus stops
 
     Args:
@@ -261,6 +243,10 @@ def match_bus_stops_to_roadway_nodes(  # noqa: PLR0912, PLR0915
     if crs_units not in ["feet", "meters"]:
         msg = f"crs_units must be one of 'feet' or 'meters'; received {crs_units}"
         raise ValueError(msg)
+
+    # Use config default if name_match_weight not provided
+    if name_match_weight is None:
+        name_match_weight = config.TRANSIT.NAME_MATCH_WEIGHT
 
     # Make roadway network nodes a GeoDataFrame if it's not already
     if not isinstance(roadway_net.nodes_df, gpd.GeoDataFrame):
@@ -348,7 +334,7 @@ def match_bus_stops_to_roadway_nodes(  # noqa: PLR0912, PLR0915
     # Query nearest neighbors - use more candidates if name matching is enabled
     k = 1  # Default to nearest neighbor only
     if use_name_matching and 'link_names' in bus_accessible_nodes_gdf.columns:
-        k = min(K_NEAREST_CANDIDATES, len(bus_accessible_nodes_gdf))
+        k = min(config.TRANSIT.K_NEAREST_CANDIDATES, len(bus_accessible_nodes_gdf))
         WranglerLogger.info(
             f"Using name-aware matching within {max_distance} {crs_units} "
             f"with name weight {name_match_weight}"
@@ -1337,7 +1323,7 @@ def route_shapes_between_stops(  # noqa: PLR0912, PLR0915
 
                 path = find_shape_aware_shortest_path(
                     G_bus, row["A"], row["B"], original_shape_points,
-                    roadway_net, SHAPE_DISTANCE_TOLERANCE, trace_shape_ids and current_shape_id in trace_shape_ids
+                    roadway_net, DefaultConfig.TRANSIT.SHAPE_DISTANCE_TOLERANCE, trace_shape_ids and current_shape_id in trace_shape_ids
                 )
             else:
                 # Standard shortest path
@@ -1790,10 +1776,10 @@ def _match_stop_to_shape_points(
         if is_first_stop:
             # First stop must match within first FIRST_LAST_SHAPE_STOP_IDX points
             search_start = 0
-            next_matched_shape_idx = min(FIRST_LAST_SHAPE_STOP_IDX, len(shape_df))
+            next_matched_shape_idx = min(DefaultConfig.TRANSIT.FIRST_LAST_SHAPE_STOP_IDX, len(shape_df))
         elif is_last_stop:
             # Last stop must match within last FIRST_LAST_SHAPE_STOP_IDX points
-            search_start = max(prev_matched_shape_idx + 1, len(shape_df) - FIRST_LAST_SHAPE_STOP_IDX)
+            search_start = max(prev_matched_shape_idx + 1, len(shape_df) - DefaultConfig.TRANSIT.FIRST_LAST_SHAPE_STOP_IDX)
             next_matched_shape_idx = len(shape_df)
 
     # Search for nearest shape point within the forward search range
@@ -2475,7 +2461,7 @@ def add_additional_data_to_shapes(  # noqa: PLR0915
 
     matched_count = 0
     inserted_count = 0
-    max_distance = MAX_DISTANCE_STOP[crs_units]
+    max_distance = DefaultConfig.TRANSIT.MAX_DISTANCE_STOP_FEET if crs_units == "feet" else DefaultConfig.TRANSIT.MAX_DISTANCE_STOP_METERS
 
     # Collect debug features for all shapes
     debug_features = []
@@ -3418,7 +3404,7 @@ def create_feed_from_gtfs_model(  # noqa: PLR0915
 
     # Use provided max_stop_distance or default
     if max_stop_distance is None:
-        max_stop_distance = MAX_DISTANCE_STOP[crs_units]
+        max_stop_distance = DefaultConfig.TRANSIT.MAX_DISTANCE_STOP_FEET if crs_units == "feet" else DefaultConfig.TRANSIT.MAX_DISTANCE_STOP_METERS
 
     match_bus_stops_to_roadway_nodes(
         feed_tables,
@@ -3786,7 +3772,7 @@ def find_shape_aware_shortest_path(
 
         # Get multiple shortest paths to evaluate
         from itertools import islice
-        candidate_paths = list(islice(nx.shortest_simple_paths(G_bus, start_node, end_node, weight="distance"), MAX_SHAPE_CANDIDATE_PATHS))
+        candidate_paths = list(islice(nx.shortest_simple_paths(G_bus, start_node, end_node, weight="distance"), DefaultConfig.TRANSIT.MAX_SHAPE_CANDIDATE_PATHS))
 
         best_path = None
         best_deviation = float('inf')

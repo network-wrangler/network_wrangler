@@ -189,6 +189,49 @@ class ModelRoadwayConfig(ConfigItem):
 
 
 @dataclass
+class TransitConfig(ConfigItem):
+    """Transit Configuration.
+
+    Attributes:
+        K_NEAREST_CANDIDATES: Number of nearest candidate nodes to consider in stop matching
+            when using name scoring. Used in
+            [`match_bus_stops_to_roadway_nodes()`][network_wrangler.utils.transit.match_bus_stops_to_roadway_nodes].
+        NAME_MATCH_WEIGHT: Weight for name match score in combined scoring. 0.9 means 90% name
+            match, 10% distance. Used in
+            [`match_bus_stops_to_roadway_nodes()`][network_wrangler.utils.transit.match_bus_stops_to_roadway_nodes].
+        MIN_SUBSTRING_MATCH_LENGTH: Minimum string length required for substring matching.
+            Prevents spurious matches with single letters. Used in
+            [`assess_stop_name_roadway_compatibility()`][network_wrangler.utils.transit.assess_stop_name_roadway_compatibility].
+        SHAPE_DISTANCE_TOLERANCE: Maximum ratio of path distance to shortest distance in
+            shape-aware routing. 1.10 means paths up to 110% of shortest distance are considered.
+            Used in [`route_shapes_between_stops()`][network_wrangler.utils.transit.route_shapes_between_stops]
+            and [`find_shape_aware_shortest_path()`][network_wrangler.utils.transit.find_shape_aware_shortest_path].
+        MAX_SHAPE_CANDIDATE_PATHS: Maximum number of candidate paths to evaluate when doing
+            shape-aware routing. Used in
+            [`find_shape_aware_shortest_path()`][network_wrangler.utils.transit.find_shape_aware_shortest_path].
+        NEAREST_K_SHAPES_TO_STOPS: Number of nearest shape points to check for each stop.
+        FIRST_LAST_SHAPE_STOP_IDX: For loops, the first stop must match one of the first
+            FIRST_LAST_SHAPE_STOP_IDX shapes, and the last stop must match one of the last
+            FIRST_LAST_SHAPE_STOP_IDX shapes. Used in
+            [`route_shapes_between_stops()`][network_wrangler.utils.transit.route_shapes_between_stops].
+        MAX_DISTANCE_STOP_FEET: Maximum distance in feet for a stop to match to a node.
+            Used in [`match_bus_stops_to_roadway_nodes()`][network_wrangler.utils.transit.match_bus_stops_to_roadway_nodes].
+        MAX_DISTANCE_STOP_METERS: Maximum distance in meters for a stop to match to a node.
+            Used in [`match_bus_stops_to_roadway_nodes()`][network_wrangler.utils.transit.match_bus_stops_to_roadway_nodes].
+    """
+
+    K_NEAREST_CANDIDATES: int = 20
+    NAME_MATCH_WEIGHT: float = 0.9
+    MIN_SUBSTRING_MATCH_LENGTH: int = 3
+    SHAPE_DISTANCE_TOLERANCE: float = 1.10
+    MAX_SHAPE_CANDIDATE_PATHS: int = 20
+    NEAREST_K_SHAPES_TO_STOPS: int = 20
+    FIRST_LAST_SHAPE_STOP_IDX: int = 10
+    MAX_DISTANCE_STOP_FEET: float = 528.0  # 0.10 * 5280 FEET_PER_MILE
+    MAX_DISTANCE_STOP_METERS: float = 150.0  # 0.15 * 1000 METERS_PER_KILOMETER
+
+
+@dataclass
 class CpuConfig(ConfigItem):
     """CPU Configuration -  Will not change any outcomes.
 
@@ -214,12 +257,14 @@ class WranglerConfig(ConfigItem):
     Attributes:
         IDS: Parameteters governing how new ids are generated.
         MODEL_ROADWAY: Parameters governing how the model roadway is created.
+        TRANSIT: Parameters governing transit network processing.
         CPU: Parameters for accessing CPU information. Will not change any outcomes.
         EDITS: Parameters governing how edits are handled.
     """
 
     IDS: IdGenerationConfig = IdGenerationConfig()
     MODEL_ROADWAY: ModelRoadwayConfig = ModelRoadwayConfig()
+    TRANSIT: TransitConfig = TransitConfig()
     CPU: CpuConfig = CpuConfig()
     EDITS: EditsConfig = EditsConfig()
 
