@@ -287,6 +287,7 @@ def match_bus_stops_to_roadway_nodes(  # noqa: PLR0912, PLR0915
 
     # Build BallTree for bus-access nodes that are in the bus graph
     # This ensures we only match to connected nodes
+    # TODO: @e-lo wonders if this is necessary?
     G_bus = roadway_net.get_modal_graph("bus")
     bus_graph_nodes = set(G_bus.nodes())
     roadway_net.nodes_df["bus_access"] = False
@@ -298,6 +299,7 @@ def match_bus_stops_to_roadway_nodes(  # noqa: PLR0912, PLR0915
     )
 
     # Extract bus-accessible nodes
+    # TODO: Extract to roadway/nodes/filters.py and use filter_nodes_to_links()
     bus_accessible_nodes_gdf = roadway_net.nodes_df[
         roadway_net.nodes_df["bus_access"] == True
     ].copy()
@@ -3141,7 +3143,7 @@ def create_feed_from_gtfs_model(  # noqa: PLR0915
     local_crs: str,
     crs_units: str,
     timeperiods: dict[str, tuple[str, str]],
-    frequency_method: str,
+    frequency_method: Literal["uniform_headway","mean_headway","median_headway"],
     default_frequency_for_onetime_route: int = 180,
     add_stations_and_links: bool = True,
     max_stop_distance: Optional[float] = None,
