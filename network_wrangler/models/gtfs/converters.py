@@ -94,7 +94,7 @@ def convert_stop_times_to_wrangler_stop_times(
 def create_feed_frequencies(  # noqa: PLR0915
     feed_tables: dict[str, pd.DataFrame],
     timeperiods: dict[str, tuple[TimeString, TimeString]],
-    frequency_method: str,
+    frequency_method: Literal["uniform_headway","mean_headway","median_headway"],
     default_frequency_for_onetime_route: int = 180,
     trace_shape_ids: Optional[list[str]] = None,
 ):
@@ -147,11 +147,6 @@ def create_feed_frequencies(  # noqa: PLR0915
         - Original trip_ids are preserved as 'orig_trip_id' for reference
     """
     WranglerLogger.info("Creating frequencies table from feed stop_times data")
-
-    VALID_FREQUENCY_METHOD = ["uniform_headway", "mean_headway", "median_headway"]
-    if frequency_method not in VALID_FREQUENCY_METHOD:
-        msg = f"frequency_method must be one of {VALID_FREQUENCY_METHOD}; received {frequency_method}"
-        raise ValueError(msg)
 
     # convert timeperiods to { timeperiod_label: [start_time, end_time]} where times are in minutes from midnight
     timeperiod_minutes_after_midnight = {}
