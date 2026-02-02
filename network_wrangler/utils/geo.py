@@ -403,7 +403,7 @@ def get_bounding_polygon(
     Returns:
         gpd.GeoSeries: The polygon geometry representing the bounding polygon.
     """
-    import osmnx as ox  # noqa: PLC0415
+    import osmnx as ox
 
     nargs = sum(x is not None for x in [boundary_gdf, boundary_geocode, boundary_file])
     if nargs == 0:

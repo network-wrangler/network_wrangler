@@ -71,13 +71,13 @@ def validate_links_df(
     Returns:
         bool: True if the links dataframe is valid.
     """
-    from ...models.roadway.tables import RoadLinksTable  # noqa: PLC0415
-    from ...utils.models import TableValidationError, validate_df_to_model  # noqa: PLC0415
+    from ...models.roadway.tables import RoadLinksTable
+    from ...utils.models import TableValidationError, validate_df_to_model
 
     is_valid = True
 
     if not strict:
-        from .create import data_to_links_df  # noqa: PLC0415
+        from .create import data_to_links_df
 
         try:
             links_df = data_to_links_df(links_df)

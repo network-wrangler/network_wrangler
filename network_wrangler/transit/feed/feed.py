@@ -87,7 +87,7 @@ class Feed(DBModelMixin):
         extra_attr = {k: v for k, v in kwargs.items() if k not in self.table_names}
         if extra_attr:
             WranglerLogger.info(f"Adding additional attributes to Feed: {extra_attr.keys()}")
-        for k, v in extra_attr:
+        for k, v in extra_attr.items():
             self.__setattr__(k, v)
 
     def set_by_id(

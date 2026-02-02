@@ -98,7 +98,7 @@ A  valid `geojson`, `shp`, or `parquet` file with `LineString` geometry features
 ::: network_wrangler.models.gtfs.tables
     options:
         show_bases: false
-        members: None
+        members: []
 
 Transit Networks must use the the [GTFS](https://www.gtfs.org) Schedule format with the following additional constraints:
 
@@ -112,7 +112,7 @@ Transit Networks must use the the [GTFS](https://www.gtfs.org) Schedule format w
     options:
         heading_level: 3
         show_bases: false
-        members: None
+        members: []
     handlers:
         python:
             options:
@@ -124,7 +124,7 @@ Transit Networks must use the the [GTFS](https://www.gtfs.org) Schedule format w
     options:
         heading_level: 3
         show_bases: false
-        members: None
+        members: []
     handlers:
         python:
             options:
@@ -134,7 +134,7 @@ Transit Networks must use the the [GTFS](https://www.gtfs.org) Schedule format w
 
 ::: network_wrangler.models.gtfs.tables.WranglerTripsTable
     options:
-        members: None
+        members: []
         heading_level: 3
         show_bases: false
     handlers:
@@ -146,7 +146,7 @@ Transit Networks must use the the [GTFS](https://www.gtfs.org) Schedule format w
 
 ::: network_wrangler.models.gtfs.tables.WranglerStopTimesTable
     options:
-        members: None
+        members: []
         heading_level: 3
         show_bases: false
     handlers:
@@ -158,7 +158,7 @@ Transit Networks must use the the [GTFS](https://www.gtfs.org) Schedule format w
 
 ::: network_wrangler.models.gtfs.tables.WranglerShapesTable
     options:
-        members: None
+        members: []
         heading_level: 3
         show_bases: false
     handlers:
@@ -170,7 +170,7 @@ Transit Networks must use the the [GTFS](https://www.gtfs.org) Schedule format w
 
 ::: network_wrangler.models.gtfs.tables.WranglerFrequenciesTable
     options:
-        members: None
+        members: []
         heading_level: 3
         show_bases: false
     handlers:
@@ -184,7 +184,7 @@ Transit Networks must use the the [GTFS](https://www.gtfs.org) Schedule format w
     options:
         heading_level: 3
         show_bases: false
-        members: None
+        members: []
     handlers:
         python:
             options:

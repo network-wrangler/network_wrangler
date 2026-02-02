@@ -30,7 +30,7 @@ import pandas as pd
 import pyarrow as pa
 import pyarrow.parquet as pq
 from projectcard import ProjectCard, SubProject
-from pydantic import BaseModel, field_validator
+from pydantic import BaseModel, ConfigDict, field_validator
 
 from ..configs import DefaultConfig, WranglerConfig, load_wrangler_config
 from ..errors import (
@@ -150,7 +150,7 @@ class RoadwayNetwork(BaseModel):
         config (WranglerConfig): wrangler configuration object
     """
 
-    model_config = {"arbitrary_types_allowed": True}
+    model_config = ConfigDict(arbitrary_types_allowed=True)
 
     nodes_df: pd.DataFrame
     links_df: pd.DataFrame
@@ -167,19 +167,35 @@ class RoadwayNetwork(BaseModel):
     _modal_graphs: dict[str, dict] = defaultdict(lambda: {"graph": None, "hash": None})
 
     @field_validator("config")
+    @classmethod
     def validate_config(cls, v):
         """Validate config."""
         return load_wrangler_config(v)
 
-    @field_validator("nodes_df", "links_df")
-    def coerce_crs(cls, v):
-        """Coerce crs of nodes_df and links_df to LAT_LON_CRS."""
-        if v.crs != LAT_LON_CRS:
+    @field_validator("nodes_df", mode="before")
+    @classmethod
+    def validate_nodes_df(cls, v):
+        """Validate nodes_df to RoadNodesTable and coerce CRS."""
+        v = validate_df_to_model(v, RoadNodesTable)
+        if hasattr(v, "crs") and v.crs != LAT_LON_CRS:
+            WranglerLogger.warning(
+                f"CRS of nodes_df ({v.crs}) doesn't match network crs {LAT_LON_CRS}. \
+                    Changing to network crs."
+            )
+            v = v.to_crs(LAT_LON_CRS)
+        return v
+
+    @field_validator("links_df", mode="before")
+    @classmethod
+    def validate_links_df(cls, v):
+        """Validate links_df to RoadLinksTable and coerce CRS."""
+        v = validate_df_to_model(v, RoadLinksTable)
+        if hasattr(v, "crs") and v.crs != LAT_LON_CRS:
             WranglerLogger.warning(
                 f"CRS of links_df ({v.crs}) doesn't match network crs {LAT_LON_CRS}. \
                     Changing to network crs."
             )
-            v.to_crs(LAT_LON_CRS)
+            v = v.to_crs(LAT_LON_CRS)
         return v
 
     @property
@@ -273,7 +289,7 @@ class RoadwayNetwork(BaseModel):
             min_overlap_minutes: If strict_timespan_match is False, will return links that overlap
                 with the timespan by at least this many minutes. Defaults to 60.
         """
-        from .links.scopes import prop_for_scope  # noqa: PLC0415
+        from .links.scopes import prop_for_scope
 
         return prop_for_scope(
             self.links_df,
@@ -337,7 +353,7 @@ class RoadwayNetwork(BaseModel):
         Args:
             mode: mode of the network, one of `drive`,`transit`,`walk`, `bike`
         """
-        from .graph import net_to_graph  # noqa: PLC0415
+        from .graph import net_to_graph
 
         if self._modal_graphs[mode]["hash"] != self.modal_graph_hash(mode):
             self._modal_graphs[mode]["graph"] = net_to_graph(self, mode)
@@ -613,7 +629,7 @@ class RoadwayNetwork(BaseModel):
 
     def clean_unused_shapes(self):
         """Removes any unused shapes from network that aren't referenced by links_df."""
-        from .shapes.shapes import shape_ids_without_links  # noqa: PLC0415
+        from .shapes.shapes import shape_ids_without_links
 
         del_shape_ids = shape_ids_without_links(self.shapes_df, self.links_df)
         self.shapes_df = self.shapes_df.drop(del_shape_ids)
@@ -623,7 +639,7 @@ class RoadwayNetwork(BaseModel):
 
         NOTE: does not check if these nodes are used by transit, so use with caution.
         """
-        from .nodes.nodes import node_ids_without_links  # noqa: PLC0415
+        from .nodes.nodes import node_ids_without_links
 
         node_ids = node_ids_without_links(self.nodes_df, self.links_df)
         self.nodes_df = self.nodes_df.drop(node_ids)
