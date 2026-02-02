@@ -1,8 +1,16 @@
-name: CI (Lint, Test, Docs, Benchmark)
+name: PR Checks
 
 on:
-  push: 
-    branches: [main, develop]
+  pull_request:
+    types: [opened, synchronize, reopened]
+    # Only run when code changes:
+    # - opened: when PR is first created
+    # - synchronize: when new commits are pushed to PR branch
+    # - reopened: when a closed PR is reopened (may have new code)
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   lint:
@@ -84,3 +92,47 @@ jobs:
         with:
           python-version: "3.13"
           branch-name: ${{ steps.branch.outputs.branch-name }}
+
+      - name: Post docs comment
+        if: github.event.action == 'opened'
+        uses: actions/github-script@v7
+        continue-on-error: true
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const branchName = '${{ steps.branch.outputs.branch-name }}';
+            const docsUrl = `https://network-wrangler.github.io/network_wrangler/${branchName}/`;
+            const comment = `📚 Documentation has been built and deployed!
+            
+            View the docs for this PR: [${docsUrl}](${docsUrl})`;
+            
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: ${{ github.event.pull_request.number }},
+              body: comment,
+            });
+
+  benchmark:
+    name: Analyze benchmark results
+    needs: test
+    if: github.event.pull_request.base.ref == 'main' || github.event.pull_request.base.ref == 'develop'
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Analyze benchmark
+        uses: ./.github/actions/analyze-benchmark
+        with:
+          python-version: "3.13"
+          alert-threshold: '125%'
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+
+  coverage:
+    name: Post coverage comment
+    needs: test
+    if: github.event.pull_request.base.ref == 'main' || github.event.pull_request.base.ref == 'develop'
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Post coverage comment
+        uses: ./.github/actions/post-coverage

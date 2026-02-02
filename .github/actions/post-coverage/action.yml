@@ -1,0 +1,28 @@
+name: 'Post Coverage Comment'
+description: 'Download coverage artifacts and post coverage comment on PR'
+inputs:
+  pytest-xml-coverage-path:
+    description: 'Path to pytest XML coverage file'
+    required: false
+    default: 'coverage/coverage.xml'
+  junitxml-path:
+    description: 'Path to pytest JUnit XML file'
+    required: false
+    default: 'coverage/pytest.xml'
+
+runs:
+  using: 'composite'
+  steps:
+    - name: Download coverage artifacts
+      uses: actions/download-artifact@v4
+      with:
+        pattern: coverage-*
+        merge-multiple: true
+        path: coverage/
+
+    - name: Pytest coverage comment
+      uses: MishaKav/pytest-coverage-comment@main
+      with:
+        pytest-xml-coverage-path: ${{ inputs.pytest-xml-coverage-path }}
+        junitxml-path: ${{ inputs.junitxml-path }}
+
