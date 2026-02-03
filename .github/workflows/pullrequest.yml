@@ -16,9 +16,13 @@ jobs:
   lint:
     name: Lint code
     runs-on: ubuntu-latest
+    permissions:
+      contents: write  # Required to commit fixes back to PR
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Setup Python with UV
         uses: ./.github/actions/setup-python-uv
@@ -30,7 +34,34 @@ jobs:
           uv pip install --system ruff
         shell: bash
 
-      - name: Run ruff
+      - name: Format code with ruff
+        run: ruff format network_wrangler
+        continue-on-error: true
+
+      - name: Fix linting issues
+        run: ruff check --fix --output-format=github network_wrangler
+        continue-on-error: true
+
+      - name: Check for changes
+        id: check-changes
+        run: |
+          if [ -n "$(git status --porcelain)" ]; then
+            echo "has_changes=true" >> $GITHUB_OUTPUT
+          else
+            echo "has_changes=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Commit fixes
+        if: steps.check-changes.outputs.has_changes == 'true'
+        run: |
+          git config --local user.email "github-actions[bot]@users.noreply.github.com"
+          git config --local user.name "github-actions[bot]"
+          git add -A
+          git commit -m "style: Auto-fix code formatting and linting issues [skip ci]"
+          git push
+        shell: bash
+
+      - name: Check for remaining issues
         run: ruff check --output-format=github network_wrangler
 
   test:

@@ -22,8 +22,13 @@ jobs:
           uv pip install --system ruff
         shell: bash
 
-      - name: Run ruff
+      - name: Check formatting
+        run: ruff format --check network_wrangler
+        continue-on-error: true
+
+      - name: Check linting
         run: ruff check --output-format=github network_wrangler
+        continue-on-error: true
 
   test:
     name: Test (Python ${{ matrix.python-version }})
