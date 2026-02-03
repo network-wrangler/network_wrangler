@@ -19,6 +19,20 @@ from ..logger import WranglerLogger
 from ..params import LAT_LON_CRS, SMALL_RECS
 from .data import coerce_val_to_df_types
 
+# Convert StringDtype columns to object dtype to avoid numpy.issubdtype compatibility issues
+# in pandas 2.2+ with Python 3.11+
+def _convert_string_dtype_to_object(df: DataFrame) -> DataFrame:
+    """Convert StringDtype columns to object dtype for compatibility with numpy.issubdtype.
+    
+    This fixes compatibility issues with pandas 2.2+ StringDtype and numpy.issubdtype
+    in Python 3.11+ when used with pandera validation.
+    """
+    df = df.copy()
+    for col in df.columns:
+        if isinstance(df[col].dtype, pd.StringDtype):
+            df[col] = df[col].astype(object)
+    return df
+
 
 class DatamodelDataframeIncompatableError(Exception):
     """Raised when a data model and a dataframe are not compatable."""
@@ -88,6 +102,9 @@ def validate_df_to_model(
     attrs = copy.deepcopy(df.attrs)
     err_msg = f"Validation to {model.__name__} failed."
     try:
+        # Convert StringDtype columns to object dtype before validation to avoid
+        # numpy.issubdtype compatibility issues with pandas 2.2+ and Python 3.11+
+        df = _convert_string_dtype_to_object(df)
         model_df = model.validate(df, lazy=True)
         model_df = fill_df_with_defaults_from_model(model_df, model)
         model_df.attrs = attrs
