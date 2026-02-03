@@ -19,11 +19,12 @@ from ..logger import WranglerLogger
 from ..params import LAT_LON_CRS, SMALL_RECS
 from .data import coerce_val_to_df_types
 
+
 # Convert StringDtype columns to object dtype to avoid numpy.issubdtype compatibility issues
 # in pandas 2.2+ with Python 3.11+
 def _convert_string_dtype_to_object(df: DataFrame) -> DataFrame:
     """Convert StringDtype columns to object dtype for compatibility with numpy.issubdtype.
-    
+
     This fixes compatibility issues with pandas 2.2+ StringDtype and numpy.issubdtype
     in Python 3.11+ when used with pandera validation.
     """
