@@ -133,7 +133,7 @@ def _translate_scoped_link_property_v0_to_v1(links_df: DataFrame, prop: str) -> 
     )
 
     links_df.loc[complex_idx, f"sc_{prop}"] = links_df.loc[complex_idx, prop].apply(
-        lambda x: _v0_to_v1_scoped_link_property_list(x)
+        _v0_to_v1_scoped_link_property_list
     )
     links_df.loc[complex_idx, prop] = links_df.loc[complex_idx, prop].apply(lambda x: x["default"])
     return links_df

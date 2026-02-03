@@ -93,10 +93,7 @@ def _filter_to_matching_timespan_scopes(
     return [
         s
         for s in scoped_values
-        if (
-            _islist(s.timespan)
-            and dt_contains([str_to_time(i) for i in s.timespan], times_dt)
-        )
+        if (_islist(s.timespan) and dt_contains([str_to_time(i) for i in s.timespan], times_dt))
         or s.timespan == DEFAULT_TIMESPAN
     ]
 
@@ -160,7 +157,7 @@ def _filter_to_overlapping_timespan_scopes(
 
 def _islist(s: Any) -> TypeGuard[list[str]]:
     """Type guard for list to make mypy not complain.
-    
+
     Returns True if s is a list, allowing mypy to narrow the type.
     """
     return isinstance(s, list)
