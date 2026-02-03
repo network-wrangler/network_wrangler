@@ -95,7 +95,7 @@ def _filter_to_matching_timespan_scopes(
         for s in scoped_values
         if (
             _islist(s.timespan)
-            and dt_contains([str_to_time(i) for i in _islist(s.timespan)], times_dt)
+            and dt_contains([str_to_time(i) for i in s.timespan], times_dt)
         )
         or s.timespan == DEFAULT_TIMESPAN
     ]
@@ -294,9 +294,12 @@ def _create_exploded_df_for_scoped_prop(
     return exp_df
 
 
-# @validate_call(config={"arbitrary_types_allowed": True})
+@validate_call(
+    config={"arbitrary_types_allowed": True},
+    validate_return=False,
+)
 def _filter_exploded_df_to_scope(
-    exp_scoped_prop_df: DataFrame[ExplodedScopedLinkPropertyTable],
+    exp_scoped_prop_df: pd.DataFrame,
     timespan: list[TimeString] = DEFAULT_TIMESPAN,
     category: Union[str, int] = DEFAULT_CATEGORY,
     strict_timespan_match: bool = False,
@@ -338,7 +341,7 @@ def _filter_exploded_df_to_scope(
 
 @validate_call_pyd
 def prop_for_scope(
-    links_df: DataFrame[RoadLinksTable],
+    links_df: pd.DataFrame,
     prop_name: str,
     timespan: Union[None, list[TimeString]] = DEFAULT_TIMESPAN,
     category: Union[str, int, None] = DEFAULT_CATEGORY,

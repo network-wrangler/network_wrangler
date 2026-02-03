@@ -159,7 +159,7 @@ def validate_transit_in_dir(
         road_file_format (str): The format of roadway network file name. Defaults to "geojson".
         output_dir (str): The output directory for the validation report. Defaults to ".".
     """
-    from .io import load_transit  # noqa: PLC0415
+    from .io import load_transit
 
     try:
         t = load_transit(dir, file_format=file_format)
@@ -167,8 +167,8 @@ def validate_transit_in_dir(
         WranglerLogger.error(f"!!! [Transit Network invalid] - Failed Loading to Feed object\n{e}")
         return False
     if road_dir is not None:
-        from ..roadway import load_roadway_from_dir  # noqa: PLC0415
-        from .network import TransitRoadwayConsistencyError  # noqa: PLC0415
+        from ..roadway import load_roadway_from_dir
+        from .network import TransitRoadwayConsistencyError
 
         try:
             r = load_roadway_from_dir(road_dir, file_format=road_file_format)

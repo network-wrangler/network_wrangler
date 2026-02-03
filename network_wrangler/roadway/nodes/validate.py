@@ -47,7 +47,7 @@ def validate_nodes_df(
     is_valid = True
 
     if not strict:
-        from .create import data_to_nodes_df  # noqa: PLC0415
+        from .create import data_to_nodes_df
 
         try:
             nodes_df = data_to_nodes_df(nodes_df)

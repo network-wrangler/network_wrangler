@@ -43,7 +43,7 @@ def validate_timespan_string(value: Any) -> list[str]:
         if not isinstance(item, str):
             msg = "TimespanString elements must be strings"
             raise ValueError(msg)
-        import re  # noqa: PLC0415
+        import re
 
         if not re.match(r"^(\d+):([0-5]\d)(:[0-5]\d)?$", item):
             msg = f"Invalid time format: {item}"
