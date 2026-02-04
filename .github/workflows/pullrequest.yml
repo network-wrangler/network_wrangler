@@ -156,12 +156,24 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Analyze benchmark
-        uses: ./.github/actions/analyze-benchmark
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Download benchmark artifacts
+        uses: actions/download-artifact@v4
         with:
-          python-version: "3.13"
+          name: benchmark-py3.13
+          path: .benchmarks/
+
+      - name: Store benchmark result
+        uses: benchmark-action/github-action-benchmark@v1
+        with:
+          tool: 'pytest'
+          output-file-path: benchmark.json
           alert-threshold: '125%'
           github-token: ${{ secrets.GITHUB_TOKEN }}
+          comment-on-alert: true
+          summary-always: true
 
   coverage:
     name: Post coverage comment
@@ -170,5 +182,8 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
       - name: Post coverage comment
         uses: ./.github/actions/post-coverage
