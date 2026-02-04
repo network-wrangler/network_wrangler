@@ -1,7 +1,6 @@
 """Configuration utilities."""
 
 from pathlib import Path
-from typing import Optional, Union
 
 from pydantic import ValidationError
 
@@ -21,7 +20,7 @@ class ConfigItem:
     Do not use "get" "to_dict", or "items" for key names.
     """
 
-    base_path: Optional[Path] = None
+    base_path: Path | None = None
 
     def __getitem__(self, key):
         """Return the value for key if key is in the dictionary, else default."""
@@ -45,7 +44,7 @@ class ConfigItem:
         """Return the value for key if key is in the dictionary, else default."""
         return self.__dict__.get(key, default)
 
-    def update(self, data: Union[Path, list[Path], dict]):
+    def update(self, data: Path | list[Path] | dict):
         """Update the configuration with a dictionary of new values."""
         if not isinstance(data, dict):
             WranglerLogger.info(f"Updating configuration with {data}.")
@@ -65,7 +64,7 @@ class ConfigItem:
                 setattr(self, key, str(resolved_path))
 
 
-def find_configs_in_dir(dir: Union[Path, list[Path]], config_type) -> list[Path]:
+def find_configs_in_dir(dir: Path | list[Path], config_type) -> list[Path]:
     """Find configuration files in the directory that match `*config<ext>`."""
     config_files: list[Path] = []
     if isinstance(dir, list):
@@ -88,7 +87,7 @@ def find_configs_in_dir(dir: Union[Path, list[Path]], config_type) -> list[Path]
     return []
 
 
-def _config_data_from_files(path: Optional[Union[Path, list[Path]]] = None) -> Union[None, dict]:
+def _config_data_from_files(path: Path | list[Path] | None = None) -> None | dict:
     """Load and combine configuration data from file(s).
 
     Args:

@@ -1,7 +1,8 @@
 import copy
 import hashlib
 from collections import defaultdict
-from typing import Callable, ClassVar, Optional
+from collections.abc import Callable
+from typing import ClassVar
 
 import pandas as pd
 from pandera import DataFrameModel
@@ -203,7 +204,7 @@ class DBModelMixin:
         return {k: dict(v) for k, v in pks_as_fks.items()}
 
     def check_referenced_fk(
-        self, pk_table_name: str, pk_field: str, pk_table: Optional[pd.DataFrame] = None
+        self, pk_table_name: str, pk_field: str, pk_table: pd.DataFrame | None = None
     ) -> bool:
         """True if table.field has the values referenced in any table referencing fields as fk.
 
@@ -264,7 +265,7 @@ class DBModelMixin:
                 )
         return all_valid
 
-    def check_referenced_fks(self, table_name: str, table: Optional[pd.DataFrame] = None) -> bool:
+    def check_referenced_fks(self, table_name: str, table: pd.DataFrame | None = None) -> bool:
         """True if this table has the values referenced in any table referencing fields as fk.
 
         For example. If routes.route_id is referenced in trips table, we need to check that
@@ -281,7 +282,7 @@ class DBModelMixin:
         return all_valid
 
     def check_table_fks(
-        self, table_name: str, table: Optional[pd.DataFrame] = None, raise_error: bool = True
+        self, table_name: str, table: pd.DataFrame | None = None, raise_error: bool = True
     ) -> bool:
         """Return True if the foreign key fields in table have valid references.
 

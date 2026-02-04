@@ -2,10 +2,9 @@
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING
 
 import geopandas as gpd
-import pyarrow as pa
 from pandera.typing import DataFrame
 from shapely import LineString
 
@@ -25,7 +24,7 @@ if TYPE_CHECKING:
 def shapes_to_trip_shapes_gdf(
     shapes: DataFrame[WranglerShapesTable],
     # trips: WranglerTripsTable,
-    ref_nodes_df: Optional[DataFrame[RoadNodesTable]] = None,
+    ref_nodes_df: DataFrame[RoadNodesTable] | None = None,
     crs: int = LAT_LON_CRS,
 ) -> gpd.GeoDataFrame:
     """Geodataframe with one polyline shape per shape_id.
@@ -46,7 +45,7 @@ def shapes_to_trip_shapes_gdf(
         shapes[["shape_id", "shape_pt_lat", "shape_pt_lon"]]
         .groupby("shape_id")
         .agg(list)
-        .apply(lambda x: LineString(zip(x[1], x[0])), axis=1)
+        .apply(lambda x: LineString(zip(x[1], x[0], strict=True)), axis=1)
     )
 
     route_shapes_gdf = gpd.GeoDataFrame(
@@ -86,7 +85,7 @@ def update_shapes_geometry(
 
 def shapes_to_shape_links_gdf(
     shapes: DataFrame[WranglerShapesTable],
-    ref_nodes_df: Optional[DataFrame[RoadNodesTable]] = None,
+    ref_nodes_df: DataFrame[RoadNodesTable] | None = None,
     from_field: str = "A",
     to_field: str = "B",
     crs: int = LAT_LON_CRS,
@@ -125,7 +124,7 @@ def shapes_to_shape_links_gdf(
 def stop_times_to_stop_time_points_gdf(
     stop_times: DataFrame[WranglerStopTimesTable],
     stops: DataFrame[WranglerStopsTable],
-    ref_nodes_df: Optional[DataFrame[RoadNodesTable]] = None,
+    ref_nodes_df: DataFrame[RoadNodesTable] | None = None,
 ) -> gpd.GeoDataFrame:
     """Stoptimes geodataframe as points using geometry from stops.txt or optionally another df.
 
@@ -154,7 +153,7 @@ def stop_times_to_stop_time_points_gdf(
 def stop_times_to_stop_time_links_gdf(
     stop_times: DataFrame[WranglerStopTimesTable],
     stops: DataFrame[WranglerStopsTable],
-    ref_nodes_df: Optional[DataFrame[RoadNodesTable]] = None,
+    ref_nodes_df: DataFrame[RoadNodesTable] | None = None,
     from_field: str = "A",
     to_field: str = "B",
 ) -> gpd.GeoDataFrame:

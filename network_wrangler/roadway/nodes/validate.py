@@ -5,7 +5,6 @@ from __future__ import annotations
 from pathlib import Path
 
 import pandas as pd
-import pyarrow as pa
 
 from ...logger import WranglerLogger
 from ...models.roadway.tables import RoadNodesTable

@@ -21,14 +21,11 @@ import copy
 import hashlib
 from collections import defaultdict
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Optional, Union
+from typing import TYPE_CHECKING, Any
 
 import geopandas as gpd
-import ijson
 import networkx as nx
 import pandas as pd
-import pyarrow as pa
-import pyarrow.parquet as pq
 from projectcard import ProjectCard, SubProject
 from pydantic import BaseModel, ConfigDict, field_validator
 
@@ -48,13 +45,11 @@ from ..models.roadway.tables import RoadLinksTable, RoadNodesTable, RoadShapesTa
 from ..params import DEFAULT_CATEGORY, DEFAULT_TIMESPAN, LAT_LON_CRS
 from ..utils.data import concat_with_attr
 from ..utils.models import empty_df_from_datamodel, validate_df_to_model
-from .graph import net_to_graph
 from .links.create import data_to_links_df
 from .links.delete import delete_links_by_ids
 from .links.edit import edit_link_geometry_from_nodes
 from .links.filters import filter_links_to_ids, filter_links_to_node_ids
 from .links.links import node_ids_unique_to_link_ids, shape_ids_unique_to_link_ids
-from .links.scopes import prop_for_scope
 from .model_roadway import ModelRoadwayNetwork
 from .nodes.create import data_to_nodes_df
 from .nodes.delete import delete_nodes_by_ids
@@ -76,7 +71,6 @@ from .shapes.create import df_to_shapes_df
 from .shapes.delete import delete_shapes_by_ids
 from .shapes.edit import edit_shape_geometry_from_nodes
 from .shapes.io import read_shapes
-from .shapes.shapes import shape_ids_without_links
 
 if TYPE_CHECKING:
     from networkx import MultiDiGraph
@@ -85,7 +79,7 @@ if TYPE_CHECKING:
     from ..transit.network import TransitNetwork
 
 
-Selections = Union[RoadwayLinkSelection, RoadwayNodeSelection]
+Selections = RoadwayLinkSelection | RoadwayNodeSelection
 
 
 class RoadwayNetwork(BaseModel):
@@ -154,15 +148,15 @@ class RoadwayNetwork(BaseModel):
 
     nodes_df: pd.DataFrame
     links_df: pd.DataFrame
-    _shapes_df: Optional[pd.DataFrame] = None
+    _shapes_df: pd.DataFrame | None = None
 
-    _links_file: Optional[Path] = None
-    _nodes_file: Optional[Path] = None
-    _shapes_file: Optional[Path] = None
+    _links_file: Path | None = None
+    _nodes_file: Path | None = None
+    _shapes_file: Path | None = None
 
     config: WranglerConfig = DefaultConfig
 
-    _model_net: Optional[ModelRoadwayNetwork] = None
+    _model_net: ModelRoadwayNetwork | None = None
     _selections: dict[str, Selections] = {}
     _modal_graphs: dict[str, dict] = defaultdict(lambda: {"graph": None, "hash": None})
 
@@ -270,8 +264,8 @@ class RoadwayNetwork(BaseModel):
     def get_property_by_timespan_and_group(
         self,
         link_property: str,
-        category: Optional[Union[str, int]] = DEFAULT_CATEGORY,
-        timespan: Optional[TimespanString] = DEFAULT_TIMESPAN,
+        category: str | int | None = DEFAULT_CATEGORY,
+        timespan: TimespanString | None = DEFAULT_TIMESPAN,
         strict_timespan_match: bool = False,
         min_overlap_minutes: int = 60,
     ) -> Any:
@@ -302,9 +296,9 @@ class RoadwayNetwork(BaseModel):
 
     def get_selection(
         self,
-        selection_dict: Union[dict, SelectFacility],
+        selection_dict: dict | SelectFacility,
         overwrite: bool = False,
-    ) -> Union[RoadwayNodeSelection, RoadwayLinkSelection]:
+    ) -> RoadwayNodeSelection | RoadwayLinkSelection:
         """Return selection if it already exists, otherwise performs selection.
 
         Args:
@@ -362,8 +356,8 @@ class RoadwayNetwork(BaseModel):
 
     def apply(
         self,
-        project_card: Union[ProjectCard, dict],
-        transit_net: Optional[TransitNetwork] = None,
+        project_card: ProjectCard | dict,
+        transit_net: TransitNetwork | None = None,
         **kwargs,
     ) -> RoadwayNetwork:
         """Wrapper method to apply a roadway project, returning a new RoadwayNetwork instance.
@@ -375,7 +369,7 @@ class RoadwayNetwork(BaseModel):
                 skip anything related to transit network.
             **kwargs: keyword arguments to pass to project application
         """
-        if not (isinstance(project_card, (ProjectCard, SubProject))):
+        if not (isinstance(project_card, ProjectCard | SubProject)):
             project_card = ProjectCard(project_card)
 
         # project_card.validate()
@@ -393,8 +387,8 @@ class RoadwayNetwork(BaseModel):
 
     def _apply_change(
         self,
-        change: Union[ProjectCard, SubProject],
-        transit_net: Optional[TransitNetwork] = None,
+        change: ProjectCard | SubProject,
+        transit_net: TransitNetwork | None = None,
     ) -> RoadwayNetwork:
         """Apply a single change: a single-project project or a sub-project."""
         if not isinstance(change, SubProject):
@@ -534,10 +528,10 @@ class RoadwayNetwork(BaseModel):
 
     def delete_links(
         self,
-        selection_dict: Union[dict, SelectLinksDict],
+        selection_dict: dict | SelectLinksDict,
         clean_nodes: bool = False,
         clean_shapes: bool = False,
-        transit_net: Optional[TransitNetwork] = None,
+        transit_net: TransitNetwork | None = None,
     ):
         """Deletes links based on selection dictionary and optionally associated nodes and shapes.
 
@@ -594,7 +588,7 @@ class RoadwayNetwork(BaseModel):
 
     def delete_nodes(
         self,
-        selection_dict: Union[dict, SelectNodesDict],
+        selection_dict: dict | SelectNodesDict,
         remove_links: bool = False,
     ) -> None:
         """Deletes nodes from roadway network. Wont delete nodes used by links in network.
@@ -700,7 +694,7 @@ class RoadwayNetwork(BaseModel):
 def add_incident_link_data_to_nodes(
     links_df: pd.DataFrame,
     nodes_df: pd.DataFrame,
-    link_variables: Optional[list] = None,
+    link_variables: list | None = None,
 ) -> pd.DataFrame:
     """Add data from links going to/from nodes to node.
 

@@ -1,9 +1,7 @@
-from typing import Union
 
 from pydantic import (
     RootModel,
     confloat,
-    conlist,
     field_validator,
 )
 

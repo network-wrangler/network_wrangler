@@ -21,7 +21,7 @@ from .filters import (
     filter_links_transit_only,
 )
 from .geo import true_shape
-from .links import NotLinksError
+from ...errors import NotLinksError
 from .summary import link_summary
 
 

@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-from typing import Union
 
 import pandas as pd
 from pandera.typing import DataFrame
@@ -49,7 +48,7 @@ def unique_shape_links(
     shape_links = shapes_to_shape_links(shapes)
     # WranglerLogger.debug(f"Shape links: \n {shape_links[['shape_id', from_field, to_field]]}")
 
-    _agg_dict: dict[str, Union[type, str]] = {"shape_id": list}
+    _agg_dict: dict[str, type | str] = {"shape_id": list}
     _opt_fields = [f"shape_pt_{v}_{t}" for v in ["lat", "lon"] for t in [from_field, to_field]]
     for f in _opt_fields:
         if f in shape_links:
