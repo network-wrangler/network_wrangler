@@ -89,18 +89,24 @@ jobs:
 
       - name: Run tests
         run: |
-          pytest --junitxml=pytest.xml --cov-report "xml:coverage.xml" --benchmark-save=benchmark --benchmark-json=benchmark.json
+          # Only generate coverage for Python 3.13 to save time and simplify artifacts
+          if [ "${{ matrix.python-version }}" = "3.13" ]; then
+            pytest --junitxml=pytest.xml --cov-report "xml:coverage.xml" --benchmark-save=benchmark --benchmark-json=benchmark.json
+          else
+            pytest --benchmark-save=benchmark --benchmark-json=benchmark.json
+          fi
 
       - name: Upload coverage artifacts
+        if: matrix.python-version == '3.13'
         uses: actions/upload-artifact@v4
         with:
-          name: coverage-py${{ matrix.python-version }}
+          name: coverage-py3.13
           path: |
             coverage.xml
             pytest.xml
 
       - name: Upload benchmark artifacts
-        if: github.ref == 'refs/heads/main'
+        if: github.event.pull_request.base.ref == 'main' || github.event.pull_request.base.ref == 'develop'
         uses: actions/upload-artifact@v4
         with:
           name: benchmark-py${{ matrix.python-version }}
@@ -162,8 +168,9 @@ jobs:
       - name: Download benchmark artifacts
         uses: actions/download-artifact@v4
         with:
-          name: benchmark-py3.13
-          path: .benchmarks/
+          pattern: benchmark-*
+          merge-multiple: true
+          path: ./
 
       - name: Store benchmark result
         uses: benchmark-action/github-action-benchmark@v1

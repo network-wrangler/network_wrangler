@@ -16,8 +16,7 @@ runs:
     - name: Download coverage artifacts
       uses: actions/download-artifact@v4
       with:
-        pattern: coverage-*
-        merge-multiple: true
+        name: coverage-py3.13
         path: coverage/
 
     - name: Pytest coverage comment
