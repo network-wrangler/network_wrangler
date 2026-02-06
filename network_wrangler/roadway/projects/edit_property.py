@@ -79,6 +79,7 @@ def apply_roadway_property_change(
             property_changes,
             project_name=project_name,
         )
+        roadway_net._mark_modified()
 
     elif isinstance(selection, RoadwayNodeSelection):
         non_geo_changes = {
@@ -93,11 +94,14 @@ def apply_roadway_property_change(
                 prop_change,
                 project_name=project_name,
             )
+        if non_geo_changes:
+            roadway_net._mark_modified()
 
         geo_changes_df = _node_geo_change_from_property_changes(
             property_changes, selection.selected_nodes
         )
         if geo_changes_df is not None:
+            # move_nodes already calls _mark_modified()
             roadway_net.move_nodes(geo_changes_df)
 
     else:

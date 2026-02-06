@@ -23,5 +23,7 @@ def apply_calculated_roadway(
     WranglerLogger.debug("Applying calculated roadway project.")
     self = roadway_net
     exec(pycode)
+    # Invalidate network state since exec'd code may have modified links_df or nodes_df
+    roadway_net._mark_modified()
 
     return roadway_net

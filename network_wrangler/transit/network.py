@@ -146,7 +146,7 @@ class TransitNetwork:
             raise TransitValidationError(msg)
         if transit_road_net_consistency(self.feed, road_net_in):
             self._road_net = road_net_in
-            self._stored_road_net_hash = copy.deepcopy(road_net_in.network_hash)
+            self._stored_road_net_version = road_net_in.modification_version
             self._consistent_with_road_net = True
         else:
             msg = "Can't assign inconsistent RoadwayNetwork - Roadway Network not \
@@ -175,12 +175,12 @@ class TransitNetwork:
         if self.road_net is None:
             WranglerLogger.warning("Roadway Network not set, cannot accurately check consistency.")
             return True
-        updated_road = self.road_net.network_hash != self._stored_road_net_hash
+        updated_road = self.road_net.modification_version != self._stored_road_net_version
         updated_feed = self.feed_hash != self._stored_feed_hash
 
         if updated_road or updated_feed:
             self._consistent_with_road_net = transit_road_net_consistency(self.feed, self.road_net)
-            self._stored_road_net_hash = copy.deepcopy(self.road_net.network_hash)
+            self._stored_road_net_version = self.road_net.modification_version
             self._stored_feed_hash = copy.deepcopy(self.feed_hash)
         return self._consistent_with_road_net
 

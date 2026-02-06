@@ -145,8 +145,10 @@ class RoadwayNetwork(BaseModel):
         network_hash: dynamic property of the hashed value of links_df and nodes_df. Used for
             quickly identifying if a network has changed since various expensive operations have
             taken place (i.e. generating a ModelRoadwayNetwork or a network graph)
+        _modification_version (int): counter that increments each time the network is modified.
+            Used for efficient change detection without expensive hash computation.
         model_net (ModelRoadwayNetwork): referenced `ModelRoadwayNetwork` object which will be
-            lazily created if None or if the `network_hash` has changed.
+            lazily created if None or if the network has been modified.
         config (WranglerConfig): wrangler configuration object
     """
 
@@ -163,8 +165,10 @@ class RoadwayNetwork(BaseModel):
     config: WranglerConfig = DefaultConfig
 
     _model_net: Optional[ModelRoadwayNetwork] = None
+    _model_net_version: int = -1  # Version when model_net was last created
     _selections: dict[str, Selections] = {}
     _modal_graphs: dict[str, dict] = defaultdict(lambda: {"graph": None, "hash": None})
+    _modification_version: int = 0  # Incremented each time network is modified
 
     @field_validator("config")
     @classmethod
@@ -223,9 +227,33 @@ class RoadwayNetwork(BaseModel):
     def shapes_df(self, value):
         self._shapes_df = df_to_shapes_df(value, config=self.config)
 
+    def _mark_modified(self) -> None:
+        """Mark the network as modified by incrementing the modification version.
+
+        This should be called whenever the network data is modified to ensure
+        that dependent computations (selections, model networks, graphs) are
+        re-evaluated. Uses a simple version counter which is much faster than
+        computing hashes for change detection.
+        """
+        self._modification_version += 1
+        WranglerLogger.debug(f"Network modified. Version: {self._modification_version}")
+
+    @property
+    def modification_version(self) -> int:
+        """Return the current modification version of the network.
+
+        This counter increments each time the network is modified and can be used
+        for efficient change detection without computing expensive hashes.
+        """
+        return self._modification_version
+
     @property
     def network_hash(self) -> str:
-        """Hash of the links and nodes dataframes."""
+        """Hash of the links and nodes dataframes.
+
+        Note: This is an expensive operation. For change detection, prefer using
+        modification_version which is much faster.
+        """
         _value = str.encode(self.links_df.df_hash() + "-" + self.nodes_df.df_hash())
 
         _hash = hashlib.sha256(_value).hexdigest()
@@ -233,9 +261,14 @@ class RoadwayNetwork(BaseModel):
 
     @property
     def model_net(self) -> ModelRoadwayNetwork:
-        """Return a ModelRoadwayNetwork object for this network."""
-        if self._model_net is None or self._model_net._net_hash != self.network_hash:
+        """Return a ModelRoadwayNetwork object for this network.
+
+        The model network is lazily created and cached. It is invalidated when
+        the network's modification version changes.
+        """
+        if self._model_net is None or self._model_net_version != self._modification_version:
             self._model_net = ModelRoadwayNetwork(self)
+            self._model_net_version = self._modification_version
         return self._model_net
 
     @property
@@ -341,7 +374,11 @@ class RoadwayNetwork(BaseModel):
         raise SelectionError(msg)
 
     def modal_graph_hash(self, mode) -> str:
-        """Hash of the links in order to detect a network change from when graph created."""
+        """Hash of the links in order to detect a network change from when graph created.
+
+        Note: This is an expensive operation. For internal change detection,
+        get_modal_graph uses modification_version instead.
+        """
         _value = str.encode(self.links_df.df_hash() + "-" + mode)
         _hash = hashlib.sha256(_value).hexdigest()
 
@@ -355,8 +392,11 @@ class RoadwayNetwork(BaseModel):
         """
         from .graph import net_to_graph
 
-        if self._modal_graphs[mode]["hash"] != self.modal_graph_hash(mode):
+        # Use modification version for efficient change detection
+        current_version = (self._modification_version, mode)
+        if self._modal_graphs[mode].get("version") != current_version:
             self._modal_graphs[mode]["graph"] = net_to_graph(self, mode)
+            self._modal_graphs[mode]["version"] = current_version
 
         return self._modal_graphs[mode]["graph"]
 
@@ -476,6 +516,7 @@ class RoadwayNetwork(BaseModel):
         self.links_df = validate_df_to_model(
             concat_with_attr([self.links_df, add_links_df], axis=0), RoadLinksTable
         )
+        self._mark_modified()
 
     def add_nodes(
         self,
@@ -504,6 +545,7 @@ class RoadwayNetwork(BaseModel):
         if self.nodes_df.attrs.get("name") != "road_nodes":
             msg = f"Expected nodes_df to have name 'road_nodes', got {self.nodes_df.attrs.get('name')}"
             raise NotNodesError(msg)
+        self._mark_modified()
 
     def add_shapes(
         self,
@@ -531,6 +573,8 @@ class RoadwayNetwork(BaseModel):
         self.shapes_df = validate_df_to_model(
             concat_with_attr([self.shapes_df, add_shapes_df], axis=0), RoadShapesTable
         )
+        # Note: shapes don't affect network_hash (only links and nodes), but we invalidate
+        # for consistency in case future changes include shapes in hash calculation
 
     def delete_links(
         self,
@@ -591,6 +635,7 @@ class RoadwayNetwork(BaseModel):
             ignore_missing=selection.ignore_missing,
             transit_net=transit_net,
         )
+        self._mark_modified()
 
     def delete_nodes(
         self,
@@ -626,6 +671,7 @@ class RoadwayNetwork(BaseModel):
         self.nodes_df = delete_nodes_by_ids(
             self.nodes_df, del_node_ids, ignore_missing=selection.ignore_missing
         )
+        self._mark_modified()
 
     def clean_unused_shapes(self):
         """Removes any unused shapes from network that aren't referenced by links_df."""
@@ -633,6 +679,7 @@ class RoadwayNetwork(BaseModel):
 
         del_shape_ids = shape_ids_without_links(self.shapes_df, self.links_df)
         self.shapes_df = self.shapes_df.drop(del_shape_ids)
+        # Note: shapes don't affect network_hash, but invalidate for consistency
 
     def clean_unused_nodes(self):
         """Removes any unused nodes from network that aren't referenced by links_df.
@@ -643,6 +690,7 @@ class RoadwayNetwork(BaseModel):
 
         node_ids = node_ids_without_links(self.nodes_df, self.links_df)
         self.nodes_df = self.nodes_df.drop(node_ids)
+        self._mark_modified()
 
     def move_nodes(
         self,
@@ -661,6 +709,7 @@ class RoadwayNetwork(BaseModel):
         self.shapes_df = edit_shape_geometry_from_nodes(
             self.shapes_df, self.links_df, self.nodes_df, node_ids
         )
+        self._mark_modified()
 
     def has_node(self, model_node_id: int) -> bool:
         """Queries if network has node based on model_node_id.
