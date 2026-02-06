@@ -453,7 +453,7 @@ def _delete_stop_times_for_nodes(
         WranglerStopTimesTable: Updated stop_times for the trip
     """
     WranglerLogger.debug(f"Deleting stop times for nodes: {del_stops_nodes}")
-    trip_stoptimes = trip_stoptimes[~trip_stoptimes.stop_id.isin(del_stops_nodes)]
+    trip_stoptimes = trip_stoptimes[~trip_stoptimes.stop_id.isin(del_stops_nodes)].copy()
     trip_stoptimes["stop_sequence"] = np.arange(len(trip_stoptimes)) + 1
     return trip_stoptimes
 

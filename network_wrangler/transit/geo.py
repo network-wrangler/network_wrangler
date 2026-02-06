@@ -46,7 +46,7 @@ def shapes_to_trip_shapes_gdf(
         shapes[["shape_id", "shape_pt_lat", "shape_pt_lon"]]
         .groupby("shape_id")
         .agg(list)
-        .apply(lambda x: LineString(zip(x[1], x[0])), axis=1)
+        .apply(lambda x: LineString(zip(x.iloc[1], x.iloc[0])), axis=1)
     )
 
     route_shapes_gdf = gpd.GeoDataFrame(

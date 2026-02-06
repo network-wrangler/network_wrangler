@@ -701,7 +701,12 @@ def concat_with_attr(dfs: list[pd.DataFrame], **kwargs) -> pd.DataFrame:
         msg = "No dataframes to concatenate."
         raise ValueError(msg)
     attrs = copy.deepcopy(dfs[0].attrs)
-    df = pd.concat(dfs, **kwargs)
+    # Filter out empty dataframes to avoid pandas FutureWarning about empty/all-NA entries
+    non_empty_dfs = [df for df in dfs if not df.empty]
+    if not non_empty_dfs:
+        # If all dfs are empty, return the first one with its structure
+        return dfs[0].copy()
+    df = pd.concat(non_empty_dfs, **kwargs)
     df.attrs = attrs
     return df
 

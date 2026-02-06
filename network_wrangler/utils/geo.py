@@ -253,8 +253,8 @@ def point_from_xy(x, y, xy_crs: int = LAT_LON_CRS, point_crs: int = LAT_LON_CRS)
     if (xy_crs, point_crs) not in transformers:
         # store transformers in dictionary because they are an "expensive" operation
         transformers[(xy_crs, point_crs)] = Transformer.from_proj(
-            Proj(init="epsg:" + str(xy_crs)),
-            Proj(init="epsg:" + str(point_crs)),
+            Proj(f"EPSG:{xy_crs}"),
+            Proj(f"EPSG:{point_crs}"),
             always_xy=True,  # required b/c Proj v6+ uses lon/lat instead of x/y
         )
 
