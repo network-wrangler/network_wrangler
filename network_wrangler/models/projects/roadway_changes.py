@@ -244,7 +244,7 @@ class RoadPropertyChange(RecordModel):
     existing: Optional[Any] = None
     change: Optional[Union[int, float]] = None
     set: Optional[Any] = None
-    scoped: Union[None, ScopedPropertySetList] = None
+    scoped: Optional[ScopedPropertySetList] = None
     overwrite_scoped: Optional[Literal["conflicting", "all", "error"]] = None
     existing_value_conflict: Optional[Literal["error", "warn", "skip"]] = None
 

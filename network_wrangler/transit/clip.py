@@ -235,12 +235,12 @@ def _clip_feed_to_nodes(
 
 def clip_transit(
     network: Union[TransitNetwork, str, Path],
-    node_ids: Union[None, list[str]] = None,
-    boundary_geocode: Union[None, str, dict] = None,
+    node_ids: Optional[list[str]] = None,
+    boundary_geocode: Optional[Union[str, dict]] = None,
     boundary_file: Optional[Union[str, Path]] = None,
-    boundary_gdf: Union[None, gpd.GeoDataFrame] = None,
-    ref_nodes_df: Union[None, gpd.GeoDataFrame] = None,
-    roadway_net: Union[None, RoadwayNetwork] = None,
+    boundary_gdf: Optional[gpd.GeoDataFrame] = None,
+    ref_nodes_df: Optional[gpd.GeoDataFrame] = None,
+    roadway_net: Optional[RoadwayNetwork] = None,
     min_stops: int = DEFAULT_MIN_STOPS,
 ) -> TransitNetwork:
     """Returns a new TransitNetwork clipped to a boundary as determined by arguments.
