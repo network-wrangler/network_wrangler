@@ -27,7 +27,7 @@ class ModelTransit:
         self.transit_net = transit_net
         self.roadway_net = roadway_net
         self._roadway_net_version = None
-        self._transit_feed_hash = None
+        self._transit_feed_version = None
         self._transit_shifted_to_ML = shift_transit_to_managed_lanes
 
     @property
@@ -40,7 +40,7 @@ class ModelTransit:
         """Indicate if roadway and transit networks have changed since self.m_feed updated."""
         return bool(
             self.roadway_net.modification_version == self._roadway_net_version
-            and self.transit_net.feed_hash == self._transit_feed_hash
+            and self.transit_net.feed.modification_version == self._transit_feed_version
         )
 
     @property
@@ -49,9 +49,9 @@ class ModelTransit:
         if self.consistent_nets:
             return self._m_feed
         # NOTE: look at this
-        # If networks have changed, update model transit and update reference version/hash
+        # If networks have changed, update model transit and update reference version
         self._roadway_net_version = self.roadway_net.modification_version
-        self._transit_feed_hash = copy.deepcopy(self.transit_net.feed_hash)
+        self._transit_feed_version = self.transit_net.feed.modification_version
 
         if not self._transit_shifted_to_ML:
             self._m_feed = copy.deepcopy(self.transit_net.feed)

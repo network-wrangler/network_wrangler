@@ -90,7 +90,7 @@ class TransitSelection:
         # Initialize
         self._selected_trips_df = None
         self.sel_key = dict_to_hexkey(selection_dict)
-        self._stored_feed_hash = copy.deepcopy(self.net.feed.hash)
+        self._stored_feed_version = self.net.feed.modification_version
 
         WranglerLogger.debug(f"...created TransitSelection object: {selection_dict}")
 
@@ -151,17 +151,17 @@ class TransitSelection:
     def selected_trips_df(self) -> DataFrame[WranglerTripsTable]:
         """Lazily evaluates selection for trips or returns stored value in self._selected_trips_df.
 
-        Will re-evaluate if the current network hash is different than the stored one from the
-        last selection.
+        Will re-evaluate if the current feed modification version is different than the stored
+        one from the last selection.
 
         Returns:
             DataFrame[WranglerTripsTable] of selected trips
         """
-        if (self._selected_trips_df is not None) and self._stored_feed_hash == self.net.feed_hash:
+        if (self._selected_trips_df is not None) and self._stored_feed_version == self.net.feed.modification_version:
             return self._selected_trips_df
 
         self._selected_trips_df = self._select_trips()
-        self._stored_feed_hash = copy.deepcopy(self.net.feed_hash)
+        self._stored_feed_version = self.net.feed.modification_version
         return self._selected_trips_df
 
     @property
