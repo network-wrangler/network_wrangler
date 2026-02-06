@@ -19,6 +19,44 @@ runs:
         name: coverage-py3.13
         path: coverage/
 
+    - name: Verify coverage files
+      shell: bash
+      run: |
+        echo "=== Files in coverage directory ==="
+        ls -lah coverage/ || echo "coverage/ directory doesn't exist"
+        echo ""
+        echo "=== Searching for coverage files ==="
+        find . -name "coverage.xml" -o -name "pytest.xml" | head -10
+        echo ""
+        
+        # Check if files are in the expected location
+        if [ -f "coverage/coverage.xml" ]; then
+          echo "✓ coverage.xml found at coverage/coverage.xml"
+        else
+          echo "✗ coverage.xml NOT found at coverage/coverage.xml"
+          echo "Checking if files are in root or subdirectories..."
+          if [ -f "coverage.xml" ]; then
+            echo "Found coverage.xml in root, moving to coverage/"
+            mkdir -p coverage
+            mv coverage.xml coverage/
+          fi
+        fi
+        
+        if [ -f "coverage/pytest.xml" ]; then
+          echo "✓ pytest.xml found at coverage/pytest.xml"
+        else
+          echo "⚠ pytest.xml not found at coverage/pytest.xml"
+          if [ -f "pytest.xml" ]; then
+            echo "Found pytest.xml in root, moving to coverage/"
+            mkdir -p coverage
+            mv pytest.xml coverage/
+          fi
+        fi
+        
+        echo ""
+        echo "=== Final coverage directory contents ==="
+        ls -lah coverage/ || echo "coverage/ still doesn't exist"
+
     - name: Pytest coverage comment
       uses: MishaKav/pytest-coverage-comment@main
       with:

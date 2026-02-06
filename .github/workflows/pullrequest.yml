@@ -105,14 +105,29 @@ jobs:
             coverage.xml
             pytest.xml
 
+      - name: Check benchmark files exist
+        if: |
+          (github.event.pull_request.base.ref == 'main' || github.event.pull_request.base.ref == 'develop') &&
+          matrix.python-version == '3.13'
+        shell: bash
+        run: |
+          echo "Checking for benchmark files..."
+          ls -lah benchmark.json 2>/dev/null || echo "benchmark.json not found"
+          ls -lah .benchmarks/ 2>/dev/null || echo ".benchmarks/ directory not found"
+          echo "PR base ref: ${{ github.event.pull_request.base.ref }}"
+          echo "Python version: ${{ matrix.python-version }}"
+
       - name: Upload benchmark artifacts
-        if: github.event.pull_request.base.ref == 'main' || github.event.pull_request.base.ref == 'develop'
+        if: |
+          (github.event.pull_request.base.ref == 'main' || github.event.pull_request.base.ref == 'develop') &&
+          matrix.python-version == '3.13'
         uses: actions/upload-artifact@v4
         with:
-          name: benchmark-py${{ matrix.python-version }}
+          name: benchmark-py3.13
           path: |
             benchmark.json
             .benchmarks/
+          if-no-files-found: warn
 
   docs:
     name: Build and deploy docs
@@ -167,10 +182,23 @@ jobs:
 
       - name: Download benchmark artifacts
         uses: actions/download-artifact@v4
+        continue-on-error: true
         with:
-          pattern: benchmark-*
-          merge-multiple: true
+          name: benchmark-py3.13
           path: ./
+
+      - name: Check if benchmark files exist
+        shell: bash
+        run: |
+          if [ ! -f "benchmark.json" ]; then
+            echo "WARNING: benchmark.json not found. Artifact may not have been uploaded."
+            echo "This can happen if:"
+            echo "  1. Tests didn't run benchmarks"
+            echo "  2. Benchmark files weren't created"
+            echo "  3. Upload step was skipped"
+            exit 1
+          fi
+          echo "✓ benchmark.json found"
 
       - name: Store benchmark result
         uses: benchmark-action/github-action-benchmark@v1
