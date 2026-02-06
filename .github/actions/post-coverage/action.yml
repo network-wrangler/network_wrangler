@@ -17,9 +17,9 @@ runs:
       uses: actions/download-artifact@v4
       with:
         name: coverage-py3.13
-        path: coverage/
+        path: ./
 
-    - name: Verify coverage files
+    - name: Verify and prepare coverage files
       shell: bash
       run: |
         echo "=== Files in coverage directory ==="
@@ -29,33 +29,45 @@ runs:
         find . -name "coverage.xml" -o -name "pytest.xml" | head -10
         echo ""
         
-        # Check if files are in the expected location
-        if [ -f "coverage/coverage.xml" ]; then
-          echo "✓ coverage.xml found at coverage/coverage.xml"
-        else
-          echo "✗ coverage.xml NOT found at coverage/coverage.xml"
-          echo "Checking if files are in root or subdirectories..."
-          if [ -f "coverage.xml" ]; then
-            echo "Found coverage.xml in root, moving to coverage/"
-            mkdir -p coverage
-            mv coverage.xml coverage/
+        # Create coverage directory if it doesn't exist
+        mkdir -p coverage
+        
+        # Find and move coverage.xml
+        COV_FILE=$(find . -name "coverage.xml" -type f | head -1)
+        if [ -n "$COV_FILE" ] && [ -f "$COV_FILE" ]; then
+          if [ "$COV_FILE" != "coverage/coverage.xml" ]; then
+            echo "Found coverage.xml at $COV_FILE, copying to coverage/coverage.xml"
+            cp "$COV_FILE" coverage/coverage.xml
           fi
+          echo "✓ coverage.xml found and prepared"
+        else
+          echo "✗ ERROR: coverage.xml not found anywhere in the artifact"
+          echo "Artifact structure:"
+          find . -type f | head -20
+          exit 1
         fi
         
-        if [ -f "coverage/pytest.xml" ]; then
-          echo "✓ pytest.xml found at coverage/pytest.xml"
-        else
-          echo "⚠ pytest.xml not found at coverage/pytest.xml"
-          if [ -f "pytest.xml" ]; then
-            echo "Found pytest.xml in root, moving to coverage/"
-            mkdir -p coverage
-            mv pytest.xml coverage/
+        # Find and move pytest.xml
+        PYTEST_FILE=$(find . -name "pytest.xml" -type f | head -1)
+        if [ -n "$PYTEST_FILE" ] && [ -f "$PYTEST_FILE" ]; then
+          if [ "$PYTEST_FILE" != "coverage/pytest.xml" ]; then
+            echo "Found pytest.xml at $PYTEST_FILE, copying to coverage/pytest.xml"
+            cp "$PYTEST_FILE" coverage/pytest.xml
           fi
+          echo "✓ pytest.xml found and prepared"
+        else
+          echo "⚠ WARNING: pytest.xml not found (may be optional)"
         fi
         
         echo ""
         echo "=== Final coverage directory contents ==="
-        ls -lah coverage/ || echo "coverage/ still doesn't exist"
+        ls -lah coverage/
+        
+        # Verify coverage.xml exists before proceeding
+        if [ ! -f "coverage/coverage.xml" ]; then
+          echo "ERROR: coverage.xml is required but not found after preparation"
+          exit 1
+        fi
 
     - name: Pytest coverage comment
       uses: MishaKav/pytest-coverage-comment@main

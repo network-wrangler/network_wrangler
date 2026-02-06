@@ -57,9 +57,31 @@ jobs:
         run: |
           # Only generate coverage for Python 3.13 to save time and simplify artifacts
           if [ "${{ matrix.python-version }}" = "3.13" ]; then
-            pytest --junitxml=pytest.xml --cov-report "xml:coverage.xml" --benchmark-save=benchmark --benchmark-json=benchmark.json
+            pytest --junitxml=pytest.xml --cov=network_wrangler --cov-report "xml:coverage.xml" --benchmark-save=benchmark --benchmark-json=benchmark.json
           else
             pytest --benchmark-save=benchmark --benchmark-json=benchmark.json
+          fi
+
+      - name: Verify coverage files exist
+        if: matrix.python-version == '3.13'
+        shell: bash
+        run: |
+          echo "=== Checking for coverage files ==="
+          if [ -f "coverage.xml" ]; then
+            echo "✓ coverage.xml exists ($(wc -c < coverage.xml) bytes)"
+            head -20 coverage.xml
+          else
+            echo "✗ coverage.xml NOT FOUND"
+            echo "Current directory: $(pwd)"
+            echo "Files in current directory:"
+            ls -lah | head -20
+            exit 1
+          fi
+          
+          if [ -f "pytest.xml" ]; then
+            echo "✓ pytest.xml exists ($(wc -c < pytest.xml) bytes)"
+          else
+            echo "⚠ pytest.xml NOT FOUND"
           fi
 
       - name: Upload coverage artifacts
@@ -70,15 +92,60 @@ jobs:
           path: |
             coverage.xml
             pytest.xml
+          if-no-files-found: error
 
       - name: Upload benchmark artifacts
-        if: github.ref == 'refs/heads/main'
+        if: matrix.python-version == '3.13'
         uses: actions/upload-artifact@v4
         with:
-          name: benchmark-py${{ matrix.python-version }}
+          name: benchmark-py3.13
           path: |
             benchmark.json
             .benchmarks/
+          if-no-files-found: warn
+
+  benchmark:
+    name: Compare and store benchmarks
+    needs: test
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write  # Required to commit benchmark.json to branch
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # Need full history to compare to previous commit
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Download benchmark artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: benchmark-py3.13
+          path: ./
+        continue-on-error: true
+
+      - name: Check if benchmark.json exists
+        shell: bash
+        run: |
+          if [ ! -f "benchmark.json" ]; then
+            echo "WARNING: benchmark.json not found. Skipping benchmark comparison."
+            echo "This can happen if:"
+            echo "  1. Tests didn't run benchmarks"
+            echo "  2. Benchmark files weren't created"
+            echo "  3. Upload step was skipped"
+            exit 0
+          fi
+          echo "✓ benchmark.json found"
+
+      - name: Compare and commit benchmarks
+        if: hashFiles('benchmark.json') != ''
+        uses: ./.github/actions/compare-benchmarks
+        with:
+          comparison-type: push
+          benchmark-json-path: benchmark.json
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          python-version: "3.13"
 
   docs:
     name: Build and deploy docs
