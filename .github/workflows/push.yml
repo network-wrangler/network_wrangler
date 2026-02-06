@@ -4,6 +4,10 @@ on: [push]
 
 jobs:
   tests:
+    permissions:
+      contents: write  # Required for mike deploy and benchmark commits
+      issues: write    # Required for posting benchmark comments
+      pull-requests: write  # Required for posting PR comments
 
     runs-on: ubuntu-latest
     strategy:
@@ -32,7 +36,7 @@ jobs:
       run: ruff check --output-format=github network_wrangler
     - name: Run tests
       run: |
-          pytest --junitxml=pytest.xml --cov-report "xml:coverage.xml" --benchmark-save=benchmark --benchmark-json=benchmark.json
+          pytest --junitxml=pytest.xml --cov=network_wrangler --cov-report "xml:coverage.xml" --benchmark-save=benchmark --benchmark-json=benchmark.json
     - name: Build docs
       run: |
         VERSION=$(echo "${{ github.ref_name }}" | tr '/' '-')
@@ -48,8 +52,11 @@ jobs:
         output-file-path: benchmark.json
         alert-threshold: '125%'
         github-token: ${{ secrets.GITHUB_TOKEN }}
-        comment-on-alert: true
-        summary-always: true
+        comment-on-alert: false  # Disable comments for push events (only works for PRs)
+        summary-always: false  # Disable summary for push events
+        skip-fetch-gh-pages: true  # Skip gh-pages operations
+        save-data-file: false  # Don't save to gh-pages
+        auto-push: false  # Don't push to gh-pages
     - name: Pytest coverage comment
       if: github.event_name == 'pull_request'
       uses: MishaKav/pytest-coverage-comment@main
