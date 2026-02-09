@@ -65,7 +65,7 @@ Example:
 DbForeignKeyUsage = dict[str, dict[str, list[tuple[str, str]]]]
 
 
-class DBModelMixin:  # noqa: PLW1641
+class DBModelMixin:
     """An mixin class for interrelated pandera DataFrameModel tables.
 
     Contains a bunch of convenience methods and overrides the dunder methods

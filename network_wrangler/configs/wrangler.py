@@ -5,7 +5,7 @@ can be saved as a wrangler config file which can be read in repeatedly to make s
 parameters are used each time.
 
 !!! tip "YAML Configuration (Recommended)"
-    
+
     The easiest way to configure parameters is using a YAML file. This is especially useful for
     users who are less familiar with Python, as you can simply point to a YAML file path rather
     than writing Python code.
@@ -22,7 +22,7 @@ parameters are used each time.
 
     ```python
     from network_wrangler.configs import load_wrangler_config
-    
+
     config = load_wrangler_config("wrangler.config.yml")
     ```
 
@@ -89,7 +89,7 @@ If not provided, Wrangler will use reasonable defaults.
 
 Extended usage:
     !!! warning "Do Not Modify DefaultConfig in Python"
-    
+
         **Do not modify `DefaultConfig` directly in Python code.** Instead, always use YAML or TOML
         configuration files. Modifying `DefaultConfig` directly can lead to unexpected behavior
         and makes it difficult to track configuration changes.
@@ -101,7 +101,7 @@ Extended usage:
 
     # Load configuration from a YAML or TOML file
     config = load_wrangler_config("path/to/wrangler.config.yml")
-    
+
     # Use the config when loading networks or creating scenarios
     road_net = load_roadway_from_dir("path/to/roadway", config=config)
     ```
@@ -112,7 +112,7 @@ Extended usage:
 
     ```python
     from network_wrangler.configs import DefaultConfig
-    
+
     # Read default value (read-only)
     default_offset = DefaultConfig.MODEL_ROADWAY.ML_OFFSET_METERS
     ```
