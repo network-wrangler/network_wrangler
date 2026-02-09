@@ -184,7 +184,9 @@ answer_selected_links = [
 ]
 
 
-@pytest.mark.parametrize(("selection", "answer"), zip(TEST_SELECTIONS, answer_selected_links))
+@pytest.mark.parametrize(
+    ("selection", "answer"), zip(TEST_SELECTIONS, answer_selected_links, strict=False)
+)
 def test_select_roadway_features(request, selection, answer, stpaul_net):
     WranglerLogger.info(f"--Starting: {request.node.name}")
     net = stpaul_net

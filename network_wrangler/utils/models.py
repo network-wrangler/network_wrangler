@@ -3,7 +3,8 @@
 import copy
 from functools import wraps
 from pathlib import Path
-from typing import _GenericAlias, get_args, get_origin, get_type_hints
+from types import UnionType
+from typing import Union, _GenericAlias, get_args, get_origin, get_type_hints
 
 import geopandas as gpd
 import pandas as pd
@@ -226,7 +227,8 @@ def _is_type_from_type_hint(type_hint_value, type_to_check):
                     pass
         return False
 
-    if get_origin(type_hint_value) is Union:
+    origin = get_origin(type_hint_value)
+    if origin is Union or origin is UnionType:
         args = get_args(type_hint_value)
         for arg in args:
             if check_type_hint(arg):
