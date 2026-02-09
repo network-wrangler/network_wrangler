@@ -76,7 +76,9 @@ def write_table(
     elif "geojson" in filename.suffix:
         # required due to issues with list-like columns
         if isinstance(df, gpd.GeoDataFrame):
-            data = df.to_json(drop_id=True)
+            # Reset index to avoid pandas 3.0/pyarrow compatibility issues with to_json
+            # Since drop_id=True, we don't need the original index anyway
+            data = df.reset_index(drop=True).to_json(drop_id=True)
         else:
             data = df.to_json(orient="records", index=False)
         with filename.open("w", encoding="utf-8") as file:
