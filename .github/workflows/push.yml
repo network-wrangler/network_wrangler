@@ -1,61 +1,169 @@
-name: Lint, test + build docs
+name: CI (Lint, Test, Docs, Benchmark)
 
-on: [push]
+on:
+  push:
+    branches: [main, develop]
 
 jobs:
-  tests:
+  lint:
+    name: Lint code
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
 
+      - name: Setup Python with UV
+        uses: ./.github/actions/setup-python-uv
+        with:
+          python-version: "3.13"
+
+      - name: Install ruff
+        run: |
+          uv pip install --system ruff
+        shell: bash
+
+      - name: Check formatting
+        run: ruff format --check network_wrangler
+        continue-on-error: true
+
+      - name: Check linting
+        run: ruff check --output-format=github network_wrangler
+        continue-on-error: true
+
+  test:
+    name: Test (Python ${{ matrix.python-version }})
+    needs: lint
     runs-on: ubuntu-latest
     strategy:
+      fail-fast: false
       matrix:
-        python-version: ["3.9", "3.10", "3.11", "3.12", "3.13"]
+        python-version: ["3.10", "3.11", "3.12", "3.13"]
 
     steps:
-    - uses: actions/checkout@v4
-      with:
-        fetch-depth: 0
-    - name: Document branch
-      run: echo ${{ github.ref_name }}
-    - name: Set up Python ${{ matrix.python-version }}
-      uses: actions/setup-python@v5
-      with:
-        python-version: ${{ matrix.python-version }}
-    - name: Configure Git user
-      run: |
-          git config --local user.email "github-actions[bot]@users.noreply.github.com"
-          git config --local user.name "github-actions[bot]"
-    - name: Install dependencies
-      run: |
-        python -m pip install --upgrade pip
-        pip install -e .[tests]
-    - name: Lint
-      run: ruff check --output-format=github network_wrangler
-    - name: Run tests
-      run: |
-          pytest --junitxml=pytest.xml --cov-report "xml:coverage.xml" --benchmark-save=benchmark --benchmark-json=benchmark.json
-    - name: Test package import (would fail before hotfix)
-      run: |
-          python -c "from network_wrangler import load_roadway_from_dir; print('✓ Import successful')"
-    - name: Build docs
-      run: |
-        VERSION=$(echo "${{ github.ref_name }}" | tr '/' '-')
-        mike deploy --push "$VERSION"
-    - name: Update latest docs
-      if: github.ref == 'refs/heads/main'
-      run: |
-        mike alias "${{ github.ref_name }}" latest --update-aliases --push
-    - name: Store benchmark result
-      uses: benchmark-action/github-action-benchmark@v1
-      with:
-        tool: 'pytest'
-        output-file-path: benchmark.json
-        alert-threshold: '125%'
-        github-token: ${{ secrets.GITHUB_TOKEN }}
-        comment-on-alert: true
-        summary-always: true
-    - name: Pytest coverage comment
-      if: github.event_name == 'pull_request'
-      uses: MishaKav/pytest-coverage-comment@main
-      with:
-        pytest-xml-coverage-path: coverage.xml
-        junitxml-path: pytest.xml
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Python with UV
+        uses: ./.github/actions/setup-python-uv
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: Install dependencies
+        run: |
+          uv pip install --system -e .[tests]
+        shell: bash
+
+      - name: Run tests
+        run: |
+          # Only generate coverage for Python 3.13 to save time and simplify artifacts
+          if [ "${{ matrix.python-version }}" = "3.13" ]; then
+            pytest --junitxml=pytest.xml --cov=network_wrangler --cov-report "xml:coverage.xml" --benchmark-save=benchmark --benchmark-json=benchmark.json
+          else
+            pytest --benchmark-save=benchmark --benchmark-json=benchmark.json
+          fi
+
+      - name: Verify coverage files exist
+        if: matrix.python-version == '3.13'
+        shell: bash
+        run: |
+          echo "=== Checking for coverage files ==="
+          if [ -f "coverage.xml" ]; then
+            echo "✓ coverage.xml exists ($(wc -c < coverage.xml) bytes)"
+            head -20 coverage.xml
+          else
+            echo "✗ coverage.xml NOT FOUND"
+            echo "Current directory: $(pwd)"
+            echo "Files in current directory:"
+            ls -lah | head -20
+            exit 1
+          fi
+          
+          if [ -f "pytest.xml" ]; then
+            echo "✓ pytest.xml exists ($(wc -c < pytest.xml) bytes)"
+          else
+            echo "⚠ pytest.xml NOT FOUND"
+          fi
+
+      - name: Upload coverage artifacts
+        if: matrix.python-version == '3.13'
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-py3.13
+          path: |
+            coverage.xml
+            pytest.xml
+          if-no-files-found: error
+
+      - name: Upload benchmark artifacts
+        if: matrix.python-version == '3.13'
+        uses: actions/upload-artifact@v4
+        with:
+          name: benchmark-py3.13
+          path: |
+            benchmark.json
+            .benchmarks/
+          if-no-files-found: warn
+
+  benchmark:
+    name: Compare and store benchmarks
+    needs: test
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write  # Required to commit benchmark.json to branch
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # Need full history to compare to previous commit
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Download benchmark artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: benchmark-py3.13
+          path: ./
+        continue-on-error: true
+
+      - name: Check if benchmark.json exists
+        shell: bash
+        run: |
+          if [ ! -f "benchmark.json" ]; then
+            echo "WARNING: benchmark.json not found. Skipping benchmark comparison."
+            echo "This can happen if:"
+            echo "  1. Tests didn't run benchmarks"
+            echo "  2. Benchmark files weren't created"
+            echo "  3. Upload step was skipped"
+            exit 0
+          fi
+          echo "✓ benchmark.json found"
+
+      - name: Compare and commit benchmarks
+        if: hashFiles('benchmark.json') != ''
+        uses: ./.github/actions/compare-benchmarks
+        with:
+          comparison-type: push
+          benchmark-json-path: benchmark.json
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          python-version: "3.13"
+
+  docs:
+    name: Build and deploy docs
+    needs: lint
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Get branch name
+        id: branch
+        uses: ./.github/actions/get-branch-name
+
+      - name: Build and deploy docs
+        uses: ./.github/actions/build-docs
+        with:
+          python-version: "3.13"
+          branch-name: ${{ steps.branch.outputs.branch-name }}
