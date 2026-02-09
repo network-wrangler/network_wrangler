@@ -4,7 +4,6 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-
 from ...logger import WranglerLogger
 from ...models.projects.roadway_changes import RoadwayDeletion
 

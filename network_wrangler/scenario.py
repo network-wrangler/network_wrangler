@@ -327,9 +327,7 @@ class Scenario:
             )
         self.name: str = name
         # if the base scenario had roadway or transit networks, use them as the basis.
-        self.road_net: RoadwayNetwork | None = copy.deepcopy(
-            base_scenario.pop("road_net", None)
-        )
+        self.road_net: RoadwayNetwork | None = copy.deepcopy(base_scenario.pop("road_net", None))
 
         self.transit_net: TransitNetwork | None = copy.deepcopy(
             base_scenario.pop("transit_net", None)

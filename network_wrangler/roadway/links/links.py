@@ -1,6 +1,5 @@
 """Functions for querying RoadLinksTable."""
 
-
 import pandas as pd
 from pandera.typing import DataFrame
 

@@ -3,8 +3,6 @@
 from enum import IntEnum
 
 
-
-
 class BikesAllowed(IntEnum):
     """Indicates whether bicycles are allowed."""
 

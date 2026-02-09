@@ -7,7 +7,6 @@ import hashlib
 from abc import ABC, abstractmethod
 from typing import TYPE_CHECKING, ClassVar, Literal
 
-
 from ..errors import SelectionError
 from ..logger import WranglerLogger
 from ..models.projects import (

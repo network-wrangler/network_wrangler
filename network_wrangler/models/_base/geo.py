@@ -1,4 +1,3 @@
-
 from pydantic import (
     RootModel,
     confloat,
