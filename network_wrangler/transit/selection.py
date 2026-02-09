@@ -157,7 +157,9 @@ class TransitSelection:
         Returns:
             DataFrame[WranglerTripsTable] of selected trips
         """
-        if (self._selected_trips_df is not None) and self._stored_feed_version == self.net.feed.modification_version:
+        if (
+            self._selected_trips_df is not None
+        ) and self._stored_feed_version == self.net.feed.modification_version:
             return self._selected_trips_df
 
         self._selected_trips_df = self._select_trips()

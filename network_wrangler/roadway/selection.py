@@ -341,7 +341,10 @@ class RoadwayLinkSelection(RoadwaySelection):
         Will re-evaluate if the current network modification version is different than the stored
         one from the last selection.
         """
-        if self._selected_links_df is None or self._stored_net_version != self.net.modification_version:
+        if (
+            self._selected_links_df is None
+            or self._stored_net_version != self.net.modification_version
+        ):
             self._stored_net_version = self.net.modification_version
             self._selected_links_df = self._perform_selection()
 
@@ -541,7 +544,10 @@ class RoadwayNodeSelection(RoadwaySelection):
         Will re-evaluate if the current network modification version is different than the stored
         one from the last selection.
         """
-        if self._selected_nodes_df is None or self._stored_net_version != self.net.modification_version:
+        if (
+            self._selected_nodes_df is None
+            or self._stored_net_version != self.net.modification_version
+        ):
             self._stored_net_version = self.net.modification_version
             self._selected_nodes_df = self._perform_selection()
 

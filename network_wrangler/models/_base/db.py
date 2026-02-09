@@ -120,8 +120,8 @@ class DBModelMixin:
         This is called automatically when tables are modified via __setattr__.
         """
         # Use object.__setattr__ to avoid recursion
-        current = getattr(self, '_modification_version', 0)
-        object.__setattr__(self, '_modification_version', current + 1)
+        current = getattr(self, "_modification_version", 0)
+        object.__setattr__(self, "_modification_version", current + 1)
 
     @property
     def modification_version(self) -> int:
@@ -130,7 +130,7 @@ class DBModelMixin:
         This counter increments each time a table is modified and can be used
         for efficient change detection without computing expensive hashes.
         """
-        return getattr(self, '_modification_version', 0)
+        return getattr(self, "_modification_version", 0)
 
     def __setattr__(self, key, value):
         """Override the default setattr behavior to handle DataFrame validation.
