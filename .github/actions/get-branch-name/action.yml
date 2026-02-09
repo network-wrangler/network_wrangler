@@ -1,0 +1,48 @@
+name: 'Get Branch Name'
+description: 'Get normalized branch name from GitHub event context'
+outputs:
+  branch-name:
+    description: 'Normalized branch name (without refs/heads/ prefix)'
+    value: ${{ steps.branch-name.outputs.value }}
+
+runs:
+  using: 'composite'
+  steps:
+    - name: Determine branch name
+      id: branch-name
+      run: |
+        if [ "${{ github.event_name }}" = "delete" ]; then
+          # For delete events, event.ref contains the full ref path
+          BRANCH_NAME="${{ github.event.ref }}"
+          # Remove refs/heads/ or refs/tags/ prefix if present
+          BRANCH_NAME="${BRANCH_NAME#refs/heads/}"
+          BRANCH_NAME="${BRANCH_NAME#refs/tags/}"
+        elif [ "${{ github.event_name }}" = "pull_request" ]; then
+          # For PR events, use the head branch name (source branch of the PR)
+          BRANCH_NAME="${{ github.event.pull_request.head.ref }}"
+        elif [ "${{ github.event_name }}" = "push" ]; then
+          # For push events, ref_name is the branch name without prefix
+          BRANCH_NAME="${{ github.ref_name }}"
+        else
+          # Fallback: try ref_name which works for most event types
+          BRANCH_NAME="${{ github.ref_name }}"
+        fi
+        
+        # Validate that we got a branch name
+        if [ -z "$BRANCH_NAME" ] || [ "$BRANCH_NAME" = "" ]; then
+          echo "ERROR: Could not determine branch name from event" >&2
+          echo "Event: ${{ github.event_name }}" >&2
+          if [ "${{ github.event_name }}" = "delete" ]; then
+            echo "Ref: ${{ github.event.ref }}" >&2
+          elif [ "${{ github.event_name }}" = "pull_request" ]; then
+            echo "PR head ref: ${{ github.event.pull_request.head.ref }}" >&2
+          else
+            echo "Ref name: ${{ github.ref_name }}" >&2
+          fi
+          exit 1
+        fi
+        
+        echo "Branch name determined: $BRANCH_NAME"
+        echo "value=$BRANCH_NAME" >> $GITHUB_OUTPUT
+      shell: bash
+

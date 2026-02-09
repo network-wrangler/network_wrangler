@@ -1,0 +1,105 @@
+name: Publish Release
+
+on:
+  # Publish to PyPI on release publish
+  release:
+    types: [published]
+  # Manual trigger
+  workflow_dispatch:
+    inputs:
+      test:
+        description: 'Publish to TestPyPI (true) or PyPI (false)'
+        required: true
+        type: boolean
+        default: false
+
+jobs:
+  publish-to-pypi:
+    name: Publish to PyPI
+    if: |
+      github.event_name == 'release' ||
+      (github.event_name == 'workflow_dispatch' && github.event.inputs.test == 'false')
+    runs-on: ubuntu-latest
+    environment:
+      name: pypi
+      url: https://pypi.org/p/network-wrangler
+    permissions:
+      id-token: write  # IMPORTANT: mandatory for trusted publishing
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.x"
+
+      - name: Validate version matches tag
+        id: version-check
+        if: github.event_name == 'release'
+        run: |
+          TAG="${GITHUB_REF_NAME}"  # e.g. v1.2.3
+          if [[ ! "$TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+([a-zA-Z0-9\.\-]+)?$ ]]; then
+            echo "Release tag must look like v1.2.3 (optionally with pre-release suffix). Got: $TAG"
+            exit 1
+          fi
+          VERSION="${TAG#v}"
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          export VERSION
+
+          python - <<'PY'
+          import importlib, os, sys
+          version = os.environ["VERSION"]
+          pkg = "network_wrangler"
+          m = importlib.import_module(pkg)
+          v = getattr(m, "__version__", None)
+          if v != version:
+            print(f"ERROR: tag version {version} != {pkg}.__version__ {v}")
+            sys.exit(1)
+          print(f"OK: {pkg}.__version__ matches tag ({version})")
+          PY
+
+      - name: Check if version already exists on PyPI
+        id: check-version
+        run: |
+          VERSION="${{ steps.version-check.outputs.version }}"
+          if [ -z "$VERSION" ]; then
+            # For manual dispatch, skip version check
+            echo "exists=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          
+          # Check if version exists on PyPI
+          RESPONSE=$(curl -s "https://pypi.org/pypi/network-wrangler/$VERSION/json" || echo "not found")
+          if echo "$RESPONSE" | grep -q '"info"'; then
+            echo "ERROR: Version $VERSION already exists on PyPI"
+            echo "exists=true" >> "$GITHUB_OUTPUT"
+            exit 1
+          else
+            echo "Version $VERSION does not exist on PyPI"
+            echo "exists=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Install build tools
+        run: |
+          python3 -m pip install --upgrade pip
+          pip install build --user
+
+      - name: Build distribution
+        run: python3 -m build
+
+      - name: Publish to PyPI
+        uses: pypa/gh-action-pypi-publish@release/v1
+
+  publish-docs:
+    name: Publish documentation to GitHub Pages
+    if: github.event_name == 'release'
+    needs:
+      - publish-to-pypi
+    runs-on: ubuntu-latest
+    steps:
+      - name: Build and deploy docs
+        uses: ./.github/actions/build-docs
+        with:
+          python-version: "3.13"
+          branch-name: ${{ github.ref_name }}

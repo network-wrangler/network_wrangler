@@ -1,0 +1,256 @@
+name: PR Checks
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+    # Only run when code changes:
+    # - opened: when PR is first created
+    # - synchronize: when new commits are pushed to PR branch
+    # - reopened: when a closed PR is reopened (may have new code)
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  lint:
+    name: Lint code
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write  # Required to commit fixes back to PR
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          ref: ${{ github.event.pull_request.head.ref }}
+          repository: ${{ github.event.pull_request.head.repo.full_name }}
+
+      - name: Setup Python with UV
+        uses: ./.github/actions/setup-python-uv
+        with:
+          python-version: "3.13"
+
+      - name: Install ruff
+        run: |
+          uv pip install --system ruff
+        shell: bash
+
+      - name: Format code with ruff
+        run: ruff format network_wrangler
+        continue-on-error: true
+
+      - name: Fix linting issues
+        run: ruff check --fix --output-format=github network_wrangler
+        continue-on-error: true
+
+      - name: Check for changes
+        id: check-changes
+        run: |
+          if [ -n "$(git status --porcelain)" ]; then
+            echo "has_changes=true" >> $GITHUB_OUTPUT
+          else
+            echo "has_changes=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Commit fixes
+        if: steps.check-changes.outputs.has_changes == 'true'
+        run: |
+          git config --local user.email "github-actions[bot]@users.noreply.github.com"
+          git config --local user.name "github-actions[bot]"
+          git add -A
+          git commit -m "style: Auto-fix code formatting and linting issues [skip ci]"
+          git push origin HEAD:${{ github.event.pull_request.head.ref }}
+        shell: bash
+
+      - name: Check for remaining issues
+        run: ruff check --output-format=github network_wrangler
+
+  test:
+    name: Test (Python ${{ matrix.python-version }})
+    needs: lint
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.10", "3.11", "3.12", "3.13"]
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Python with UV
+        uses: ./.github/actions/setup-python-uv
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: Install dependencies
+        run: |
+          uv pip install --system -e .[tests]
+        shell: bash
+
+      - name: Run tests
+        run: |
+          # Only generate coverage for Python 3.13 to save time and simplify artifacts
+          if [ "${{ matrix.python-version }}" = "3.13" ]; then
+            pytest --junitxml=pytest.xml --cov=network_wrangler --cov-report "xml:coverage.xml" --benchmark-save=benchmark --benchmark-json=benchmark.json
+          else
+            pytest --benchmark-save=benchmark --benchmark-json=benchmark.json
+          fi
+
+      - name: Verify coverage files exist
+        if: matrix.python-version == '3.13'
+        shell: bash
+        run: |
+          echo "=== Checking for coverage files ==="
+          if [ -f "coverage.xml" ]; then
+            echo "✓ coverage.xml exists ($(wc -c < coverage.xml) bytes)"
+            head -20 coverage.xml
+          else
+            echo "✗ coverage.xml NOT FOUND"
+            echo "Current directory: $(pwd)"
+            echo "Files in current directory:"
+            ls -lah | head -20
+            exit 1
+          fi
+          
+          if [ -f "pytest.xml" ]; then
+            echo "✓ pytest.xml exists ($(wc -c < pytest.xml) bytes)"
+          else
+            echo "⚠ pytest.xml NOT FOUND"
+          fi
+
+      - name: Upload coverage artifacts
+        if: matrix.python-version == '3.13'
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-py3.13
+          path: |
+            coverage.xml
+            pytest.xml
+          if-no-files-found: error
+
+      - name: Check benchmark files exist
+        if: |
+          (github.event.pull_request.base.ref == 'main' || github.event.pull_request.base.ref == 'develop') &&
+          matrix.python-version == '3.13'
+        shell: bash
+        run: |
+          echo "Checking for benchmark files..."
+          ls -lah benchmark.json 2>/dev/null || echo "benchmark.json not found"
+          ls -lah .benchmarks/ 2>/dev/null || echo ".benchmarks/ directory not found"
+          echo "PR base ref: ${{ github.event.pull_request.base.ref }}"
+          echo "Python version: ${{ matrix.python-version }}"
+
+      - name: Upload benchmark artifacts
+        if: |
+          (github.event.pull_request.base.ref == 'main' || github.event.pull_request.base.ref == 'develop') &&
+          matrix.python-version == '3.13'
+        uses: actions/upload-artifact@v4
+        with:
+          name: benchmark-py3.13
+          path: |
+            benchmark.json
+            .benchmarks/
+          if-no-files-found: warn
+
+  docs:
+    name: Build and deploy docs
+    needs: lint
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Get branch name
+        id: branch
+        uses: ./.github/actions/get-branch-name
+
+      - name: Build and deploy docs
+        uses: ./.github/actions/build-docs
+        with:
+          python-version: "3.13"
+          branch-name: ${{ steps.branch.outputs.branch-name }}
+
+      - name: Post docs comment
+        if: github.event.action == 'opened'
+        uses: actions/github-script@v7
+        continue-on-error: true
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const branchName = '${{ steps.branch.outputs.branch-name }}';
+            const docsUrl = `https://network-wrangler.github.io/network_wrangler/${branchName}/`;
+            const comment = `📚 Documentation has been built and deployed!
+            
+            View the docs for this PR: [${docsUrl}](${docsUrl})`;
+            
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: ${{ github.event.pull_request.number }},
+              body: comment,
+            });
+
+  benchmark:
+    name: Compare and store benchmarks
+    needs: test
+    if: github.event.pull_request.base.ref == 'main' || github.event.pull_request.base.ref == 'develop'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write  # Required to commit benchmark.json to PR branch
+      pull-requests: write  # Required for posting PR comments (PRs are issues in GitHub API)
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # Need full history to fetch base branch
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Download benchmark artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: benchmark-py3.13
+          path: ./
+
+      - name: Check if benchmark files exist
+        shell: bash
+        run: |
+          if [ ! -f "benchmark.json" ]; then
+            echo "WARNING: benchmark.json not found. Artifact may not have been uploaded."
+            echo "This can happen if:"
+            echo "  1. Tests didn't run benchmarks"
+            echo "  2. Benchmark files weren't created"
+            echo "  3. Upload step was skipped"
+            exit 1
+          fi
+          echo "✓ benchmark.json found"
+
+      - name: Compare and commit benchmarks
+        uses: ./.github/actions/compare-benchmarks
+        with:
+          comparison-type: pr
+          benchmark-json-path: benchmark.json
+          base-branch: ${{ github.event.pull_request.base.ref }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          pr-number: ${{ github.event.pull_request.number }}
+          python-version: "3.13"
+
+  coverage:
+    name: Post coverage comment
+    needs: test
+    if: github.event.pull_request.base.ref == 'main' || github.event.pull_request.base.ref == 'develop'
+    runs-on: ubuntu-latest
+    permissions:
+      pull-requests: write  # Required for posting PR comments (PRs are issues in GitHub API)
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Post coverage comment
+        uses: ./.github/actions/post-coverage
