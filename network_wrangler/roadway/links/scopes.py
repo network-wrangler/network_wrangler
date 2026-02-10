@@ -35,12 +35,11 @@ model_links_df["lanes_AM_sov"] = prop_for_scope(links_df, ["6:00":"9:00"], categ
 from __future__ import annotations
 
 import copy
-from typing import Any, Union
+from typing import Any, TypeGuard, Union
 
 import pandas as pd
 from pandera.typing import DataFrame
 from pydantic import validate_call
-from typing_extensions import TypeGuard
 
 from ...errors import InvalidScopedLinkValue
 from ...logger import WranglerLogger

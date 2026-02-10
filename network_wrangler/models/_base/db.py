@@ -1,7 +1,8 @@
 import copy
 import hashlib
 from collections import defaultdict
-from typing import Callable, ClassVar, Optional
+from collections.abc import Callable
+from typing import ClassVar, Optional
 
 import pandas as pd
 from pandera import DataFrameModel

@@ -2,8 +2,9 @@
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from pathlib import Path
-from typing import Callable, ClassVar, Literal, Optional
+from typing import ClassVar, Literal, Optional
 
 import pandas as pd
 from pandera.typing import DataFrame

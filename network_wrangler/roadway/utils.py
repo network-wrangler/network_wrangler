@@ -45,7 +45,9 @@ def compare_links(
     """
     if names is None:
         names = ["links" + str(i) for i in range(1, len(links) + 1)]
-    df = pd.DataFrame({name: link.of_type.summary for name, link in zip(names, links, strict=True)})
+    df = pd.DataFrame(
+        {name: link.of_type.summary for name, link in zip(names, links, strict=True)}
+    )
     return df
 
 

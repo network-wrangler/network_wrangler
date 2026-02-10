@@ -200,7 +200,9 @@ def linestring_from_lats_lons(df, lat_fields, lon_fields) -> gpd.GeoSeries:
 
     line_geometries = gpd.GeoSeries(
         [
-            LineString([(row[lon], row[lat]) for lon, lat in zip(lon_fields, lat_fields, strict=True)])
+            LineString(
+                [(row[lon], row[lat]) for lon, lat in zip(lon_fields, lat_fields, strict=True)]
+            )
             for _, row in df.iterrows()
         ]
     )
