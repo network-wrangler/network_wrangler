@@ -1,0 +1,95 @@
+name: Prepare Release
+
+on:
+  # Run on release creation to validate and test
+  release:
+    types: [created]
+  # Manual trigger for testing
+  workflow_dispatch:
+
+jobs:
+  prepare-release:
+    name: Prepare and Validate Release
+    runs-on: ubuntu-latest
+    environment:
+      name: testpypi
+      url: https://test.pypi.org/p/network-wrangler
+    permissions:
+      id-token: write  # IMPORTANT: mandatory for trusted publishing
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.x"
+
+      - name: Validate version matches tag
+        id: version-check
+        run: |
+          TAG="${GITHUB_REF_NAME}"  # e.g. v1.2.3
+          if [[ ! "$TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+([a-zA-Z0-9\.\-]+)?$ ]]; then
+            echo "Release tag must look like v1.2.3 (optionally with pre-release suffix). Got: $TAG"
+            exit 1
+          fi
+          VERSION="${TAG#v}"
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          export VERSION
+
+          python - <<'PY'
+          import importlib, os, sys
+          version = os.environ["VERSION"]
+          pkg = "network_wrangler"
+          m = importlib.import_module(pkg)
+          v = getattr(m, "__version__", None)
+          if v != version:
+            print(f"ERROR: tag version {version} != {pkg}.__version__ {v}")
+            sys.exit(1)
+          print(f"OK: {pkg}.__version__ matches tag ({version})")
+          PY
+
+      - name: Check if version already exists on TestPyPI
+        run: |
+          VERSION="${{ steps.version-check.outputs.version }}"
+          RESPONSE=$(curl -s "https://test.pypi.org/pypi/network-wrangler/$VERSION/json" || echo "not found")
+          if echo "$RESPONSE" | grep -q '"info"'; then
+            echo "WARNING: Version $VERSION already exists on TestPyPI"
+            echo "This is OK for prepare-release, but will be skipped during publish"
+          else
+            echo "Version $VERSION does not exist on TestPyPI"
+          fi
+
+      - name: Check if version already exists on PyPI
+        run: |
+          VERSION="${{ steps.version-check.outputs.version }}"
+          RESPONSE=$(curl -s "https://pypi.org/pypi/network-wrangler/$VERSION/json" || echo "not found")
+          if echo "$RESPONSE" | grep -q '"info"'; then
+            echo "ERROR: Version $VERSION already exists on PyPI"
+            echo "Cannot prepare release - version already published"
+            exit 1
+          else
+            echo "Version $VERSION does not exist on PyPI"
+          fi
+
+      - name: Install build tools
+        run: |
+          python3 -m pip install --upgrade pip
+          pip install build --user
+
+      - name: Build distribution
+        run: python3 -m build
+
+      - name: Publish to TestPyPI for validation
+        uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          repository-url: https://test.pypi.org/legacy/
+          skip-existing: true
+          verbose: true
+
+      - name: Test installation from TestPyPI
+        run: |
+          python3 -m pip install --upgrade pip
+          pip install --index-url https://test.pypi.org/simple/ --extra-index-url https://pypi.org/simple/ network-wrangler==${{ steps.version-check.outputs.version }}
+          python -c "import network_wrangler; print(f'Successfully installed network-wrangler {network_wrangler.__version__}')"
+
