@@ -99,7 +99,7 @@ def _add_route_to_feed(
         WranglerLogger.debug(f"Adding {len(route['trips'])} trips for route {route['route_id']}.")
 
         shape_ids = create_str_int_combo_ids(len(route["trips"]), shapes_df["shape_id"])
-        for trip, shape_id in zip(route["trips"], shape_ids):
+        for trip, shape_id in zip(route["trips"], shape_ids, strict=True):
             add_shape_df = _create_new_shape(trip["routing"], shape_id, road_net)
             shapes_df = concat_with_attr([shapes_df, add_shape_df], ignore_index=True, sort=False)
 
@@ -178,7 +178,7 @@ def _create_new_shape(
         int(next(iter(item.keys()))) if isinstance(item, dict) else int(item) for item in routing
     ]
     coords = [road_net.node_coords(n) for n in shape_model_node_id_list]
-    lon, lat = zip(*coords)
+    lon, lat = zip(*coords, strict=True)
     add_shapes_df = pd.DataFrame(
         {
             "shape_model_node_id": shape_model_node_id_list,
@@ -274,7 +274,7 @@ def _create_new_stops(
     add_stops_df = pd.DataFrame(columns=["stop_id", "stop_lat", "stop_lon"])
     if add_stop_ids.size:
         coords = [road_net.node_coords(n) for n in add_stop_ids]
-        lon, lat = zip(*coords)
+        lon, lat = zip(*coords, strict=True)
         add_stops_df = pd.DataFrame({"stop_id": add_stop_ids, "stop_lat": lat, "stop_lon": lon})
     return add_stops_df
 
