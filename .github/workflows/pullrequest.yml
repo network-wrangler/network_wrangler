@@ -67,13 +67,14 @@ jobs:
         run: ruff check --output-format=github network_wrangler
 
   test:
-    name: Test (Python ${{ matrix.python-version }})
+    name: Test (Python ${{ matrix.python-version }}, pandas ${{ matrix.pandas-version }})
     needs: lint
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
       matrix:
         python-version: ["3.10", "3.11", "3.12", "3.13"]
+        pandas-version: ["2", "3"]
 
     steps:
       - name: Checkout code
@@ -84,22 +85,26 @@ jobs:
         with:
           python-version: ${{ matrix.python-version }}
 
-      - name: Install dependencies
+      - name: Install dependencies with pandas version
         run: |
-          uv pip install --system -e .[tests]
+          if [ "${{ matrix.pandas-version }}" = "2" ]; then
+            uv pip install --system -e .[tests] "pandas>=2.2.3,<3.0"
+          else
+            uv pip install --system -e .[tests] "pandas>=3.0.0"
+          fi
         shell: bash
 
       - name: Run tests
         run: |
-          # Only generate coverage for Python 3.13 to save time and simplify artifacts
-          if [ "${{ matrix.python-version }}" = "3.13" ]; then
+          # Only generate coverage for Python 3.13 + pandas 3 to save time and simplify artifacts
+          if [ "${{ matrix.python-version }}" = "3.13" ] && [ "${{ matrix.pandas-version }}" = "3" ]; then
             pytest --junitxml=pytest.xml --cov=network_wrangler --cov-report "xml:coverage.xml" --benchmark-save=benchmark --benchmark-json=benchmark.json
           else
             pytest --benchmark-save=benchmark --benchmark-json=benchmark.json
           fi
 
       - name: Verify coverage files exist
-        if: matrix.python-version == '3.13'
+        if: matrix.python-version == '3.13' && matrix.pandas-version == '3'
         shell: bash
         run: |
           echo "=== Checking for coverage files ==="
@@ -113,7 +118,7 @@ jobs:
             ls -lah | head -20
             exit 1
           fi
-          
+
           if [ -f "pytest.xml" ]; then
             echo "✓ pytest.xml exists ($(wc -c < pytest.xml) bytes)"
           else
@@ -121,10 +126,10 @@ jobs:
           fi
 
       - name: Upload coverage artifacts
-        if: matrix.python-version == '3.13'
+        if: matrix.python-version == '3.13' && matrix.pandas-version == '3'
         uses: actions/upload-artifact@v4
         with:
-          name: coverage-py3.13
+          name: coverage-py3.13-pandas3
           path: |
             coverage.xml
             pytest.xml
@@ -133,7 +138,7 @@ jobs:
       - name: Check benchmark files exist
         if: |
           (github.event.pull_request.base.ref == 'main' || github.event.pull_request.base.ref == 'develop') &&
-          matrix.python-version == '3.13'
+          matrix.python-version == '3.13' && matrix.pandas-version == '3'
         shell: bash
         run: |
           echo "Checking for benchmark files..."
@@ -145,10 +150,10 @@ jobs:
       - name: Upload benchmark artifacts
         if: |
           (github.event.pull_request.base.ref == 'main' || github.event.pull_request.base.ref == 'develop') &&
-          matrix.python-version == '3.13'
+          matrix.python-version == '3.13' && matrix.pandas-version == '3'
         uses: actions/upload-artifact@v4
         with:
-          name: benchmark-py3.13
+          name: benchmark-py3.13-pandas3
           path: |
             benchmark.json
             .benchmarks/
@@ -214,7 +219,7 @@ jobs:
       - name: Download benchmark artifacts
         uses: actions/download-artifact@v4
         with:
-          name: benchmark-py3.13
+          name: benchmark-py3.13-pandas3
           path: ./
 
       - name: Check if benchmark files exist
