@@ -40,8 +40,7 @@ def _node_geo_change_from_property_changes(
         k: v["set"] for k, v in property_changes.items() if k in NodeGeometryChange.model_fields
     }
     geo_changes["model_node_id"] = node_idx[0]
-    if "in_crs" not in geo_changes:
-        geo_changes["in_crs"] = None
+    # Don't set in_crs to None - let pandera's add_missing_columns use the default
 
     return NodeGeometryChangeTable(pd.DataFrame(geo_changes, index=[0]))
 

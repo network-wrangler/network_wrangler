@@ -8,7 +8,7 @@ dynamic = ["version"]
 description = ""
 license =  {file = "LICENSE"}
 readme = "README.md"
-requires-python = ">=3.9"
+requires-python = ">=3.10"
 authors = [
     { name = "Elizabeth Sall", email = "elizabeth@urbanlabs.io" },
     { name = "Sijia Wang", email = "Sijia.Wang@wsp.com"},
@@ -31,7 +31,7 @@ dependencies = [
     "ijson>=3.3.0",
     "osmnx>=1.9.3",
     "pandas>=2.2.3",
-    "pandera[pandas,geopandas]>=0.24.0",
+    "pandera[pandas]>=0.29.0",
     "projectcard>=0.3.3",
     "psutil>=6.0.0",
     "pyarrow>=17.0.0",

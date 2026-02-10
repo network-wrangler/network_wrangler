@@ -207,7 +207,9 @@ def _update_props_for_common_idx(
     # 3. Reset the index to bring back the join_col
     if isinstance(original_index, pd.RangeIndex):
         updated_df = destination_df.reset_index().set_index(original_index)
-        updated_df = updated_df.drop(columns=["index"])
+        # In pandas 3.0+, named RangeIndex creates column with the name, not "index"
+        col_to_drop = original_index.name if original_index.name else "index"
+        updated_df = updated_df.drop(columns=[col_to_drop])
     else:
         updated_df = destination_df.reset_index().set_index(original_index.names)
 
