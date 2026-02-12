@@ -16,7 +16,7 @@ runs:
     - name: Download coverage artifacts
       uses: actions/download-artifact@v4
       with:
-        name: coverage-py3.13
+        name: coverage-py3.13-pandas3
         path: ./
 
     - name: Verify and prepare coverage files
