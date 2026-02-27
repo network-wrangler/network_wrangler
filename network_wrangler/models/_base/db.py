@@ -84,6 +84,8 @@ class DBModelMixin:
         optional_table_names: list of optional table names that will be added to `table_names` iff
             they are found.
         hash: creates a hash of tables found in `table_names` to track if they change.
+        modification_version: counter that increments when tables are modified. Used for
+            efficient change detection without computing expensive hashes.
         tables: dataframes corresponding to each table_name in `table_names`
         tables_dict: mapping of `<table_name>:<table>` dataframe
         _table_models: mapping of `<table_name>:<DataFrameModel>` to use for validation when
@@ -110,6 +112,27 @@ class DBModelMixin:
     # mapping of <table_name>:<conversion method> to use iff df validation fails.
     _converters: ClassVar[dict[str, Callable]] = {}
 
+    # Instance attribute for tracking modifications (initialized in __setattr__)
+    _modification_version: int = 0
+
+    def _mark_modified(self) -> None:
+        """Mark the database as modified by incrementing the modification version.
+
+        This is called automatically when tables are modified via __setattr__.
+        """
+        # Use object.__setattr__ to avoid recursion
+        current = getattr(self, "_modification_version", 0)
+        object.__setattr__(self, "_modification_version", current + 1)
+
+    @property
+    def modification_version(self) -> int:
+        """Return the current modification version.
+
+        This counter increments each time a table is modified and can be used
+        for efficient change detection without computing expensive hashes.
+        """
+        return getattr(self, "_modification_version", 0)
+
     def __setattr__(self, key, value):
         """Override the default setattr behavior to handle DataFrame validation.
 
@@ -127,6 +150,9 @@ class DBModelMixin:
             WranglerLogger.debug(f"Validating + coercing value to {key}")
             df = self.validate_coerce_table(key, value)
             super().__setattr__(key, df)
+            # Mark as modified when a table is updated
+            if key in self.table_names or key in self.optional_table_names:
+                self._mark_modified()
         else:
             super().__setattr__(key, value)
 
@@ -386,7 +412,11 @@ class DBModelMixin:
 
     @property
     def hash(self) -> str:
-        """A hash representing the contents of the tables in self.table_names."""
+        """A hash representing the contents of the tables in self.table_names.
+
+        Note: This is an expensive operation. For change detection, prefer using
+        modification_version which is much faster.
+        """
         _table_hashes = [self.get_table(t).df_hash() for t in self.table_names]
         _value = str.encode("-".join(_table_hashes))
 

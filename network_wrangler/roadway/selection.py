@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import copy
 import hashlib
 from abc import ABC, abstractmethod
 from typing import TYPE_CHECKING, ClassVar, Literal
@@ -144,7 +143,7 @@ class RoadwaySelection(ABC):
             self._selection_data = self.validate_selection(selection_input)
 
         self._selection_dict = self._selection_data.asdict
-        self._stored_net_hash = copy.deepcopy(self.net.network_hash)
+        self._stored_net_version = self.net.modification_version
 
     @property
     def node_query_fields(self) -> list[str]:
@@ -337,11 +336,14 @@ class RoadwayLinkSelection(RoadwaySelection):
     def selected_links_df(self) -> DataFrame[RoadLinksTable]:
         """Lazily evaluates selection for links or returns stored value in self._selected_links_df.
 
-        Will re-evaluate if the current network hash is different than the stored one from the
-        last selection.
+        Will re-evaluate if the current network modification version is different than the stored
+        one from the last selection.
         """
-        if self._selected_links_df is None or self._stored_net_hash != self.net.network_hash:
-            self._stored_net_hash = copy.deepcopy(self.net.network_hash)
+        if (
+            self._selected_links_df is None
+            or self._stored_net_version != self.net.modification_version
+        ):
+            self._stored_net_version = self.net.modification_version
             self._selected_links_df = self._perform_selection()
 
         return self._selected_links_df
@@ -537,11 +539,14 @@ class RoadwayNodeSelection(RoadwaySelection):
     def selected_nodes_df(self) -> DataFrame[RoadNodesTable]:
         """Lazily evaluates selection for nodes or returns stored value in self._selected_nodes_df.
 
-        Will re-evaluate if the current network hash is different than the stored one from the
-        last selection.
+        Will re-evaluate if the current network modification version is different than the stored
+        one from the last selection.
         """
-        if self._selected_nodes_df is None or self._stored_net_hash != self.net.network_hash:
-            self._stored_net_hash = self.net.network_hash
+        if (
+            self._selected_nodes_df is None
+            or self._stored_net_version != self.net.modification_version
+        ):
+            self._stored_net_version = self.net.modification_version
             self._selected_nodes_df = self._perform_selection()
 
         return self._selected_nodes_df
