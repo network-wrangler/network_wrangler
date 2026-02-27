@@ -8,7 +8,7 @@ dynamic = ["version"]
 description = ""
 license =  {file = "LICENSE"}
 readme = "README.md"
-requires-python = ">=3.9"
+requires-python = ">=3.10"
 authors = [
     { name = "Elizabeth Sall", email = "elizabeth@urbanlabs.io" },
     { name = "Sijia Wang", email = "Sijia.Wang@wsp.com"},
@@ -22,6 +22,10 @@ classifiers = [
     "Operating System :: OS Independent",
     "Programming Language :: Python",
     "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
 ]
 dependencies = [
     "fiona>=1.10.1",
@@ -113,7 +117,7 @@ source = ["network_wrangler"]
 
 [tool.mypy]
 files = "network_wrangler"
-python_version = "3.9"
+python_version = "3.10"
 follow_imports = "skip"
 show_error_codes = true
 show_error_context = true
@@ -130,15 +134,9 @@ exclude = ["notebook/*.ipynb"]
 select = ["D"]
 ignore = [
     "RET504",  # Unnecessary assignment  before `return` statement
-    "UP007", # non pep-604 annotations (breaks Python 3.9 compatibility)
-    "UP045", # Use `X | None` for type annotations (breaks Python 3.9 compatibility)
     "PLC0415", # `import` should be at the top-level (intentional lazy imports to avoid circular deps)
     "C416", # non pep-604 annotations.
     "PLR0913", # too many args
-    "UP007", # non pep-604 annotations.
-    "PLR0913", # too many args
-    "UP045", # Use `X | None` for type annotations
-    "UP006", # Use `list` instead of `List` for type annotation
 ]
 extend-select = [
   "B",           # flake8-bugbear

@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING
 
 import pandas as pd
 
@@ -18,7 +18,7 @@ if TYPE_CHECKING:
 def apply_new_roadway(
     roadway_net: RoadwayNetwork,
     roadway_addition: dict,
-    project_name: Optional[str] = None,
+    project_name: str | None = None,
 ) -> RoadwayNetwork:
     """Add the new roadway features defined in the project card.
 

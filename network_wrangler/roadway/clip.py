@@ -24,7 +24,7 @@ from __future__ import annotations
 
 import copy
 from pathlib import Path
-from typing import TYPE_CHECKING, Optional, Union
+from typing import TYPE_CHECKING
 
 import geopandas as gpd
 
@@ -40,8 +40,8 @@ if TYPE_CHECKING:
 def clip_roadway_to_dfs(
     network: RoadwayNetwork,
     boundary_gdf: gpd.GeoDataFrame = None,
-    boundary_geocode: Optional[Union[str, dict]] = None,
-    boundary_file: Optional[Union[str, Path]] = None,
+    boundary_geocode: str | dict | None = None,
+    boundary_file: str | Path | None = None,
 ) -> tuple:
     """Clips a RoadwayNetwork object to a boundary and returns the resulting GeoDataFrames.
 
@@ -97,8 +97,8 @@ def clip_roadway_to_dfs(
 def clip_roadway(
     network: RoadwayNetwork,
     boundary_gdf: gpd.GeoDataFrame = None,
-    boundary_geocode: Optional[Union[str, dict]] = None,
-    boundary_file: Optional[Union[str, Path]] = None,
+    boundary_geocode: str | dict | None = None,
+    boundary_file: str | Path | None = None,
 ) -> RoadwayNetwork:
     """Clip a RoadwayNetwork object to a boundary.
 

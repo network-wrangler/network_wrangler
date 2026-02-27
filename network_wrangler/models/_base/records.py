@@ -1,4 +1,4 @@
-from typing import Any, ClassVar, Union
+from typing import Any, ClassVar
 
 from pydantic import BaseModel, ConfigDict, model_validator
 
@@ -44,9 +44,7 @@ class RecordModel(BaseModel):
     _examples: ClassVar[list[Any]] = []
 
     @staticmethod
-    def _check_field_exists(
-        all_of_fields: Union[str, list[str]], fields_present: list[str]
-    ) -> bool:
+    def _check_field_exists(all_of_fields: str | list[str], fields_present: list[str]) -> bool:
         if isinstance(all_of_fields, list):
             return all(f in fields_present for f in all_of_fields)
         return all_of_fields in fields_present

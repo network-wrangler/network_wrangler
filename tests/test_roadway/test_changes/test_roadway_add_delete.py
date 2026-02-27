@@ -61,7 +61,7 @@ def test_add_roadway_link_project_card(request, small_net):
     WranglerLogger.debug(f"New Links: \n{_new_links}")
     assert len(_new_links) == len(_links)
     assert _new_links.at[_new_link_idxs[0], "projects"] == f"{_project},"
-    assert set(zip(_new_links.A, _new_links.B)) == set(_expected_new_link_fks)
+    assert set(zip(_new_links.A, _new_links.B, strict=False)) == set(_expected_new_link_fks)
 
     WranglerLogger.info(f"--Finished: {request.node.name}")
 

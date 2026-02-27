@@ -2,10 +2,7 @@
 
 from __future__ import annotations
 
-import ijson
 import pandas as pd
-import pyarrow as pa
-import pyarrow.parquet as pq
 from pandera.typing import DataFrame
 
 from ...logger import WranglerLogger

@@ -2,7 +2,6 @@
 
 import copy
 import time
-from typing import Optional, Union
 
 import geopandas as gpd
 import pandas as pd
@@ -36,7 +35,7 @@ def shape_id_from_link_geometry(
 
 
 def _fill_missing_link_geometries_from_nodes(
-    links_df: pd.DataFrame, nodes_df: Optional[DataFrame[RoadNodesTable]] = None
+    links_df: pd.DataFrame, nodes_df: DataFrame[RoadNodesTable] | None = None
 ) -> gpd.GeoDataFrame:
     """Create location references and link geometries from nodes.
 
@@ -70,9 +69,9 @@ def _fill_missing_distance_from_geometry(df: gpd.GeoDataFrame) -> gpd.GeoDataFra
 
 @validate_call_pyd
 def data_to_links_df(
-    links_df: Union[pd.DataFrame, list[dict]],
+    links_df: pd.DataFrame | list[dict],
     in_crs: int = LAT_LON_CRS,
-    nodes_df: Union[None, DataFrame[RoadNodesTable]] = None,
+    nodes_df: None | DataFrame[RoadNodesTable] = None,
 ) -> DataFrame[RoadLinksTable]:
     """Create a links dataframe from list of link properties + link geometries or associated nodes.
 
@@ -126,11 +125,11 @@ def copy_links(
     links_df: DataFrame[RoadLinksTable],
     link_id_lookup: dict[int, int],
     node_id_lookup: dict[int, int],
-    updated_geometry_col: Optional[str] = None,
-    nodes_df: Optional[DataFrame[RoadNodesTable]] = None,
+    updated_geometry_col: str | None = None,
+    nodes_df: DataFrame[RoadNodesTable] | None = None,
     offset_meters: float = -5,
-    copy_properties: Optional[list[str]] = None,
-    rename_properties: Optional[dict[str, str]] = None,
+    copy_properties: list[str] | None = None,
+    rename_properties: dict[str, str] | None = None,
     name_prefix: str = "copy of",
     validate: bool = True,
 ) -> DataFrame[RoadLinksTable]:

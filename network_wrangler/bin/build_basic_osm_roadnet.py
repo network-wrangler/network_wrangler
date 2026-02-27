@@ -9,9 +9,9 @@ Usage:
 
 Arguments:
     place_name (str): Name of the place to build the road network for.
-    --type (Optional[str]): Type of network to build Defaults to `drive`.
-    --path (Optional[str]): Path to write the network. Defaults to current working directory.
-    --file_format (Optional[str]):  File format for writing the network. Defaults to `geojson`.
+    --type (str | None): Type of network to build Defaults to `drive`.
+    --path (str | None): Path to write the network. Defaults to current working directory.
+    --file_format (str | None):  File format for writing the network. Defaults to `geojson`.
 
 Example:
     ```bash

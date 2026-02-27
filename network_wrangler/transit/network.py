@@ -19,7 +19,7 @@ Usage:
 from __future__ import annotations
 
 import copy
-from typing import TYPE_CHECKING, ClassVar, Optional, Union
+from typing import TYPE_CHECKING, ClassVar
 
 import geopandas as gpd
 import networkx as nx
@@ -88,7 +88,7 @@ class TransitNetwork:
         """
         WranglerLogger.debug("Creating new TransitNetwork.")
 
-        self._road_net: Optional[RoadwayNetwork] = None
+        self._road_net: RoadwayNetwork | None = None
         self.feed: Feed = feed
         self.graph: nx.MultiDiGraph = None
         self.config: WranglerConfig = config
@@ -133,7 +133,7 @@ class TransitNetwork:
             raise TransitRoadwayConsistencyError(msg)
 
     @property
-    def road_net(self) -> Union[None, RoadwayNetwork]:
+    def road_net(self) -> None | RoadwayNetwork:
         """Roadway network associated with the transit network."""
         return self._road_net
 
@@ -273,14 +273,14 @@ class TransitNetwork:
             raise TransitSelectionEmptyError(msg)
         return self._selections[key]
 
-    def apply(self, project_card: Union[ProjectCard, dict], **kwargs) -> TransitNetwork:
+    def apply(self, project_card: ProjectCard | dict, **kwargs) -> TransitNetwork:
         """Wrapper method to apply a roadway project, returning a new TransitNetwork instance.
 
         Args:
             project_card: either a dictionary of the project card object or ProjectCard instance
             **kwargs: keyword arguments to pass to project application
         """
-        if not (isinstance(project_card, (ProjectCard, SubProject))):
+        if not (isinstance(project_card, ProjectCard | SubProject)):
             project_card = ProjectCard(project_card)
 
         if not project_card.valid:
@@ -297,8 +297,8 @@ class TransitNetwork:
 
     def _apply_change(
         self,
-        change: Union[ProjectCard, SubProject],
-        reference_road_net: Optional[RoadwayNetwork] = None,
+        change: ProjectCard | SubProject,
+        reference_road_net: RoadwayNetwork | None = None,
     ) -> TransitNetwork:
         """Apply a single change: a single-project project or a sub-project."""
         if not isinstance(change, SubProject):

@@ -3,6 +3,7 @@
 import pandas as pd
 from pandera.typing import DataFrame
 
+from ...errors import NotLinksError
 from ...logger import WranglerLogger
 from ...models.roadway.tables import RoadLinksTable, RoadShapesTable
 from .filters import (
@@ -21,7 +22,6 @@ from .filters import (
     filter_links_transit_only,
 )
 from .geo import true_shape
-from .links import NotLinksError
 from .summary import link_summary
 
 

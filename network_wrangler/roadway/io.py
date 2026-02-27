@@ -3,10 +3,8 @@
 from __future__ import annotations
 
 from pathlib import Path
-from typing import TYPE_CHECKING, Optional, Union
+from typing import TYPE_CHECKING
 
-import pyarrow as pa
-import pyarrow.parquet as pq
 from geopandas import GeoDataFrame
 
 from ..configs import ConfigInputTypes, DefaultConfig, WranglerConfig, load_wrangler_config
@@ -26,13 +24,13 @@ if TYPE_CHECKING:
 def load_roadway(
     links_file: Path,
     nodes_file: Path,
-    shapes_file: Optional[Path] = None,
+    shapes_file: Path | None = None,
     in_crs: int = LAT_LON_CRS,
     read_in_shapes: bool = False,
-    boundary_gdf: Optional[GeoDataFrame] = None,
-    boundary_geocode: Optional[str] = None,
-    boundary_file: Optional[Path] = None,
-    filter_links_to_nodes: Optional[bool] = None,
+    boundary_gdf: GeoDataFrame | None = None,
+    boundary_geocode: str | None = None,
+    boundary_file: Path | None = None,
+    filter_links_to_nodes: bool | None = None,
     config: ConfigInputTypes = DefaultConfig,
 ) -> RoadwayNetwork:
     """Reads a network from the roadway network standard.
@@ -121,8 +119,8 @@ def load_roadway(
 
 
 def id_roadway_file_paths_in_dir(
-    dir: Union[Path, str], file_format: RoadwayFileTypes = "geojson"
-) -> tuple[Path, Path, Union[None, Path]]:
+    dir: Path | str, file_format: RoadwayFileTypes = "geojson"
+) -> tuple[Path, Path, None | Path]:
     """Identifies the paths to the links, nodes, and shapes files in a directory."""
     network_path = Path(dir)
     if not network_path.is_dir():
@@ -155,13 +153,13 @@ def id_roadway_file_paths_in_dir(
 
 
 def load_roadway_from_dir(
-    dir: Union[Path, str],
+    dir: Path | str,
     file_format: RoadwayFileTypes = "geojson",
     read_in_shapes: bool = False,
-    boundary_gdf: Optional[GeoDataFrame] = None,
-    boundary_geocode: Optional[str] = None,
-    boundary_file: Optional[Path] = None,
-    filter_links_to_nodes: Optional[bool] = None,
+    boundary_gdf: GeoDataFrame | None = None,
+    boundary_geocode: str | None = None,
+    boundary_file: Path | None = None,
+    filter_links_to_nodes: bool | None = None,
     config: ConfigInputTypes = DefaultConfig,
 ) -> RoadwayNetwork:
     """Reads a network from the roadway network standard.
@@ -204,8 +202,8 @@ def load_roadway_from_dir(
 
 
 def write_roadway(
-    net: Union[RoadwayNetwork, ModelRoadwayNetwork],
-    out_dir: Union[Path, str] = ".",
+    net: RoadwayNetwork | ModelRoadwayNetwork,
+    out_dir: Path | str = ".",
     convert_complex_link_properties_to_single_field: bool = False,
     prefix: str = "",
     file_format: RoadwayFileTypes = "geojson",
@@ -257,10 +255,10 @@ def convert_roadway_file_serialization(
     out_format: RoadwayFileTypes = "parquet",
     out_prefix: str = "",
     overwrite: bool = True,
-    boundary_gdf: Optional[GeoDataFrame] = None,
-    boundary_geocode: Optional[str] = None,
-    boundary_file: Optional[Path] = None,
-    chunk_size: Optional[int] = None,
+    boundary_gdf: GeoDataFrame | None = None,
+    boundary_geocode: str | None = None,
+    boundary_file: Path | None = None,
+    chunk_size: int | None = None,
 ):
     """Converts a files in a roadway from one serialization format to another without parsing.
 
@@ -327,15 +325,15 @@ def convert_roadway_file_serialization(
 
 
 def convert_roadway_network_serialization(
-    input_path: Union[str, Path],
+    input_path: str | Path,
     output_format: RoadwayFileTypes = "geojson",
-    out_dir: Union[str, Path] = ".",
+    out_dir: str | Path = ".",
     input_file_format: RoadwayFileTypes = "geojson",
     out_prefix: str = "",
     overwrite: bool = True,
-    boundary_gdf: Optional[GeoDataFrame] = None,
-    boundary_geocode: Optional[str] = None,
-    boundary_file: Optional[Path] = None,
+    boundary_gdf: GeoDataFrame | None = None,
+    boundary_geocode: str | None = None,
+    boundary_file: Path | None = None,
     filter_links_to_nodes: bool = False,
 ):
     """Converts a roadway network from one serialization format to another with parsing.
