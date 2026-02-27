@@ -3,7 +3,8 @@
 import copy
 from functools import wraps
 from pathlib import Path
-from typing import Optional, Union, _GenericAlias, get_args, get_origin, get_type_hints
+from types import UnionType
+from typing import Union, _GenericAlias, get_args, get_origin, get_type_hints
 
 import geopandas as gpd
 import pandas as pd
@@ -45,7 +46,7 @@ class TableValidationError(Exception):
 
 def empty_df_from_datamodel(
     model: DataFrameModel, crs: int = LAT_LON_CRS
-) -> Union[gpd.GeoDataFrame, pd.DataFrame]:
+) -> gpd.GeoDataFrame | pd.DataFrame:
     """Create an empty DataFrame or GeoDataFrame with the specified columns.
 
     Args:
@@ -135,13 +136,11 @@ def validate_df_to_model(
         raise TableValidationError(err_msg) from e
 
 
-def identify_model(
-    data: Union[pd.DataFrame, dict], models: list
-) -> Union[DataFrameModel, BaseModel]:
+def identify_model(data: pd.DataFrame | dict, models: list) -> DataFrameModel | BaseModel:
     """Identify the model that the input data conforms to.
 
     Args:
-        data (Union[pd.DataFrame, dict]): The input data to identify.
+        data (pd.DataFrame | dict): The input data to identify.
         models (list[DataFrameModel,BaseModel]): A list of models to validate the input
           data against.
     """
@@ -174,7 +173,7 @@ def extra_attributes_undefined_in_model(instance: BaseModel, model: BaseModel) -
     return extra_attributes
 
 
-def submodel_fields_in_model(model: type, instance: Optional[BaseModel] = None) -> list:
+def submodel_fields_in_model(model: type, instance: BaseModel | None = None) -> list:
     """Find the fields in a pydantic model that are submodels."""
     types = get_type_hints(model)
     model_type = (ModelMetaclass, BaseModel)
@@ -228,7 +227,8 @@ def _is_type_from_type_hint(type_hint_value, type_to_check):
                     pass
         return False
 
-    if get_origin(type_hint_value) is Union:
+    origin = get_origin(type_hint_value)
+    if origin is Union or origin is UnionType:
         args = get_args(type_hint_value)
         for arg in args:
             if check_type_hint(arg):

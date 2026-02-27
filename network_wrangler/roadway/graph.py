@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import copy
-from typing import TYPE_CHECKING, Optional, Union
+from typing import TYPE_CHECKING
 
 import networkx as nx
 import osmnx as ox
@@ -166,7 +166,7 @@ def links_nodes_to_ox_graph(
     return G
 
 
-def net_to_graph(net: RoadwayNetwork, mode: Optional[str] = None) -> nx.MultiDiGraph:
+def net_to_graph(net: RoadwayNetwork, mode: str | None = None) -> nx.MultiDiGraph:
     """Converts a network to a MultiDiGraph.
 
     Args:
@@ -185,9 +185,7 @@ def net_to_graph(net: RoadwayNetwork, mode: Optional[str] = None) -> nx.MultiDiG
     return G
 
 
-def shortest_path(
-    G: nx.MultiDiGraph, O_id, D_id, sp_weight_property="weight"
-) -> Union[list, None]:
+def shortest_path(G: nx.MultiDiGraph, O_id, D_id, sp_weight_property="weight") -> list | None:
     """Calculates the shortest path between two nodes in a network.
 
     Args:

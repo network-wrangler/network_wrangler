@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import operator
-from typing import Optional
 
 from pandas import DataFrame, Series
 
@@ -15,13 +14,13 @@ POTENTIAL_COMPLEX_PROPERTIES = ["lanes", "price", "ML_lanes", "ML_price"]
 
 
 def translate_links_df_v0_to_v1(
-    links_df: DataFrame, complex_properties: Optional[list[str]] = None
+    links_df: DataFrame, complex_properties: list[str] | None = None
 ) -> DataFrame:
     """Translates a links dataframe from v0 to v1 format.
 
     Args:
         links_df (DataFrame): _description_
-        complex_properties (Optional[list[str]], optional): List of complex properties to
+        complex_properties (list[str] | None, optional): List of complex properties to
             convert from v0 to v1 link data model. Defaults to None. If None, will detect
             complex properties.
     """
@@ -40,13 +39,13 @@ def translate_links_df_v0_to_v1(
 
 
 def translate_links_df_v1_to_v0(
-    links_df: DataFrame, complex_properties: Optional[list[str]] = None
+    links_df: DataFrame, complex_properties: list[str] | None = None
 ) -> DataFrame:
     """Translates a links dataframe from v1 to v0 format.
 
     Args:
         links_df (DataFrame): _description_
-        complex_properties (Optional[list[str]], optional): List of complex properties to
+        complex_properties (list[str] | None, optional): List of complex properties to
             convert from v0 to v1 link data model. Defaults to None. If None, will detect
             complex properties.
     """

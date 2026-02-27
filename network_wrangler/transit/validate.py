@@ -3,12 +3,9 @@
 from __future__ import annotations
 
 from pathlib import Path
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING
 
-import ijson
 import pandas as pd
-import pyarrow as pa
-import pyarrow.parquet as pq
 from pandera.errors import SchemaErrors
 from pandera.typing import DataFrame
 
@@ -147,7 +144,7 @@ def transit_road_net_consistency(feed: Feed, road_net: RoadwayNetwork) -> bool:
 def validate_transit_in_dir(
     dir: Path,
     file_format: TransitFileTypes = "txt",
-    road_dir: Optional[Path] = None,
+    road_dir: Path | None = None,
     road_file_format: RoadwayFileTypes = "geojson",
 ) -> bool:
     """Validates a roadway network in a directory to the wrangler data model specifications.

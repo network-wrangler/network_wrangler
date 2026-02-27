@@ -19,7 +19,7 @@ Usage:
 from __future__ import annotations
 
 import copy
-from typing import TYPE_CHECKING, ClassVar, Optional, Union
+from typing import TYPE_CHECKING, ClassVar
 
 import geopandas as gpd
 import networkx as nx
@@ -88,7 +88,7 @@ class TransitNetwork:
         """
         WranglerLogger.debug("Creating new TransitNetwork.")
 
-        self._road_net: Optional[RoadwayNetwork] = None
+        self._road_net: RoadwayNetwork | None = None
         self.feed: Feed = feed
         self.graph: nx.MultiDiGraph = None
         self.config: WranglerConfig = config
@@ -126,14 +126,14 @@ class TransitNetwork:
             raise TransitValidationError(msg)
         if self._road_net is None or transit_road_net_consistency(feed, self._road_net):
             self._feed = feed
-            self._stored_feed_hash = copy.deepcopy(feed.hash)
+            self._stored_feed_version = feed.modification_version
         else:
             msg = "Can't assign Feed inconsistent with set Roadway Network."
             WranglerLogger.error(msg)
             raise TransitRoadwayConsistencyError(msg)
 
     @property
-    def road_net(self) -> Union[None, RoadwayNetwork]:
+    def road_net(self) -> None | RoadwayNetwork:
         """Roadway network associated with the transit network."""
         return self._road_net
 
@@ -146,7 +146,7 @@ class TransitNetwork:
             raise TransitValidationError(msg)
         if transit_road_net_consistency(self.feed, road_net_in):
             self._road_net = road_net_in
-            self._stored_road_net_hash = copy.deepcopy(road_net_in.network_hash)
+            self._stored_road_net_version = road_net_in.modification_version
             self._consistent_with_road_net = True
         else:
             msg = "Can't assign inconsistent RoadwayNetwork - Roadway Network not \
@@ -165,9 +165,8 @@ class TransitNetwork:
 
         Will return True if road_net is None, but provide a warning.
 
-        Checks the network hash of when consistency was last evaluated. If transit network or
-        roadway network has changed, will re-evaluate consistency and return the updated value and
-        update self._stored_road_net_hash.
+        Checks the modification version of when consistency was last evaluated. If transit network
+        or roadway network has changed, will re-evaluate consistency and return the updated value.
 
         Returns:
             Boolean indicating if road_net is consistent with transit network.
@@ -175,13 +174,13 @@ class TransitNetwork:
         if self.road_net is None:
             WranglerLogger.warning("Roadway Network not set, cannot accurately check consistency.")
             return True
-        updated_road = self.road_net.network_hash != self._stored_road_net_hash
-        updated_feed = self.feed_hash != self._stored_feed_hash
+        updated_road = self.road_net.modification_version != self._stored_road_net_version
+        updated_feed = self.feed.modification_version != self._stored_feed_version
 
         if updated_road or updated_feed:
             self._consistent_with_road_net = transit_road_net_consistency(self.feed, self.road_net)
-            self._stored_road_net_hash = copy.deepcopy(self.road_net.network_hash)
-            self._stored_feed_hash = copy.deepcopy(self.feed_hash)
+            self._stored_road_net_version = self.road_net.modification_version
+            self._stored_feed_version = self.feed.modification_version
         return self._consistent_with_road_net
 
     def __deepcopy__(self, memo):
@@ -274,14 +273,14 @@ class TransitNetwork:
             raise TransitSelectionEmptyError(msg)
         return self._selections[key]
 
-    def apply(self, project_card: Union[ProjectCard, dict], **kwargs) -> TransitNetwork:
+    def apply(self, project_card: ProjectCard | dict, **kwargs) -> TransitNetwork:
         """Wrapper method to apply a roadway project, returning a new TransitNetwork instance.
 
         Args:
             project_card: either a dictionary of the project card object or ProjectCard instance
             **kwargs: keyword arguments to pass to project application
         """
-        if not (isinstance(project_card, (ProjectCard, SubProject))):
+        if not (isinstance(project_card, ProjectCard | SubProject)):
             project_card = ProjectCard(project_card)
 
         if not project_card.valid:
@@ -298,8 +297,8 @@ class TransitNetwork:
 
     def _apply_change(
         self,
-        change: Union[ProjectCard, SubProject],
-        reference_road_net: Optional[RoadwayNetwork] = None,
+        change: ProjectCard | SubProject,
+        reference_road_net: RoadwayNetwork | None = None,
     ) -> TransitNetwork:
         """Apply a single change: a single-project project or a sub-project."""
         if not isinstance(change, SubProject):
