@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import copy
 from datetime import datetime
-from typing import TYPE_CHECKING, Optional, Union
+from typing import TYPE_CHECKING
 
 import pandas as pd
 from pandera.typing import DataFrame as paDataFrame
@@ -21,7 +21,6 @@ from ...models.gtfs.tables import (
 )
 from ...utils.data import concat_with_attr
 from ...utils.ids import create_str_int_combo_ids
-from ...utils.models import fill_df_with_defaults_from_model
 from ...utils.time import str_to_time_list
 
 if TYPE_CHECKING:
@@ -33,7 +32,7 @@ if TYPE_CHECKING:
 def apply_transit_route_addition(
     net: TransitNetwork,
     transit_route_addition: dict,
-    reference_road_net: Optional[RoadwayNetwork] = None,
+    reference_road_net: RoadwayNetwork | None = None,
 ) -> TransitNetwork:
     """Add transit route to TransitNetwork.
 
@@ -164,7 +163,7 @@ def _create_new_trips(
 
 
 def _create_new_shape(
-    routing: list[Union[dict, int]], shape_id: str, road_net: RoadwayNetwork
+    routing: list[dict | int], shape_id: str, road_net: RoadwayNetwork
 ) -> paDataFrame[WranglerShapesTable]:
     """Create new shape for a trip.
 
@@ -191,7 +190,7 @@ def _create_new_shape(
     return add_shapes_df
 
 
-def _get_stops_from_routing(routing: list[Union[dict, int]]) -> list[dict]:
+def _get_stops_from_routing(routing: list[dict | int]) -> list[dict]:
     """Converts a routing list to stop_id_list, drop_off_type, and pickup_type.
 
     Default for board and alight is True unless specified to be False.
@@ -230,7 +229,7 @@ def _get_stops_from_routing(routing: list[Union[dict, int]]) -> list[dict]:
 
 
 def _create_new_stop_times(
-    trip_routing: list[Union[dict, int]], trip_id: str
+    trip_routing: list[dict | int], trip_id: str
 ) -> paDataFrame[WranglerStopTimesTable]:
     """Create new stop times for a trip.
 

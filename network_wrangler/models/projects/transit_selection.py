@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import Annotated, ClassVar, Literal, Optional
+from typing import Annotated, ClassVar, Literal
 
 from pydantic import ConfigDict, Field, field_validator
 
@@ -15,12 +15,12 @@ SelectionRequire = Literal["any", "all"]
 class SelectTripProperties(RecordModel):
     """Selection properties for transit trips."""
 
-    trip_id: Annotated[Optional[list[ForcedStr]], Field(None, min_length=1)]
-    shape_id: Annotated[Optional[list[ForcedStr]], Field(None, min_length=1)]
-    direction_id: Annotated[Optional[int], Field(None)]
-    service_id: Annotated[Optional[list[ForcedStr]], Field(None, min_length=1)]
-    route_id: Annotated[Optional[list[ForcedStr]], Field(None, min_length=1)]
-    trip_short_name: Annotated[Optional[list[ForcedStr]], Field(None, min_length=1)]
+    trip_id: Annotated[list[ForcedStr] | None, Field(None, min_length=1)]
+    shape_id: Annotated[list[ForcedStr] | None, Field(None, min_length=1)]
+    direction_id: Annotated[int | None, Field(None)]
+    service_id: Annotated[list[ForcedStr] | None, Field(None, min_length=1)]
+    route_id: Annotated[list[ForcedStr] | None, Field(None, min_length=1)]
+    trip_short_name: Annotated[list[ForcedStr] | None, Field(None, min_length=1)]
 
     model_config = ConfigDict(
         extra="allow",
@@ -33,8 +33,8 @@ class SelectTripProperties(RecordModel):
 class TransitABNodesModel(RecordModel):
     """Single transit link model."""
 
-    A: Optional[int] = None  # model_node_id
-    B: Optional[int] = None  # model_node_id
+    A: int | None = None  # model_node_id
+    B: int | None = None  # model_node_id
 
     model_config = ConfigDict(
         extra="forbid",
@@ -51,9 +51,9 @@ class SelectTransitLinks(RecordModel):
         ["ab_nodes", "model_link_id"],
     ]
 
-    model_link_id: Annotated[Optional[list[int]], Field(min_length=1)] = None
-    ab_nodes: Annotated[Optional[list[TransitABNodesModel]], Field(min_length=1)] = None
-    require: Optional[SelectionRequire] = "any"
+    model_link_id: Annotated[list[int] | None, Field(min_length=1)] = None
+    ab_nodes: Annotated[list[TransitABNodesModel] | None, Field(min_length=1)] = None
+    require: SelectionRequire | None = "any"
 
     model_config = ConfigDict(
         extra="forbid",
@@ -83,9 +83,9 @@ class SelectTransitNodes(RecordModel):
         ]
     ]
 
-    # gtfs_stop_id: Annotated[Optional[List[ForcedStr]], Field(None, min_length=1)] TODO Not implemented
+    # gtfs_stop_id: Annotated[list[ForcedStr] | None, Field(None, min_length=1)] TODO Not implemented
     model_node_id: Annotated[list[int], Field(min_length=1)]
-    require: Optional[SelectionRequire] = "any"
+    require: SelectionRequire | None = "any"
 
     model_config = ConfigDict(
         extra="forbid",
@@ -103,10 +103,10 @@ class SelectTransitNodes(RecordModel):
 class SelectRouteProperties(RecordModel):
     """Selection properties for transit routes."""
 
-    route_short_name: Annotated[Optional[list[ForcedStr]], Field(None, min_length=1)]
-    route_long_name: Annotated[Optional[list[ForcedStr]], Field(None, min_length=1)]
-    agency_id: Annotated[Optional[list[ForcedStr]], Field(None, min_length=1)]
-    route_type: Annotated[Optional[list[int]], Field(None, min_length=1)]
+    route_short_name: Annotated[list[ForcedStr] | None, Field(None, min_length=1)]
+    route_long_name: Annotated[list[ForcedStr] | None, Field(None, min_length=1)]
+    agency_id: Annotated[list[ForcedStr] | None, Field(None, min_length=1)]
+    route_type: Annotated[list[int] | None, Field(None, min_length=1)]
 
     model_config = ConfigDict(
         extra="allow",
@@ -119,11 +119,11 @@ class SelectRouteProperties(RecordModel):
 class SelectTransitTrips(RecordModel):
     """Selection properties for transit trips."""
 
-    trip_properties: Optional[SelectTripProperties] = None
-    route_properties: Optional[SelectRouteProperties] = None
-    timespans: Annotated[Optional[list[TimespanString]], Field(None, min_length=1)]
-    nodes: Optional[SelectTransitNodes] = None
-    links: Optional[SelectTransitLinks] = None
+    trip_properties: SelectTripProperties | None = None
+    route_properties: SelectRouteProperties | None = None
+    timespans: Annotated[list[TimespanString] | None, Field(None, min_length=1)]
+    nodes: SelectTransitNodes | None = None
+    links: SelectTransitLinks | None = None
 
     model_config = ConfigDict(
         extra="forbid",

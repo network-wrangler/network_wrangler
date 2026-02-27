@@ -2,11 +2,7 @@
 
 import json
 from pathlib import Path
-from typing import Union
 
-import ijson
-import pyarrow as pa
-import pyarrow.parquet as pq
 import toml
 import yaml
 
@@ -51,7 +47,7 @@ def load_dict(path: Path) -> dict:
     raise NotImplementedError(msg)
 
 
-def load_merge_dict(path: Union[Path, list[Path]]) -> dict:
+def load_merge_dict(path: Path | list[Path]) -> dict:
     """Load and merge multiple dictionaries from files."""
     if not isinstance(path, list):
         path = [path]

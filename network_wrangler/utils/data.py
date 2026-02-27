@@ -3,11 +3,10 @@
 from __future__ import annotations
 
 from collections.abc import Mapping
-from typing import Any, Optional, Union
+from typing import Any
 
 import numpy as np
 import pandas as pd
-import pyarrow as pa
 from geopandas import GeoDataFrame, GeoSeries
 from numpy import ndarray
 from shapely import wkt
@@ -71,7 +70,7 @@ def update_df_by_col_value(
     destination_df: pd.DataFrame,
     source_df: pd.DataFrame,
     join_col: str,
-    properties: Optional[list[str]] = None,
+    properties: list[str] | None = None,
     fail_if_missing: bool = True,
 ) -> pd.DataFrame:
     """Updates destination_df with ALL values in source_df for specified props with same join_col.
@@ -216,7 +215,7 @@ def _update_props_for_common_idx(
     return updated_df
 
 
-def list_like_columns(df, item_type: Optional[type] = None) -> list[str]:
+def list_like_columns(df, item_type: type | None = None) -> list[str]:
     """Find columns in a dataframe that contain list-like items that can't be json-serialized.
 
     Args:
@@ -227,7 +226,7 @@ def list_like_columns(df, item_type: Optional[type] = None) -> list[str]:
     list_like_columns = []
 
     for column in df.columns:
-        if df[column].apply(lambda x: isinstance(x, (list, ndarray))).any():
+        if df[column].apply(lambda x: isinstance(x, list | ndarray)).any():
             if item_type is not None and not isinstance(df[column].iloc[0], item_type):
                 continue
             list_like_columns.append(column)
@@ -235,7 +234,7 @@ def list_like_columns(df, item_type: Optional[type] = None) -> list[str]:
 
 
 def compare_df_values(
-    df1, df2, join_col: Optional[str] = None, ignore: Optional[list[str]] = None, atol=1e-5
+    df1, df2, join_col: str | None = None, ignore: list[str] | None = None, atol=1e-5
 ):
     """Compare overlapping part of dataframes and returns where there are differences."""
     if ignore is None:
@@ -288,7 +287,7 @@ def compare_df_values(
     return comp_df
 
 
-def diff_dfs(df1, df2, ignore: Optional[list[str]] = None) -> bool:
+def diff_dfs(df1, df2, ignore: list[str] | None = None) -> bool:
     """Returns True if two dataframes are different and log differences."""
     if ignore is None:
         ignore = []
@@ -353,13 +352,13 @@ def diff_list_like_series(s1, s2) -> bool:
 
 def segment_data_by_selection(
     item_list: list,
-    data: Union[list, pd.DataFrame, pd.Series],
-    field: Optional[str] = None,
+    data: list | pd.DataFrame | pd.Series,
+    field: str | None = None,
     end_val=0,
 ) -> tuple[
-    Union[pd.Series, list, pd.DataFrame],
-    Union[pd.Series, list, pd.DataFrame],
-    Union[pd.Series, list, pd.DataFrame],
+    pd.Series | list | pd.DataFrame,
+    pd.Series | list | pd.DataFrame,
+    pd.Series | list | pd.DataFrame,
 ]:
     """Segment a dataframe or series into before, middle, and end segments based on item_list.
 
@@ -371,7 +370,7 @@ def segment_data_by_selection(
     Args:
         item_list (list): List of items to segment data by. If longer than two, will only
             use the first and last items.
-        data (Union[pd.Series, pd.DataFrame]): Data to segment into before, middle, and after.
+        data (pd.Series | pd.DataFrame): Data to segment into before, middle, and after.
         field (str, optional): If a dataframe, specifies which field to reference.
             Defaults to None.
         end_val (int, optional): Notation for util the end or from the begining. Defaults to 0.
@@ -431,7 +430,7 @@ def segment_data_by_selection(
         selected_segment = data[start_idx:end_idx]
         after_segment = data[end_idx:]
 
-    if isinstance(data, (pd.DataFrame, pd.Series)):
+    if isinstance(data, pd.DataFrame | pd.Series):
         before_segment = before_segment.reset_index(drop=True)
         selected_segment = selected_segment.reset_index(drop=True)
         after_segment = after_segment.reset_index(drop=True)
@@ -451,9 +450,9 @@ def segment_data_by_selection_min_overlap(
 ) -> tuple[
     list,
     tuple[
-        Union[pd.Series, pd.DataFrame],
-        Union[pd.Series, pd.DataFrame],
-        Union[pd.Series, pd.DataFrame],
+        pd.Series | pd.DataFrame,
+        pd.Series | pd.DataFrame,
+        pd.Series | pd.DataFrame,
     ],
 ]:
     """Segments data based on item_list reducing overlap with replacement list.
@@ -476,7 +475,7 @@ def segment_data_by_selection_min_overlap(
     Args:
         selection_list (list): List of items to segment data by. If longer than two, will only
             use the first and last items.
-        data (Union[pd.Series, pd.DataFrame]): Data to segment into before, middle, and after.
+        data (pd.Series | pd.DataFrame): Data to segment into before, middle, and after.
         field (str): Specifies which field to reference.
         replacements_list (list): List of items to eventually replace the selected segment with.
         end_val (int, optional): Notation for util the end or from the begining. Defaults to 0.
@@ -553,7 +552,7 @@ def validate_existing_value_in_df(df: pd.DataFrame, idx: list[int], field: str, 
     return True
 
 
-CoerceTypes = Union[str, int, float, bool, list[Union[str, int, float, bool]]]
+CoerceTypes = str | int | float | bool | list[str | int | float | bool]
 
 
 def coerce_val_to_df_types(  # noqa: PLR0911
@@ -593,7 +592,7 @@ def coerce_val_to_df_types(  # noqa: PLR0911
 def coerce_dict_to_df_types(
     d: dict[str, CoerceTypes],
     df: pd.DataFrame,
-    skip_keys: Optional[list] = None,
+    skip_keys: list | None = None,
     return_skipped: bool = False,
 ) -> dict[str, CoerceTypes]:
     """Coerce dictionary values to match the type of a dataframe columns matching dict keys.
@@ -638,7 +637,7 @@ def coerce_dict_to_df_types(
     return coerced_dict
 
 
-def coerce_val_to_series_type(val, s: pd.Series) -> Union[float, str, bool]:
+def coerce_val_to_series_type(val, s: pd.Series) -> float | str | bool:
     """Coerces a value to match type of pandas series.
 
     Will try not to fail so if you give it a value that can't convert to a number, it will
@@ -652,7 +651,7 @@ def coerce_val_to_series_type(val, s: pd.Series) -> Union[float, str, bool]:
     #    {pd.api.types.infer_dtype(s)}.")
     if pd.api.types.infer_dtype(s) in ["integer", "floating"]:
         try:
-            v: Union[float, str, bool] = float(val)
+            v: float | str | bool = float(val)
         except:
             v = str(val)
     elif pd.api.types.infer_dtype(s) == "boolean":
@@ -664,7 +663,7 @@ def coerce_val_to_series_type(val, s: pd.Series) -> Union[float, str, bool]:
 
 
 def fk_in_pk(
-    pk: Union[pd.Series, list], fk: Union[pd.Series, list], ignore_nan: bool = True
+    pk: pd.Series | list, fk: pd.Series | list, ignore_nan: bool = True
 ) -> tuple[bool, list]:
     """Check if all foreign keys are in the primary keys, optionally ignoring NaN."""
     if isinstance(fk, list):

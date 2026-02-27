@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from datetime import time
-from typing import Any, Literal, TypeVar, Union
+from typing import Any, Literal, TypeVar
 
 import pandas as pd
 
@@ -16,9 +16,9 @@ PandasSeries = TypeVar("PandasSeries", bound=pd.Series)
 
 ForcedStr = Any  # For simplicity, since BeforeValidator is not used here
 
-OneOf = list[list[Union[str, list[str]]]]
+OneOf = list[list[str | list[str]]]
 ConflictsWith = list[list[str]]
-AnyOf = list[list[Union[str, list[str]]]]
+AnyOf = list[list[str | list[str]]]
 
 Latitude = float
 Longitude = float
@@ -52,4 +52,4 @@ def validate_timespan_string(value: Any) -> list[str]:
 
 
 TimespanString = list[str]
-TimeType = Union[time, str, int]
+TimeType = time | str | int

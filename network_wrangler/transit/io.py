@@ -1,11 +1,10 @@
 """Functions for reading and writing transit feeds and networks."""
 
 from pathlib import Path
-from typing import Literal, Optional, Union
+from typing import Literal
 
 import geopandas as gpd
 import pandas as pd
-import pyarrow as pa
 
 from ..configs import DefaultConfig, WranglerConfig
 from ..errors import FeedReadError
@@ -29,9 +28,7 @@ def _feed_path_ref(path: Path) -> Path:
     return path
 
 
-def load_feed_from_path(
-    feed_path: Union[Path, str], file_format: TransitFileTypes = "txt"
-) -> Feed:
+def load_feed_from_path(feed_path: Path | str, file_format: TransitFileTypes = "txt") -> Feed:
     """Create a Feed object from the path to a GTFS transit feed.
 
     Args:
@@ -120,7 +117,7 @@ def load_feed_from_dfs(feed_dfs: dict) -> Feed:
 
 
 def load_transit(
-    feed: Union[Feed, GtfsModel, dict[str, pd.DataFrame], str, Path],
+    feed: Feed | GtfsModel | dict[str, pd.DataFrame] | str | Path,
     file_format: TransitFileTypes = "txt",
     config: WranglerConfig = DefaultConfig,
 ) -> "TransitNetwork":
@@ -155,7 +152,7 @@ def load_transit(
     ```
 
     """
-    if isinstance(feed, (Path, str)):
+    if isinstance(feed, Path | str):
         feed = Path(feed)
         feed_obj = load_feed_from_path(feed, file_format=file_format)
         feed_obj.feed_path = feed
@@ -174,8 +171,8 @@ def load_transit(
 
 def write_transit(
     transit_net,
-    out_dir: Union[Path, str] = ".",
-    prefix: Optional[Union[Path, str]] = None,
+    out_dir: Path | str = ".",
+    prefix: Path | str | None = None,
     file_format: Literal["txt", "csv", "parquet"] = "txt",
     overwrite: bool = True,
 ) -> None:
@@ -199,9 +196,9 @@ def write_transit(
 
 
 def convert_transit_serialization(
-    input_path: Union[str, Path],
+    input_path: str | Path,
     output_format: TransitFileTypes,
-    out_dir: Union[Path, str] = ".",
+    out_dir: Path | str = ".",
     input_file_format: TransitFileTypes = "csv",
     out_prefix: str = "",
     overwrite: bool = True,
@@ -234,7 +231,7 @@ def convert_transit_serialization(
 def write_feed_geo(
     feed: Feed,
     ref_nodes_df: gpd.GeoDataFrame,
-    out_dir: Union[str, Path],
+    out_dir: str | Path,
     file_format: Literal["geojson", "shp", "parquet"] = "geojson",
     out_prefix=None,
     overwrite: bool = True,

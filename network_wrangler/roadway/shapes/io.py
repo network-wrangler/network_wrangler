@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import time
 from pathlib import Path
-from typing import Optional, Union
 
 from geopandas import GeoDataFrame
 from pandera.typing import DataFrame
@@ -27,10 +26,10 @@ from .create import df_to_shapes_df
 def read_shapes(
     filename: Path,
     in_crs: int = LAT_LON_CRS,
-    boundary_gdf: Optional[GeoDataFrame] = None,
-    boundary_geocode: Optional[str] = None,
-    boundary_file: Optional[Path] = None,
-    filter_to_shape_ids: Optional[list] = None,
+    boundary_gdf: GeoDataFrame | None = None,
+    boundary_geocode: str | None = None,
+    boundary_file: Path | None = None,
+    filter_to_shape_ids: list | None = None,
     config: WranglerConfig = DefaultConfig,
 ) -> DataFrame[RoadShapesTable]:
     """Reads shapes and returns a geodataframe of shapes if filename is found.
@@ -88,7 +87,7 @@ def read_shapes(
 @validate_call_pyd
 def write_shapes(
     shapes_df: DataFrame[RoadShapesTable],
-    out_dir: Union[str, Path],
+    out_dir: str | Path,
     prefix: str,
     format: str,
     overwrite: bool,

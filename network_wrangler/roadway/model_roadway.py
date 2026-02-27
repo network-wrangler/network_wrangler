@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import copy
 from pathlib import Path
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING
 
 import geopandas as gpd
 import pandas as pd
@@ -83,15 +83,15 @@ class ModelRoadwayNetwork:
             managed lane counterparts.
         ml_node_id_lookup: lookup from general purpose node ids to node ids of their
             managed lane counterparts.
-        _net_hash: hash of the the input links and nodes in order to detect changes.
+        _net_version: modification version of the input network when this was created.
 
     """
 
     def __init__(
         self,
         net,
-        ml_link_id_lookup: Optional[dict[int, int]] = None,
-        ml_node_id_lookup: Optional[dict[int, int]] = None,
+        ml_link_id_lookup: dict[int, int] | None = None,
+        ml_node_id_lookup: dict[int, int] | None = None,
     ):
         """Constructor for ModelRoadwayNetwork.
 
@@ -147,7 +147,7 @@ class ModelRoadwayNetwork:
             self.links_df, self.nodes_df = model_links_nodes_from_net(
                 self.net, self.ml_link_id_lookup, self.ml_node_id_lookup
             )
-        self._net_hash = copy.deepcopy(net.network_hash)
+        self._net_version = net.modification_version
 
     @property
     def ml_config(self) -> dict:

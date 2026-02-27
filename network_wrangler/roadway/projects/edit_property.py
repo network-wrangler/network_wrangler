@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Optional, Union
+from typing import TYPE_CHECKING
 
 import pandas as pd
 
@@ -21,7 +21,7 @@ if TYPE_CHECKING:
 def _node_geo_change_from_property_changes(
     property_changes: dict[str, RoadPropertyChange],
     node_idx: list[int],
-) -> Union[None, NodeGeometryChangeTable]:
+) -> None | NodeGeometryChangeTable:
     """Return NodeGeometryChangeTable if property_changes includes gometry change else None."""
     geo_change_present = any(f in property_changes for f in ["X", "Y"])
     if not geo_change_present:
@@ -47,9 +47,9 @@ def _node_geo_change_from_property_changes(
 
 def apply_roadway_property_change(
     roadway_net: RoadwayNetwork,
-    selection: Union[RoadwayNodeSelection, RoadwayLinkSelection],
+    selection: RoadwayNodeSelection | RoadwayLinkSelection,
     property_changes: dict[str, RoadPropertyChange],
-    project_name: Optional[str] = None,
+    project_name: str | None = None,
 ) -> RoadwayNetwork:
     """Changes roadway properties for the selected features based on the project card.
 
@@ -78,6 +78,7 @@ def apply_roadway_property_change(
             property_changes,
             project_name=project_name,
         )
+        roadway_net._mark_modified()
 
     elif isinstance(selection, RoadwayNodeSelection):
         non_geo_changes = {
@@ -92,11 +93,14 @@ def apply_roadway_property_change(
                 prop_change,
                 project_name=project_name,
             )
+        if non_geo_changes:
+            roadway_net._mark_modified()
 
         geo_changes_df = _node_geo_change_from_property_changes(
             property_changes, selection.selected_nodes
         )
         if geo_changes_df is not None:
+            # move_nodes already calls _mark_modified()
             roadway_net.move_nodes(geo_changes_df)
 
     else:

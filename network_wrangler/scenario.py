@@ -159,7 +159,7 @@ import pprint
 from collections import defaultdict, deque
 from datetime import datetime
 from pathlib import Path
-from typing import TYPE_CHECKING, Optional, Union
+from typing import TYPE_CHECKING
 
 import yaml
 from projectcard import ProjectCard, SubProject, read_cards, write_card
@@ -291,9 +291,9 @@ class Scenario:
 
     def __init__(
         self,
-        base_scenario: Union[Scenario, dict],
-        project_card_list: Optional[list[ProjectCard]] = None,
-        config: Optional[Union[WranglerConfig, dict, Path, list[Path]]] = None,
+        base_scenario: Scenario | dict,
+        project_card_list: list[ProjectCard] | None = None,
+        config: WranglerConfig | dict | Path | list[Path] | None = None,
         name: str = "",
     ):
         """Constructor.
@@ -327,11 +327,9 @@ class Scenario:
             )
         self.name: str = name
         # if the base scenario had roadway or transit networks, use them as the basis.
-        self.road_net: Optional[RoadwayNetwork] = copy.deepcopy(
-            base_scenario.pop("road_net", None)
-        )
+        self.road_net: RoadwayNetwork | None = copy.deepcopy(base_scenario.pop("road_net", None))
 
-        self.transit_net: Optional[TransitNetwork] = copy.deepcopy(
+        self.transit_net: TransitNetwork | None = copy.deepcopy(
             base_scenario.pop("transit_net", None)
         )
         if self.road_net and self.transit_net:
@@ -402,7 +400,7 @@ class Scenario:
         self,
         project_card: ProjectCard,
         validate: bool = True,
-        filter_tags: Optional[list[str]] = None,
+        filter_tags: list[str] | None = None,
     ) -> None:
         """Adds a single ProjectCard instances to the Scenario.
 
@@ -448,7 +446,7 @@ class Scenario:
         self,
         project_card_list: list[ProjectCard],
         validate: bool = True,
-        filter_tags: Optional[list[str]] = None,
+        filter_tags: list[str] | None = None,
     ) -> None:
         """Adds a list of ProjectCard instances to the Scenario.
 
@@ -620,7 +618,7 @@ class Scenario:
         # set this so it will trigger re-queuing any more projects.
         self._queued_projects = None
 
-    def _apply_change(self, change: Union[ProjectCard, SubProject]) -> None:
+    def _apply_change(self, change: ProjectCard | SubProject) -> None:
         """Applies a specific change specified in a project card.
 
         Change type must be in at least one of:
@@ -708,14 +706,14 @@ class Scenario:
         transit_write: bool = True,
         projects_write: bool = True,
         roadway_convert_complex_link_properties_to_single_field: bool = False,
-        roadway_out_dir: Optional[Path] = None,
-        roadway_prefix: Optional[str] = None,
+        roadway_out_dir: Path | None = None,
+        roadway_prefix: str | None = None,
         roadway_file_format: RoadwayFileTypes = "parquet",
         roadway_true_shape: bool = False,
-        transit_out_dir: Optional[Path] = None,
-        transit_prefix: Optional[str] = None,
+        transit_out_dir: Path | None = None,
+        transit_prefix: str | None = None,
         transit_file_format: TransitFileTypes = "txt",
-        projects_out_dir: Optional[Path] = None,
+        projects_out_dir: Path | None = None,
     ) -> Path:
         """Writes scenario networks and summary to disk and returns path to scenario file.
 
@@ -817,12 +815,12 @@ class Scenario:
 
 
 def create_scenario(
-    base_scenario: Optional[Union[Scenario, dict]] = None,
+    base_scenario: Scenario | dict | None = None,
     name: str = datetime.now().strftime("%Y%m%d%H%M%S"),
     project_card_list=None,
-    project_card_filepath: Optional[Union[list[Path], Path]] = None,
-    filter_tags: Optional[list[str]] = None,
-    config: Optional[Union[dict, Path, list[Path], WranglerConfig]] = None,
+    project_card_filepath: list[Path] | Path | None = None,
+    filter_tags: list[str] | None = None,
+    config: dict | Path | list[Path] | WranglerConfig | None = None,
 ) -> Scenario:
     """Creates scenario from a base scenario and adds project cards.
 
@@ -889,7 +887,7 @@ def write_applied_projects(scenario: Scenario, out_dir: Path, overwrite: bool = 
 
 
 def load_scenario(
-    scenario_data: Union[dict, Path],
+    scenario_data: dict | Path,
     name: str = datetime.now().strftime("%Y%m%d%H%M%S"),
 ) -> Scenario:
     """Loads a scenario from a file written by Scenario.write() as the base scenario.
@@ -920,10 +918,10 @@ def load_scenario(
 
 
 def create_base_scenario(
-    roadway: Optional[dict] = None,
-    transit: Optional[dict] = None,
-    applied_projects: Optional[list] = None,
-    conflicts: Optional[dict] = None,
+    roadway: dict | None = None,
+    transit: dict | None = None,
+    applied_projects: list | None = None,
+    conflicts: dict | None = None,
     config: WranglerConfig = DefaultConfig,
 ) -> dict:
     """Creates a base scenario dictionary from roadway and transit network files.
@@ -969,7 +967,7 @@ def create_base_scenario(
 
 
 def _load_base_scenario_from_config(
-    base_scenario_data: Union[dict, ScenarioInputConfig], config: WranglerConfig = DefaultConfig
+    base_scenario_data: dict | ScenarioInputConfig, config: WranglerConfig = DefaultConfig
 ) -> dict:
     """Loads a scenario from a file written by Scenario.write() as the base scenario.
 
@@ -1008,7 +1006,7 @@ def extract_base_scenario_metadata(base_scenario: dict) -> dict:
 
 
 def build_scenario_from_config(
-    scenario_config: Union[Path, list[Path], ScenarioConfig, dict],
+    scenario_config: Path | list[Path] | ScenarioConfig | dict,
 ) -> Scenario:
     """Builds a scenario from a dictionary configuration.
 

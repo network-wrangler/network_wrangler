@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import copy
-from typing import TYPE_CHECKING, Optional, Union
+from typing import TYPE_CHECKING
 
 import numpy as np
 import pandas as pd
@@ -19,7 +19,7 @@ from ...models.gtfs.tables import (
     WranglerTripsTable,
 )
 from ...utils.data import concat_with_attr, segment_data_by_selection_min_overlap
-from ...utils.ids import generate_list_of_new_ids_from_existing, generate_new_id_from_existing
+from ...utils.ids import generate_new_id_from_existing
 from ...utils.models import validate_df_to_model
 from ..feed.shapes import (
     find_nearest_stops,
@@ -42,7 +42,7 @@ if TYPE_CHECKING:
 
 
 def _create_stop_times(
-    set_stops_node_ids: list[int], trip_id: str, project_name: Optional[str] = None
+    set_stops_node_ids: list[int], trip_id: str, project_name: str | None = None
 ) -> DataFrame[WranglerStopTimesTable]:
     """Modifies a list of nodes from project card routing key to a shape dataframe.
 
@@ -71,7 +71,7 @@ def _create_shapes(
     nodes_list: list[int],
     shape_id: str,
     road_net: RoadwayNetwork,
-    project_name: Optional[str] = None,
+    project_name: str | None = None,
 ) -> DataFrame[WranglerShapesTable]:
     """Modifies a list of nodes from project card routing key to rows in a shapes.txt dataframe.
 
@@ -123,7 +123,7 @@ def _add_new_shape_copy(
     trip_ids: list[str],
     feed: Feed,
     id_scalar: int = DefaultConfig.IDS.TRANSIT_SHAPE_ID_SCALAR,
-    project_name: Optional[str] = None,
+    project_name: str | None = None,
 ) -> tuple[DataFrame[WranglerShapesTable], DataFrame[WranglerTripsTable], str]:
     """Create an identical new shape_id from shape matching old_shape_id for the trip_ids.
 
@@ -161,7 +161,7 @@ def _replace_shapes_segment(
     set_routing: list[int],
     feed: Feed,
     road_net: RoadwayNetwork,
-    project_name: Optional[str] = None,
+    project_name: str | None = None,
 ) -> DataFrame[WranglerShapesTable]:
     """Returns shapes with a replaced segment for a given shape_id.
 
@@ -229,7 +229,7 @@ def _replace_stop_times_segment_for_trip(
     trip_id: str,
     set_stops_nodes: list[int],
     feed: Feed,
-    project_name: Optional[str] = None,
+    project_name: str | None = None,
 ) -> DataFrame[WranglerStopTimesTable]:
     """Replaces a segment of a specific set of stop_time records with the same shape_id.
 
@@ -330,8 +330,8 @@ def _update_shapes_and_trips(
     routing_set: list[int],
     shape_id_scalar: int,
     road_net: RoadwayNetwork,
-    routing_existing: Optional[list[int]] = None,
-    project_name: Optional[str] = None,
+    routing_existing: list[int] | None = None,
+    project_name: str | None = None,
 ) -> tuple[DataFrame[WranglerShapesTable], DataFrame[WranglerTripsTable]]:
     """Update shapes and trips for transit routing change.
 
@@ -395,7 +395,7 @@ def _update_stops(
     feed: Feed,
     routing_set: list[int],
     road_net: RoadwayNetwork,
-    project_name: Optional[str] = None,
+    project_name: str | None = None,
 ) -> DataFrame[WranglerStopsTable]:
     """Update stops for transit routing change.
 
@@ -475,7 +475,7 @@ def _update_stop_times_for_trip(
     trip_id: str,
     routing_set: list[int],
     routing_existing: list[int],
-    project_name: Optional[str] = None,
+    project_name: str | None = None,
 ) -> DataFrame[WranglerStopTimesTable]:
     """Update stop_times for a specific trip with new stop_times.
 
@@ -545,8 +545,8 @@ def apply_transit_routing_change(
     net: TransitNetwork,
     selection: TransitSelection,
     routing_change: dict,
-    reference_road_net: Optional[RoadwayNetwork] = None,
-    project_name: Optional[str] = None,
+    reference_road_net: RoadwayNetwork | None = None,
+    project_name: str | None = None,
 ) -> TransitNetwork:
     """Apply a routing change to the transit network, including stop updates.
 

@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING
 
 from pandera.typing import DataFrame
 
@@ -10,7 +10,6 @@ from ...errors import LinkDeletionError
 from ...logger import WranglerLogger
 from ...models.roadway.tables import RoadLinksTable
 from ...transit.validate import shape_links_without_road_links
-from ...utils.models import validate_call_pyd
 
 if TYPE_CHECKING:
     from ...transit.network import TransitNetwork
@@ -20,7 +19,7 @@ def delete_links_by_ids(
     links_df: DataFrame[RoadLinksTable],
     del_link_ids: list[int],
     ignore_missing: bool = False,
-    transit_net: Optional[TransitNetwork] = None,
+    transit_net: TransitNetwork | None = None,
 ) -> DataFrame[RoadLinksTable]:
     """Delete links from a links table.
 
