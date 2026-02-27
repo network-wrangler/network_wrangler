@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import time
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Optional, Union
+from typing import TYPE_CHECKING, Any
 
 from geopandas import GeoDataFrame
 from pandera.typing import DataFrame
@@ -28,9 +28,9 @@ if TYPE_CHECKING:
 def read_nodes(
     filename: Path,
     in_crs: int = LAT_LON_CRS,
-    boundary_gdf: Optional[GeoDataFrame] = None,
-    boundary_geocode: Optional[str] = None,
-    boundary_file: Optional[Path] = None,
+    boundary_gdf: GeoDataFrame | None = None,
+    boundary_geocode: str | None = None,
+    boundary_file: Path | None = None,
     config: WranglerConfig = DefaultConfig,
 ) -> DataFrame[RoadNodesTable]:
     """Reads nodes and returns a geodataframe of nodes.
@@ -100,7 +100,7 @@ def nodes_df_to_geojson(nodes_df: DataFrame[RoadNodesTable], properties: list[st
 @validate_call_pyd
 def write_nodes(
     nodes_df: DataFrame[RoadNodesTable],
-    out_dir: Union[str, Path],
+    out_dir: str | Path,
     prefix: str,
     file_format: GeoFileTypes = "geojson",
     overwrite: bool = True,
@@ -121,9 +121,9 @@ def write_nodes(
 
 
 def get_nodes(
-    transit_net: Optional[TransitNetwork] = None,
-    roadway_net: Optional[RoadwayNetwork] = None,
-    roadway_path: Optional[Union[str, Path]] = None,
+    transit_net: TransitNetwork | None = None,
+    roadway_net: RoadwayNetwork | None = None,
+    roadway_path: str | Path | None = None,
     config: WranglerConfig = DefaultConfig,
 ) -> GeoDataFrame:
     """Get nodes from a transit network, roadway network, or roadway file.

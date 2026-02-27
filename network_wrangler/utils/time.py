@@ -15,7 +15,6 @@ Internal function terminology for timespan scopes:
 from __future__ import annotations
 
 from datetime import date, datetime, timedelta
-from typing import Optional, Union
 
 import pandas as pd
 from pydantic import validate_call
@@ -30,7 +29,7 @@ class TimespanDfQueryError(Exception):
 
 
 @validate_call(config={"arbitrary_types_allowed": True})
-def str_to_time(time_str: TimeString, base_date: Optional[date] = None) -> datetime:
+def str_to_time(time_str: TimeString, base_date: date | None = None) -> datetime:
     """Convert TimeString (HH:MM<:SS>) to datetime object.
 
     If HH > 24, will subtract 24 to be within 24 hours. Timespans will be treated as the next day.
@@ -65,7 +64,7 @@ def str_to_time(time_str: TimeString, base_date: Optional[date] = None) -> datet
 
 
 def _all_str_to_time_series(
-    time_str_s: pd.Series, base_date: Optional[Union[pd.Series, date]] = None
+    time_str_s: pd.Series, base_date: pd.Series | date | None = None
 ) -> pd.Series:
     """Assume all are strings and convert to datetime objects."""
     # check strings are in the correct format, leave existing date times alone
@@ -102,7 +101,7 @@ def _all_str_to_time_series(
 
 
 def str_to_time_series(
-    time_str_s: pd.Series, base_date: Optional[Union[pd.Series, date]] = None
+    time_str_s: pd.Series, base_date: pd.Series | date | None = None
 ) -> pd.Series:
     """Convert mixed panda series datetime and TimeString (HH:MM<:SS>) to datetime object.
 
@@ -218,7 +217,7 @@ def filter_df_to_max_overlapping_timespans(
     query_timespan: list[TimeString],
     strict_match: bool = False,
     min_overlap_minutes: int = 1,
-    keep_max_of_cols: Optional[list[str]] = None,
+    keep_max_of_cols: list[str] | None = None,
 ) -> pd.DataFrame:
     """Filters dataframe for entries that have maximum overlap with the given query timespan.
 
