@@ -39,8 +39,8 @@ jobs:
         if: github.event_name == 'release'
         run: |
           TAG="${GITHUB_REF_NAME}"  # e.g. v1.2.3
-          if [[ ! "$TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+([a-zA-Z0-9\.\-]+)?$ ]]; then
-            echo "Release tag must look like v1.2.3 (optionally with pre-release suffix). Got: $TAG"
+          if [[ ! "$TAG" =~ ^v[0-9]+\.[0-9]+(\.[0-9]+)?([a-zA-Z0-9\.\-]+)?$ ]]; then
+            echo "Release tag must look like v1.2.3 or v1.0-beta.5 (optionally with pre-release suffix). Got: $TAG"
             exit 1
           fi
           VERSION="${TAG#v}"
