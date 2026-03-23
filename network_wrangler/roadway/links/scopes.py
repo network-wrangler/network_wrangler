@@ -472,7 +472,9 @@ def props_for_scopes(
         if not allow_default:
             msg = f"{prop_name} has no scoped values and allow_default=False."
             raise ValueError(msg)
-        WranglerLogger.debug(f"No scoped values for {prop_name}. Returning default for all scopes.")
+        WranglerLogger.debug(
+            f"No scoped values for {prop_name}. Returning default for all scopes."
+        )
         return {s["label"]: base.copy() for s in scopes}
 
     # Explode once using only the three columns _create_exploded_df_for_scoped_prop needs.
