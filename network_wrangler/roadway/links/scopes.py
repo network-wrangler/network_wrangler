@@ -10,6 +10,9 @@ Public Functions:
 - prop_for_scope: Creates a dataframe with the value of a property for a given category and
     timespan. Can return maximum overlapping timespan value given a minimum number of overlapping
     minutes, or strictly enforce timespans.
+- props_for_scopes: Resolves one property for multiple (timespan, category) combinations in a
+    single pass. Validates and explodes links_df once instead of once per combination. Use this
+    instead of calling prop_for_scope in a loop.
 
 Internal function terminology for scopes:
 
@@ -400,3 +403,94 @@ def prop_for_scope(
         f"result_df[prop_name]: \n{result_df.loc[scoped_prop_df.index, prop_name]}"
     )
     return result_df
+
+
+def props_for_scopes(
+    links_df: pd.DataFrame,
+    prop_name: str,
+    scopes: list[dict],
+    strict_timespan_match: bool = False,
+    min_overlap_minutes: int = 60,
+    allow_default: bool = True,
+) -> dict[str, pd.Series]:
+    """Resolve one property for multiple (timespan, category) combinations in a single pass.
+
+    Prefer this over calling `prop_for_scope` in a loop. The two expensive operations —
+    schema validation and exploding the scoped column — are each performed once regardless
+    of how many scopes are requested, rather than once per scope.
+
+    Unlike `prop_for_scope`, this function does **not** validate `links_df` against
+    `RoadLinksTable`. The caller is responsible for passing a valid DataFrame (e.g. one
+    that came from a `RoadwayNetwork`).
+
+    Args:
+        links_df: DataFrame containing at minimum `prop_name` and `sc_{prop_name}` columns,
+            indexed consistently with the network. Must already be valid (no schema check
+            is performed).
+        prop_name: Name of the property to resolve.
+        scopes: List of scope dicts, each with keys:
+            - ``"label"`` (str): key used in the returned dict.
+            - ``"timespan"`` (list[TimeString]): timespan to query.
+            - ``"category"`` (str | int | None): category to query; omit or set to None
+              for the default category.
+        strict_timespan_match: If True, only return scopes that fully contain the query
+            timespan. Passed through to ``_filter_exploded_df_to_scope``.
+        min_overlap_minutes: Minimum overlap in minutes to include a scope. Passed through
+            to ``_filter_exploded_df_to_scope``.
+        allow_default: If True, return the unscoped default column when no ``sc_{prop_name}``
+            column exists or it is entirely null.
+
+    Returns:
+        Dict mapping each scope's ``"label"`` to a ``pd.Series`` of resolved values, indexed
+        the same as ``links_df``.
+
+    Raises:
+        ValueError: If ``prop_name`` is not in ``links_df``.
+        ValueError: If ``allow_default`` is False and no scoped column exists.
+
+    Example:
+        ```python
+        scopes = [
+            {"label": "lanes_AM", "timespan": ["6:00", "9:00"], "category": None},
+            {"label": "lanes_PM", "timespan": ["16:00", "19:00"], "category": None},
+            {"label": "price_AM_sov", "timespan": ["6:00", "9:00"], "category": "sov"},
+        ]
+        resolved = props_for_scopes(roadway_net.links_df, "lanes", scopes)
+        for label, series in resolved.items():
+            roadway_net.links_df[label] = series
+        ```
+    """
+    if prop_name not in links_df.columns:
+        msg = f"{prop_name} not in dataframe."
+        raise ValueError(msg)
+
+    base = links_df[prop_name]
+
+    # Fast path: no scoped values — every scope gets the unmodified default column.
+    sc_col = f"sc_{prop_name}"
+    if sc_col not in links_df.columns or links_df[sc_col].isna().all():
+        if not allow_default:
+            msg = f"{prop_name} has no scoped values and allow_default=False."
+            raise ValueError(msg)
+        WranglerLogger.debug(f"No scoped values for {prop_name}. Returning default for all scopes.")
+        return {s["label"]: base.copy() for s in scopes}
+
+    # Explode once using only the three columns _create_exploded_df_for_scoped_prop needs.
+    slim_df = links_df[["model_link_id", prop_name, sc_col]]
+    exploded = _create_exploded_df_for_scoped_prop(slim_df, prop_name)
+
+    result: dict[str, pd.Series] = {}
+    for scope in scopes:
+        filtered = _filter_exploded_df_to_scope(
+            exploded,
+            timespan=scope.get("timespan", DEFAULT_TIMESPAN),
+            category=scope.get("category", DEFAULT_CATEGORY),
+            strict_timespan_match=strict_timespan_match,
+            min_overlap_minutes=min_overlap_minutes,
+        )
+        col = base.copy()
+        col.loc[filtered.index] = filtered["scoped"]
+        WranglerLogger.debug(f"props_for_scopes [{scope['label']}]: {col.loc[filtered.index]}")
+        result[scope["label"]] = col
+
+    return result
