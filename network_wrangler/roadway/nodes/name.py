@@ -11,7 +11,7 @@ if TYPE_CHECKING:
     from ..network import RoadwayNetwork
 
 
-def add_roadway_link_names_to_nodes(roadway_network: RoadwayNetwork) -> None:
+def add_roadway_link_names_to_nodes(roadway_network: RoadwayNetwork) -> None:  # noqa: PLR0912, PLR0915
     """Add lists of unique incoming and outgoing link names to each roadway network node.
 
     For each node in the roadway network, this function adds three new columns:
@@ -64,12 +64,11 @@ def add_roadway_link_names_to_nodes(roadway_network: RoadwayNetwork) -> None:
                             unique_link_names.add(name)
                             outgoing_names[node_a].add(name)
                             incoming_names[node_b].add(name)
-                else:
-                    # If parsing didn't give us a list, treat as regular string
-                    if link_name != 'unknown':
-                        unique_link_names.add(link_name)
-                        outgoing_names[node_a].add(link_name)
-                        incoming_names[node_b].add(link_name)
+                # If parsing didn't give us a list, treat as regular string
+                elif link_name != 'unknown':
+                    unique_link_names.add(link_name)
+                    outgoing_names[node_a].add(link_name)
+                    incoming_names[node_b].add(link_name)
             except (ValueError, SyntaxError):
                 # If parsing fails, treat as regular string
                 if link_name != 'unknown':
@@ -93,10 +92,10 @@ def add_roadway_link_names_to_nodes(roadway_network: RoadwayNetwork) -> None:
     WranglerLogger.debug(f"Found {len(unique_link_names)} unique link names")
 
     # Log sample of unique link names (first 10)
-    sample_names = sorted(list(unique_link_names))[:10]
+    sample_names = sorted(unique_link_names)[:10]
     for name in sample_names:
         WranglerLogger.debug(f"  - Link name: '{name}'")
-    if len(unique_link_names) > 10:
+    if len(unique_link_names) > 10:  # noqa: PLR2004
         WranglerLogger.debug(f"  ... and {len(unique_link_names) - 10} more unique names")
 
     # Initialize columns with empty lists
@@ -108,18 +107,18 @@ def add_roadway_link_names_to_nodes(roadway_network: RoadwayNetwork) -> None:
     for idx, row in roadway_network.nodes_df.iterrows():
         node_id = row['model_node_id']
         if node_id in incoming_names:
-            roadway_network.nodes_df.at[idx, 'incoming_link_names'] = sorted(list(incoming_names[node_id]))
+            roadway_network.nodes_df.at[idx, 'incoming_link_names'] = sorted(incoming_names[node_id])
         if node_id in outgoing_names:
-            roadway_network.nodes_df.at[idx, 'outgoing_link_names'] = sorted(list(outgoing_names[node_id]))
+            roadway_network.nodes_df.at[idx, 'outgoing_link_names'] = sorted(outgoing_names[node_id])
 
         # Combine for all link names
         combined = incoming_names.get(node_id, set()) | outgoing_names.get(node_id, set())
         if combined:
-            roadway_network.nodes_df.at[idx, 'link_names'] = sorted(list(combined))
+            roadway_network.nodes_df.at[idx, 'link_names'] = sorted(combined)
 
     # Debug logging for specific node 1011109
-    if 1011109 in roadway_network.nodes_df['model_node_id'].values:
-        node_row = roadway_network.nodes_df[roadway_network.nodes_df['model_node_id'] == 1011109].iloc[0]
+    if 1011109 in roadway_network.nodes_df['model_node_id'].values:  # noqa: PLR2004
+        node_row = roadway_network.nodes_df[roadway_network.nodes_df['model_node_id'] == 1011109].iloc[0]  # noqa: PLR2004
         WranglerLogger.debug("Debug info for node 1011109:")
         WranglerLogger.debug(f"  - Incoming link names: {node_row['incoming_link_names']}")
         WranglerLogger.debug(f"  - Outgoing link names: {node_row['outgoing_link_names']}")
@@ -138,7 +137,7 @@ def add_roadway_link_names_to_nodes(roadway_network: RoadwayNetwork) -> None:
         if row['link_names']:
             sample = row['link_names'][:3]
             names_str = ", ".join([f"'{n}'" for n in sample])
-            if len(row['link_names']) > 3:
+            if len(row['link_names']) > 3:  # noqa: PLR2004
                 names_str += f", ... ({len(row['link_names']) - 3} more)"
             WranglerLogger.debug(f"    Names: {names_str}")
 

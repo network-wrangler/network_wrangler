@@ -106,8 +106,7 @@ class Feed(DBModelMixin):
 
     @property
     def summary(self) -> dict:
-        """A high level summary of the GTFS model object and public attributes"""
-
+        """A high level summary of the GTFS model object and public attributes."""
         summary_dict = {}
         for table_name in self._table_models:
             if hasattr(self, table_name):

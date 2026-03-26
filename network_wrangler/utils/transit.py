@@ -3,6 +3,7 @@
 import pprint
 from pathlib import Path
 from typing import Any, Literal, Optional, Union
+
 import geopandas as gpd
 import networkx as nx
 import numpy as np
@@ -15,19 +16,20 @@ from ..logger import WranglerLogger
 from ..models.gtfs.converters import (
     convert_stop_times_to_wrangler_stop_times,
     convert_stops_to_wrangler_stops,
-    create_feed_frequencies
+    create_feed_frequencies,
 )
 from ..models.gtfs.gtfs import (
     FERRY_ROUTE_TYPES,
-    GtfsModel,
     MIXED_TRAFFIC_ROUTE_TYPES,
     RAIL_ROUTE_TYPES,
     STATION_ROUTE_TYPES,
+    GtfsModel,
 )
 from ..models.gtfs.types import RouteType
 from ..params import FEET_PER_MILE, LAT_LON_CRS, METERS_PER_KILOMETER
 from ..roadway.network import RoadwayNetwork
 from ..transit.feed.feed import Feed
+
 # Import filter functions from their new location for backwards compatibility
 from ..transit.filter import (
     drop_transit_agency,
@@ -36,27 +38,27 @@ from ..transit.filter import (
 )
 
 __all__ = [
-    "assess_stop_name_roadway_compatibility",
-    "match_bus_stops_to_roadway_nodes",
-    "add_unmatched_bus_stops_to_network",
-    "create_connector_links_for_poor_match_stops",
-    "create_links_for_failed_bus_paths",
-    "route_shapes_between_stops",
-    "add_additional_data_to_stops",
     "add_additional_data_to_shapes",
+    "add_additional_data_to_stops",
     "add_stations_and_links_to_roadway_network",
-    "create_feed_from_gtfs_model",
-    "get_original_shape_points_between_stops",
+    "add_unmatched_bus_stops_to_network",
+    "assess_stop_name_roadway_compatibility",
     "calculate_path_deviation_from_shape",
-    "find_shape_aware_shortest_path",
+    "create_connector_links_for_poor_match_stops",
+    "create_feed_from_gtfs_model",
+    "create_links_for_failed_bus_paths",
+    "drop_transit_agency",
     # Re-exported from transit.filter for backwards compatibility
     "filter_transit_by_boundary",
-    "drop_transit_agency",
+    "find_shape_aware_shortest_path",
+    "get_original_shape_points_between_stops",
+    "match_bus_stops_to_roadway_nodes",
+    "route_shapes_between_stops",
     "truncate_route_at_stop",
 ]
 
 
-def assess_stop_name_roadway_compatibility(
+def assess_stop_name_roadway_compatibility(  # noqa: PLR0912
     stop_name: str,
     node_link_names: list[str],
     threshold: float = 0.5,
@@ -74,6 +76,7 @@ def assess_stop_name_roadway_compatibility(
         stop_name: Name of the transit stop (e.g., "Van Ness Ave & Market St")
         node_link_names: List of link names connected to the roadway node
         threshold: Minimum fraction of stop streets that must match node links (default 0.5)
+        config: WranglerConfig with TRANSIT.MIN_SUBSTRING_MATCH_LENGTH setting.
 
     Returns:
         Tuple of (is_compatible, match_score, matched_streets) where:
@@ -119,10 +122,11 @@ def assess_stop_name_roadway_compatibility(
             # Check if the street name is contained in the node link name or vice versa
             # Only do substring matching if both strings meet minimum length to avoid
             # spurious matches with single letters (e.g., "E" matching "Deer Creek")
-            if len(street_normalized) >= config.TRANSIT.MIN_SUBSTRING_MATCH_LENGTH and len(node_link) >= config.TRANSIT.MIN_SUBSTRING_MATCH_LENGTH:
-                if street_normalized in node_link or node_link in street_normalized:
-                    matched_streets.append(street)
-                    break
+            if (len(street_normalized) >= config.TRANSIT.MIN_SUBSTRING_MATCH_LENGTH
+                    and len(node_link) >= config.TRANSIT.MIN_SUBSTRING_MATCH_LENGTH
+                    and (street_normalized in node_link or node_link in street_normalized)):
+                matched_streets.append(street)
+                break
 
             # Also check for partial matches (e.g., "Market St" matches "Market Street")
             # Remove common suffixes for comparison
@@ -151,10 +155,7 @@ def assess_stop_name_roadway_compatibility(
                 break
 
     # Calculate match score
-    if len(stop_streets) > 0:
-        match_score = len(matched_streets) / len(stop_streets)
-    else:
-        match_score = 0.0
+    match_score = len(matched_streets) / len(stop_streets) if len(stop_streets) > 0 else 0.0
 
     is_compatible = match_score >= threshold
 
@@ -168,9 +169,9 @@ def match_bus_stops_to_roadway_nodes(  # noqa: PLR0912, PLR0915
     local_crs: str,
     crs_units: str,
     max_distance: float,
-    trace_shape_ids: Optional[list[str]] = None,
+    trace_shape_ids: list[str] | None = None,
     use_name_matching: bool = True,
-    name_match_weight: Optional[float] = None,
+    name_match_weight: float | None = None,
     config: WranglerConfig = DefaultConfig,
 ):
     """Match bus stops to bus-accessible nodes in the roadway network.
@@ -231,6 +232,7 @@ def match_bus_stops_to_roadway_nodes(  # noqa: PLR0912, PLR0915
         name_match_weight: Weight for name match score in combined scoring (0.0 to 1.0).
             Final score = (1 - name_match_weight) * normalized_distance + name_match_weight * name_score
             Defaults to NAME_MATCH_WEIGHT constant.
+        config: WranglerConfig with TRANSIT settings for name matching thresholds.
 
     Raises:
         TransitValidationError: If no bus-accessible nodes found near any bus stops
@@ -321,7 +323,7 @@ def match_bus_stops_to_roadway_nodes(  # noqa: PLR0912, PLR0915
 
     # Build spatial index for bus nodes
     try:
-        from sklearn.neighbors import BallTree  # noqa: PLC0415
+        from sklearn.neighbors import BallTree
     except ImportError as e:
         msg = "sklearn is required for transit stop matching. Install with: pip install scikit-learn"
         raise ImportError(msg) from e
@@ -367,7 +369,7 @@ def match_bus_stops_to_roadway_nodes(  # noqa: PLR0912, PLR0915
 
             # Evaluate candidates within max_distance
             candidates_found = False
-            for i, (dist, node_idx) in enumerate(zip(distances, indices)):
+            for i, (dist, node_idx) in enumerate(zip(distances, indices, strict=False)):
                 # only look at candidates within max_distance
                 if dist > max_distance: continue
 
@@ -460,7 +462,7 @@ def match_bus_stops_to_roadway_nodes(  # noqa: PLR0912, PLR0915
         bus_stops_gdf.loc[matches_df["stop_idx"], "normalized_dist"] = matches_df["normalized_dist"].values
         bus_stops_gdf.loc[matches_df["stop_idx"], "combined_score"] = matches_df["combined_score"].values
         # Report poor name matches
-        poor_name_matches = matches_df[(matches_df["close_match"] == True) & (matches_df["name_match_score"] < 0.5)]
+        poor_name_matches = matches_df[(matches_df["close_match"] == True) & (matches_df["name_match_score"] < 0.5)]  # noqa: PLR2004
         if len(poor_name_matches) > 0:
             WranglerLogger.info(f"Found {len(poor_name_matches)} bus stops with low name compatibility (score < 0.5)")
 
@@ -474,7 +476,7 @@ def match_bus_stops_to_roadway_nodes(  # noqa: PLR0912, PLR0915
     # poor_match is defined as having combined_score > 0.9
     # BUT exclude stops that serve station route types (rail, ferry, etc.) - they're handled separately
     if "combined_score" in bus_stops_gdf.columns:
-        debug_cols = debug_cols + ['combined_score', 'poor_match']
+        debug_cols = [*debug_cols, 'combined_score', 'poor_match']
 
         # Check if stop serves any station route types (rail, ferry, etc.)
         bus_stops_gdf["serves_station_routes"] = bus_stops_gdf["route_types"].apply(
@@ -484,7 +486,7 @@ def match_bus_stops_to_roadway_nodes(  # noqa: PLR0912, PLR0915
         # poor_match = poor score AND not a station stop
         bus_stops_gdf["poor_match"] = (
             (bus_stops_gdf["close_match"] == True) &
-            (bus_stops_gdf["combined_score"] > 0.9) &
+            (bus_stops_gdf["combined_score"] > 0.9) &  # noqa: PLR2004
             (bus_stops_gdf["serves_station_routes"] == False)
         )
         poor_score_stops = bus_stops_gdf[bus_stops_gdf["poor_match"] == True]
@@ -492,7 +494,7 @@ def match_bus_stops_to_roadway_nodes(  # noqa: PLR0912, PLR0915
         # Log excluded stops (poor score but serve station routes)
         excluded_station_stops = bus_stops_gdf[
             (bus_stops_gdf["close_match"] == True) &
-            (bus_stops_gdf["combined_score"] > 0.9) &
+            (bus_stops_gdf["combined_score"] > 0.9)  # noqa: PLR2004 &
             (bus_stops_gdf["serves_station_routes"] == True)
         ]
         if len(excluded_station_stops) > 0:
@@ -513,7 +515,7 @@ def match_bus_stops_to_roadway_nodes(  # noqa: PLR0912, PLR0915
             # Use the saved geometry from after projection but before matching
             bus_stops_gdf.loc[bus_stops_gdf["poor_match"], "geometry"] = bus_stops_gdf.loc[bus_stops_gdf["poor_match"], "geometry_original"]
 
-            debug_cols_with_poor = debug_cols + ['poor_match']
+            debug_cols_with_poor = [*debug_cols, 'poor_match']
             WranglerLogger.debug(
                 f"poor_match stops:\n"
                 f"{bus_stops_gdf.loc[bus_stops_gdf['poor_match'], debug_cols_with_poor]}"
@@ -673,13 +675,13 @@ def match_bus_stops_to_roadway_nodes(  # noqa: PLR0912, PLR0915
         feed_tables["stop_times"].drop(columns=["geometry_bus", "_merge"], inplace=True)
 
 
-def add_unmatched_bus_stops_to_network(
+def add_unmatched_bus_stops_to_network(  # noqa: PLR0915
     feed_tables: dict[str, pd.DataFrame],
     roadway_net: RoadwayNetwork,
     local_crs: str,
     max_distance: float,
-    trace_shape_ids: Optional[list[str]] = None,
-    default_node_attribute_dict: Optional[dict[str, any]] = None,
+    trace_shape_ids: list[str] | None = None,
+    default_node_attribute_dict: dict[str, any] | None = None,
 ) -> gpd.GeoDataFrame:
     """Add unmatched bus stops as new nodes in the roadway network.
 
@@ -704,6 +706,7 @@ def add_unmatched_bus_stops_to_network(
         local_crs: Coordinate reference system for projections (e.g., "EPSG:2227")
         max_distance: Distance threshold in crs_units for clustering
         trace_shape_ids: Optional list of shape_ids for debug logging
+        default_node_attribute_dict: Optional dict of column-name to default value to set on new nodes.
 
     Returns:
         GeoDataFrame of added nodes with columns:
@@ -756,7 +759,7 @@ def add_unmatched_bus_stops_to_network(
 
     # Cluster using DBSCAN with max_distance threshold
     try:
-        from sklearn.cluster import DBSCAN  # noqa: PLC0415
+        from sklearn.cluster import DBSCAN
     except ImportError as e:
         msg = "sklearn is required for clustering. Install with: pip install scikit-learn"
         raise ImportError(msg) from e
@@ -869,8 +872,8 @@ def create_connector_links_for_poor_match_stops(
         unmatched_stops_gdf: gpd.GeoDataFrame,
         local_crs: str,
         crs_units: str,
-        trace_shape_ids: Optional[list[str]] = None,
-        default_link_attribute_dict: Optional[dict[str, any]] = None,
+        trace_shape_ids: list[str] | None = None,  # noqa: ARG001
+        default_link_attribute_dict: dict[str, any] | None = None,
     ):
     """Create connector links between poor match bus stop nodes and nearest bus-accessible nodes.
 
@@ -888,6 +891,7 @@ def create_connector_links_for_poor_match_stops(
         local_crs: Coordinate reference system for distance calculations
         crs_units: Distance units ('feet' or 'meters')
         trace_shape_ids: Optional list of shape_ids for debug logging
+        default_link_attribute_dict: Optional dict of column-name to default value to set on new links.
 
     Notes:
         - Creates bidirectional links (forward and reverse) for each stop
@@ -1004,13 +1008,13 @@ def create_connector_links_for_poor_match_stops(
     roadway_net.add_shapes(connector_links_gdf)
 
 
-def create_links_for_failed_bus_paths(
+def create_links_for_failed_bus_paths(  # noqa: PLR0915
         roadway_net: RoadwayNetwork,
         no_bus_path_gdf: gpd.GeoDataFrame,
         local_crs: str,
         crs_units: str,
-        trace_shape_ids: Optional[list[str]] = None,
-        default_link_attribute_dict: Optional[dict[str, any]] = None,
+        trace_shape_ids: list[str] | None = None,
+        default_link_attribute_dict: dict[str, any] | None = None,
     ):
     """Create direct transit-only links for bus stop pairs that couldn't be routed.
 
@@ -1031,6 +1035,7 @@ def create_links_for_failed_bus_paths(
         local_crs: Coordinate reference system for distance calculations
         crs_units: Distance units ('feet' or 'meters')
         trace_shape_ids: Optional list of shape_ids for debug logging
+        default_link_attribute_dict: Optional dict of column-name to default value to set on new links.
 
     Notes:
         - Links are marked with ref="bad_bus_path" for identification
@@ -1126,7 +1131,7 @@ def create_links_for_failed_bus_paths(
     if trace_shape_ids:
         for trace_shape_id in trace_shape_ids:
             trace_trip_id = f'{trace_shape_id}_trip'
-            shape_mask = add_links_gdf['trip_ids'].apply(lambda x: trace_trip_id in x if isinstance(x, list) else False)
+            shape_mask = add_links_gdf['trip_ids'].apply(lambda x, tid=trace_trip_id: tid in x if isinstance(x, list) else False)
             if shape_mask.any():
                 WranglerLogger.debug(
                     f"adding links for trace {trace_shape_id} in create_links_for_failed_bus_paths:\n"
@@ -1155,9 +1160,9 @@ def route_shapes_between_stops(  # noqa: PLR0912, PLR0915
     roadway_net: RoadwayNetwork,
     local_crs: str,
     crs_units: str,
-    trace_shape_ids: Optional[list[str]] = None,
+    trace_shape_ids: list[str] | None = None,
     errors: Literal["raise", "ignore"] = "raise",
-    default_link_attribute_dict: Optional[dict[str, any]] = None,
+    default_link_attribute_dict: dict[str, any] | None = None,
 ):
     """Find shortest paths through the bus network between consecutive bus stops.
 
@@ -1198,6 +1203,7 @@ def route_shapes_between_stops(  # noqa: PLR0912, PLR0915
         crs_units: Distance units ('feet' or 'meters')
         trace_shape_ids: Optional shape IDs for debug logging
         errors: 'raise' or 'ignore'
+        default_link_attribute_dict: Optional dict of column-name to default value to set on new links.
 
     Raises:
         TransitValidationError: If no path exists between any consecutive stops.
@@ -1744,7 +1750,7 @@ def _match_stop_to_shape_points(
     max_distance: float,
     feed_tables: dict[str, pd.DataFrame],
     crs_units: str,
-) -> tuple[Optional[int], float]:
+) -> tuple[int | None, float]:
     """Find the nearest shape point to a stop within forward search constraints.
 
     Searches for the nearest shape point to a stop, only looking forward from the
@@ -1823,7 +1829,7 @@ def _match_stop_to_shape_points(
     return (best_shape_idx, best_distance if best_shape_idx is not None else np.inf)
 
 
-def _insert_stop_into_shape(
+def _insert_stop_into_shape(  # noqa: PLR0912, PLR0915
     stop_row: pd.Series,
     shape_id: str,
     shape_df: pd.DataFrame,
@@ -1870,7 +1876,7 @@ def _insert_stop_into_shape(
         for i in range(start_search_idx, len(shape_df))
     ]
 
-    if len(remaining_coords) >= 2 and start_search_idx < len(shape_df):
+    if len(remaining_coords) >= 2 and start_search_idx < len(shape_df):  # noqa: PLR2004
         # Project stop onto remaining portion of route
         remaining_line = shapely.geometry.LineString(remaining_coords)
         stop_distance_on_remaining = remaining_line.project(stop_geom)
@@ -1905,16 +1911,15 @@ def _insert_stop_into_shape(
                 new_seq = shape_df.iloc[insert_after_idx]["shape_pt_sequence"] + 1.0
             else:
                 new_seq = 0.5
+    # Not enough remaining points, use simple interpolation
+    elif insert_after_idx >= 0 and insert_after_idx < len(shape_df) - 1:
+        curr_seq = shape_df.iloc[insert_after_idx]["shape_pt_sequence"]
+        next_seq = shape_df.iloc[insert_after_idx + 1]["shape_pt_sequence"]
+        new_seq = (curr_seq + next_seq) / 2.0
+    elif insert_after_idx >= 0 and insert_after_idx < len(shape_df):
+        new_seq = shape_df.iloc[insert_after_idx]["shape_pt_sequence"] + 1.0
     else:
-        # Not enough remaining points, use simple interpolation
-        if insert_after_idx >= 0 and insert_after_idx < len(shape_df) - 1:
-            curr_seq = shape_df.iloc[insert_after_idx]["shape_pt_sequence"]
-            next_seq = shape_df.iloc[insert_after_idx + 1]["shape_pt_sequence"]
-            new_seq = (curr_seq + next_seq) / 2.0
-        elif insert_after_idx >= 0 and insert_after_idx < len(shape_df):
-            new_seq = shape_df.iloc[insert_after_idx]["shape_pt_sequence"] + 1.0
-        else:
-            new_seq = 0.5
+        new_seq = 0.5
 
     # Ensure new_seq doesn't conflict with existing shape points
     # Check if any remaining shape points have this exact sequence
@@ -1998,13 +2003,13 @@ def _insert_stop_into_shape(
     return (updated_prev_matched_shape_idx, shape_df)
 
 
-def _align_shape_with_stops(
+def _align_shape_with_stops(  # noqa: PLR0912, PLR0915
     shape_id: str,
     feed_tables: dict[str, pd.DataFrame],
     local_crs: str,
     crs_units: str,
     max_distance: float,
-    trace_shape_ids: Optional[list[str]],
+    trace_shape_ids: list[str] | None,
     stoptime_debug_cols: list[str],
     shape_debug_cols: list[str],
 ) -> tuple[int, int, list[dict]]:
@@ -2061,7 +2066,7 @@ def _align_shape_with_stops(
 
     # Detect circular/loop routes (first and last stops have same stop_id)
     is_circular_route = False
-    if len(stoptimes_for_shape_df) >= 2:
+    if len(stoptimes_for_shape_df) >= 2:  # noqa: PLR2004
         first_stop_id = stoptimes_for_shape_df.iloc[0]["stop_id"]
         last_stop_id = stoptimes_for_shape_df.iloc[-1]["stop_id"]
         is_circular_route = first_stop_id == last_stop_id
@@ -2231,7 +2236,7 @@ def _align_shape_with_stops(
         )
 
         # Add all shape points with their attributes
-        for idx, row in debug_shape_df.iterrows():
+        for _idx, row in debug_shape_df.iterrows():
             is_stop = pd.notnull(row.get("stop_id"))
 
             # Determine if stop was inserted (match_distance = 0) or matched (match_distance > 0)
@@ -2294,11 +2299,11 @@ def _write_debug_shapes(debug_features: list[dict], local_crs: str) -> None:
         WranglerLogger.warning(f"Failed to write consolidated debug output: {e}")
 
 
-def add_additional_data_to_shapes(  # noqa: PLR0915
+def add_additional_data_to_shapes(
     feed_tables: dict[str, pd.DataFrame],
     local_crs: str,
     crs_units: str,
-    trace_shape_ids: Optional[list[str]] = None,
+    trace_shape_ids: list[str] | None = None,
 ):
     """Updates feed_tables['shapes'] with route/trip metadata and snaps shape points to stops.
 
@@ -2373,7 +2378,7 @@ def add_additional_data_to_shapes(  # noqa: PLR0915
         shape_geometry = [
             shapely.geometry.Point(lon, lat)
             for lon, lat in zip(
-                feed_tables["shapes"]["shape_pt_lon"], feed_tables["shapes"]["shape_pt_lat"]
+                feed_tables["shapes"]["shape_pt_lon"], feed_tables["shapes"]["shape_pt_lat"], strict=False
             )
         ]
         feed_tables["shapes"] = gpd.GeoDataFrame(
@@ -2499,9 +2504,9 @@ def add_stations_and_links_to_roadway_network(  # noqa: PLR0912, PLR0915
     roadway_net: RoadwayNetwork,
     local_crs: str,
     crs_units: str,
-    trace_shape_ids: Optional[list[str]] = None,
-    default_node_attribute_dict: Optional[dict[str, any]] = None,
-    default_link_attribute_dict: Optional[dict[str, any]] = None,
+    trace_shape_ids: list[str] | None = None,
+    default_node_attribute_dict: dict[str, any] | None = None,
+    default_link_attribute_dict: dict[str, any] | None = None,
 ) -> tuple[dict[str, int], gpd.GeoDataFrame]:
     """Add transit station nodes and dedicated transit links to the roadway network.
 
@@ -2547,6 +2552,8 @@ def add_stations_and_links_to_roadway_network(  # noqa: PLR0912, PLR0915
         local_crs: Coordinate reference system for projections
         crs_units: Distance units ('feet' or 'meters')
         trace_shape_ids: Optional shape IDs for debug logging
+        default_node_attribute_dict: Optional dict of column-name to default value to set on new nodes.
+        default_link_attribute_dict: Optional dict of column-name to default value to set on new links.
 
     Returns:
         tuple[dict[str,int], gpd.GeoDataFrame]:
@@ -3137,7 +3144,7 @@ def add_stations_and_links_to_roadway_network(  # noqa: PLR0912, PLR0915
     return stop_id_to_model_node_id_dict, bus_stop_links_gdf
 
 
-def create_feed_from_gtfs_model(  # noqa: PLR0915
+def create_feed_from_gtfs_model(  # noqa: PLR0912, PLR0915
     gtfs_model: GtfsModel,
     roadway_net: RoadwayNetwork,
     local_crs: str,
@@ -3146,11 +3153,11 @@ def create_feed_from_gtfs_model(  # noqa: PLR0915
     frequency_method: Literal["uniform_headway","mean_headway","median_headway"],
     default_frequency_for_onetime_route: int = 180,
     add_stations_and_links: bool = True,
-    max_stop_distance: Optional[float] = None,
-    trace_shape_ids: Optional[list[str]] = None,
+    max_stop_distance: float | None = None,
+    trace_shape_ids: list[str] | None = None,
     errors: Literal["raise", "ignore"] = "raise",
-    default_node_attribute_dict: Optional[dict[str, any]] = None,
-    default_link_attribute_dict: Optional[dict[str, any]] = None,
+    default_node_attribute_dict: dict[str, any] | None = None,
+    default_link_attribute_dict: dict[str, any] | None = None,
 ) -> Feed:
     """Convert GTFS model to Wrangler Feed with stops mapped to roadway network.
 
@@ -3345,7 +3352,7 @@ def create_feed_from_gtfs_model(  # noqa: PLR0915
         if "geometry" not in roadway_net.nodes_df.columns:
             node_geometry = [
                 shapely.geometry.Point(x, y)
-                for x, y in zip(roadway_net.nodes_df["X"], roadway_net.nodes_df["Y"])
+                for x, y in zip(roadway_net.nodes_df["X"], roadway_net.nodes_df["Y"], strict=False)
             ]
             roadway_net.nodes_df = gpd.GeoDataFrame(
                 roadway_net.nodes_df, geometry=node_geometry, crs=LAT_LON_CRS
@@ -3373,7 +3380,7 @@ def create_feed_from_gtfs_model(  # noqa: PLR0915
     if not isinstance(feed_tables["stops"], gpd.GeoDataFrame):
         stop_geometry = [
             shapely.geometry.Point(lon, lat)
-            for lon, lat in zip(gtfs_model.stops["stop_lon"], gtfs_model.stops["stop_lat"])
+            for lon, lat in zip(gtfs_model.stops["stop_lon"], gtfs_model.stops["stop_lat"], strict=False)
         ]
         feed_tables["stops"] = gpd.GeoDataFrame(
             feed_tables["stops"], geometry=stop_geometry, crs=LAT_LON_CRS
@@ -3585,7 +3592,7 @@ def create_feed_from_gtfs_model(  # noqa: PLR0915
         raise e
 
 
-def get_original_shape_points_between_stops(
+def get_original_shape_points_between_stops(  # noqa: PLR0912
     feed_tables: dict, shape_id: str, from_stop_seq: int, to_stop_seq: int, trace: bool = False
 ):
     """Get original GTFS shape points between two consecutive stops.
@@ -3709,7 +3716,7 @@ def calculate_path_deviation_from_shape(path_nodes: list, original_shape_points:
             if not node_row.empty:
                 path_coords.append((node_row.iloc[0]['X'], node_row.iloc[0]['Y']))
 
-        if len(path_coords) < 2:
+        if len(path_coords) < 2:  # noqa: PLR2004
             return float('inf')
 
         path_line = LineString(path_coords)
@@ -3744,7 +3751,7 @@ def calculate_path_deviation_from_shape(path_nodes: list, original_shape_points:
         return float('inf')
 
 
-def find_shape_aware_shortest_path(
+def find_shape_aware_shortest_path(  # noqa: PLR0912
     G_bus: nx.DiGraph, start_node: int, end_node: int, original_shape_points: pd.DataFrame,
     roadway_net: RoadwayNetwork, tolerance: float = 1.10, trace: bool = False
 ) -> list:

@@ -145,16 +145,16 @@ def load_roadway_from_dataframes(
     Returns:
         (RoadwayNetwork) instance with validated data
     """
-    from ..models.roadway.tables import (  # noqa: PLC0415
+    from ..models.roadway.tables import (
         RoadLinksTable,
         RoadNodesTable,
         RoadShapesTable,
     )
-    from ..utils.models import validate_df_to_model  # noqa: PLC0415
-    from .links.create import data_to_links_df  # noqa: PLC0415
-    from .network import RoadwayNetwork  # noqa: PLC0415
-    from .nodes.create import data_to_nodes_df  # noqa: PLC0415
-    from .shapes.create import df_to_shapes_df  # noqa: PLC0415
+    from ..utils.models import validate_df_to_model
+    from .links.create import data_to_links_df
+    from .network import RoadwayNetwork
+    from .nodes.create import data_to_nodes_df
+    from .shapes.create import df_to_shapes_df
 
     if not isinstance(config, WranglerConfig):
         config = load_wrangler_config(config)

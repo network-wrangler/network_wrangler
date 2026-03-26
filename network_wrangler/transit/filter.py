@@ -32,10 +32,10 @@ If more stops are removed, only the count is shown instead of listing each stop.
 """
 
 
-def filter_feed_by_service_ids(
-    feed: Union[Feed, GtfsModel],
+def filter_feed_by_service_ids(  # noqa: PLR0915
+    feed: Feed | GtfsModel,
     service_ids: list[str],
-) -> Union[Feed, GtfsModel]:
+) -> Feed | GtfsModel:
     """Filter a transit feed to only include trips for specified service_ids.
     
     Filters trips, stop_times, and stops to only include data related to the
@@ -117,7 +117,7 @@ def filter_feed_by_service_ids(
         # Find all parent stations referenced by stops that will be kept
         stops_to_keep = feed_dfs["stops"][feed_dfs["stops"]["stop_id"].isin(stop_ids_set)]
         parent_stations = stops_to_keep["parent_station"].dropna().unique()
-        parent_stations_to_keep = set([ps for ps in parent_stations if ps != ""])
+        parent_stations_to_keep = {ps for ps in parent_stations if ps != ""}
         
         if len(parent_stations_to_keep) > 0:
             WranglerLogger.info(
@@ -210,14 +210,13 @@ def filter_feed_by_service_ids(
     # Create the appropriate object type with the filtered dataframes
     if is_feed:
         return Feed(**feed_dfs)
-    else:
-        return GtfsModel(**feed_dfs)
+    return GtfsModel(**feed_dfs)
 
 
 def filter_transit_by_boundary(  # noqa: PLR0912, PLR0915
-    transit_data: Union[GtfsModel, Feed],
-    boundary: Union[str, Path, gpd.GeoDataFrame],
-    partially_include_route_type_action: Optional[dict[RouteType, str]] = None,
+    transit_data: GtfsModel | Feed,
+    boundary: str | Path | gpd.GeoDataFrame,
+    partially_include_route_type_action: dict[RouteType, str] | None = None,
 ) -> None:
     """Filter transit routes based on whether they have stops within a boundary.
 
@@ -259,7 +258,7 @@ def filter_transit_by_boundary(  # noqa: PLR0912, PLR0915
     )
 
     # Load boundary if it's a file path
-    if isinstance(boundary, (str, Path)):
+    if isinstance(boundary, str | Path):
         WranglerLogger.debug(f"Loading boundary from file: {boundary}")
         boundary_gdf = gpd.read_file(boundary)
     else:
@@ -646,8 +645,8 @@ def filter_transit_by_boundary(  # noqa: PLR0912, PLR0915
 
 
 def drop_transit_agency(  # noqa: PLR0915
-    transit_data: Union[GtfsModel, Feed],
-    agency_id: Union[str, list[str]],
+    transit_data: GtfsModel | Feed,
+    agency_id: str | list[str],
 ) -> None:
     """Remove all routes, trips, stops, etc. for a specific agency or agencies.
 
@@ -795,10 +794,10 @@ def drop_transit_agency(  # noqa: PLR0915
 
 
 def truncate_route_at_stop(  # noqa: PLR0912, PLR0915
-    transit_data: Union[GtfsModel, Feed],
+    transit_data: GtfsModel | Feed,
     route_id: str,
     direction_id: int,
-    stop_id: Union[str, int],
+    stop_id: str | int,
     truncate: Literal["before", "after"],
 ) -> None:
     """Truncate all trips of a route at a specific stop.

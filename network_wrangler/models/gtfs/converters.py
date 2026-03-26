@@ -7,8 +7,9 @@ import numpy as np
 import pandas as pd
 
 from ...logger import WranglerLogger
-from .._base.types import TimeString
 from ...utils.time import time_to_seconds
+from .._base.types import TimeString
+
 
 def convert_gtfs_to_wrangler_gtfs(gtfs_path: Path, wrangler_path: Path) -> None:
     """Converts a GTFS feed to a Wrangler GTFS feed.
@@ -96,7 +97,7 @@ def create_feed_frequencies(  # noqa: PLR0915
     timeperiods: dict[str, tuple[TimeString, TimeString]],
     frequency_method: Literal["uniform_headway","mean_headway","median_headway"],
     default_frequency_for_onetime_route: int = 180,
-    trace_shape_ids: Optional[list[str]] = None,
+    trace_shape_ids: list[str] | None = None,
 ):
     """Create frequencies table and convert GTFS-style tables to Wrangler-style Feed tables.
 
