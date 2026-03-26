@@ -32,21 +32,20 @@ model_links_df["lanes_AM_sov"] = prop_for_scope(links_df, ["6:00":"9:00"], categ
 
 """
 
+from __future__ import annotations
+
 import copy
-from typing import Any, TypeGuard, Union
+from typing import Any, TypeGuard
 
 import pandas as pd
 from pandera.typing import DataFrame
 from pydantic import validate_call
-from typing_extensions import TypeGuard
 
-from ...errors import InvalidScopedLinkValue
 from ...logger import WranglerLogger
 from ...models._base.types import TimeString
 from ...models.projects.roadway_changes import IndivScopedPropertySetItem
 from ...models.roadway.tables import (
     ExplodedScopedLinkPropertyTable,
-    RoadLinksAttrs,
     RoadLinksTable,
 )
 from ...models.roadway.types import ScopedLinkValueItem
@@ -62,7 +61,7 @@ from ...utils.time import (
 
 
 def _convert_to_scoped_items(
-    scoped_values: list[Union[ScopedLinkValueItem, dict]],
+    scoped_values: list[ScopedLinkValueItem | dict],
 ) -> list[ScopedLinkValueItem]:
     """Convert dictionaries to ScopedLinkValueItem objects if needed."""
     converted = []
@@ -75,7 +74,7 @@ def _convert_to_scoped_items(
 
 
 def _filter_to_matching_timespan_scopes(
-    scoped_values: list[Union[ScopedLinkValueItem, dict]], timespan: list[TimeString]
+    scoped_values: list[ScopedLinkValueItem | dict], timespan: list[TimeString]
 ) -> list[ScopedLinkValueItem]:
     """Filters list of ScopedLinkValueItems to list of those that match.
 
@@ -88,20 +87,16 @@ def _filter_to_matching_timespan_scopes(
     if timespan == DEFAULT_TIMESPAN:
         return scoped_values
     times_dt = list(map(str_to_time, timespan))
-    # typeguard - mypy suggested this b/c we cannot guarantee we got rid of all the Nones
     return [
         s
         for s in scoped_values
-        if (
-            _islist(s.timespan)
-            and dt_contains([str_to_time(i) for i in _islist(s.timespan)], times_dt)
-        )
+        if (_islist(s.timespan) and dt_contains([str_to_time(i) for i in s.timespan], times_dt))
         or s.timespan == DEFAULT_TIMESPAN
     ]
 
 
 def _filter_to_matching_category_scopes(
-    scoped_values: list[Union[ScopedLinkValueItem, dict]], category: Union[str, list]
+    scoped_values: list[ScopedLinkValueItem | dict], category: str | list
 ) -> list[ScopedLinkValueItem]:
     """Filters list of ScopedLinkValueItems to list of those that match.
 
@@ -115,8 +110,8 @@ def _filter_to_matching_category_scopes(
 
 
 def _filter_to_matching_scope(
-    scoped_values: list[Union[ScopedLinkValueItem, dict]],
-    category: Union[str, list] = DEFAULT_CATEGORY,
+    scoped_values: list[ScopedLinkValueItem | dict],
+    category: str | list = DEFAULT_CATEGORY,
     timespan: list[TimeString] = DEFAULT_TIMESPAN,
 ) -> tuple[list[ScopedLinkValueItem], list[ScopedLinkValueItem]]:
     """Filters list of ScopedLinkValueItems to list of those that match.
@@ -133,7 +128,7 @@ def _filter_to_matching_scope(
 
 
 def _filter_to_overlapping_timespan_scopes(
-    scoped_values: list[Union[ScopedLinkValueItem, dict]], timespan: list[TimeString]
+    scoped_values: list[ScopedLinkValueItem | dict], timespan: list[TimeString]
 ) -> list[ScopedLinkValueItem]:
     """Filters list of ScopedLinkValueItems to list of those that overlap.
 
@@ -146,36 +141,30 @@ def _filter_to_overlapping_timespan_scopes(
     if timespan == DEFAULT_TIMESPAN:
         return scoped_values
     q_timespan_dt = list(map(str_to_time, timespan))
-    # typeguard - mypy suggested this b/c we cannot guarantee we got rid of all the Nones
     return [
         s
         for s in scoped_values
         if (
             _islist(s.timespan)
-            and dt_list_overlaps([q_timespan_dt, [str_to_time(i) for i in _islist(s.timespan)]])
+            and dt_list_overlaps([q_timespan_dt, [str_to_time(i) for i in s.timespan]])
         )
         or s.timespan == DEFAULT_TIMESPAN
     ]
 
 
-def _islist(s: Any) -> TypeGuard[list]:
-    """Typeguard for list to make mypy not complain."""
-    if s is list:
-        return s
-    if isinstance(s, list):
-        return s  # type: ignore  # noqa: PGH003
-    is_list = bool(issubclass(type(s), list))
-    if is_list:
-        return s
-    msg = f"{s} is not a list but is required to be one."
-    raise TypeError(msg)
+def _islist(s: Any) -> TypeGuard[list[str]]:
+    """Type guard for list to make mypy not complain.
+
+    Returns True if s is a list, allowing mypy to narrow the type.
+    """
+    return isinstance(s, list)
 
 
 def _filter_to_overlapping_scopes(
-    scoped_prop_list: list[Union[ScopedLinkValueItem, IndivScopedPropertySetItem, dict]],
-    category: Union[str, list] = DEFAULT_CATEGORY,
+    scoped_prop_list: list[ScopedLinkValueItem | IndivScopedPropertySetItem | dict],
+    category: str | list = DEFAULT_CATEGORY,
     timespan: list[TimeString] = DEFAULT_TIMESPAN,
-) -> list[Union[ScopedLinkValueItem, IndivScopedPropertySetItem]]:
+) -> list[ScopedLinkValueItem | IndivScopedPropertySetItem]:
     """Filter a list of IndivScopedPropertySetItem and ScopedLinkValueItems to a specific scope.
 
     Defaults are considered to overlap everything in their scope dimension.
@@ -198,7 +187,7 @@ def _filter_to_overlapping_scopes(
 
 
 def _filter_to_conflicting_timespan_scopes(
-    scoped_values: list[Union[ScopedLinkValueItem, dict]], timespan: list[TimeString]
+    scoped_values: list[ScopedLinkValueItem | dict], timespan: list[TimeString]
 ) -> list[ScopedLinkValueItem]:
     """Filters scoped values to only include those that conflict with the timespan.
 
@@ -222,9 +211,9 @@ def _filter_to_conflicting_timespan_scopes(
 
 
 def _filter_to_conflicting_scopes(
-    scoped_values: list[Union[ScopedLinkValueItem, dict]],
+    scoped_values: list[ScopedLinkValueItem | dict],
     timespan: list[TimeString],
-    category: Union[str, list[str]],
+    category: str | list[str],
 ) -> list[ScopedLinkValueItem]:
     """Filters scoped values to only include those that conflict with the timespan.
 
@@ -299,11 +288,14 @@ def _create_exploded_df_for_scoped_prop(
     return exp_df
 
 
-# @validate_call(config={"arbitrary_types_allowed": True})
+@validate_call(
+    config={"arbitrary_types_allowed": True},
+    validate_return=False,
+)
 def _filter_exploded_df_to_scope(
-    exp_scoped_prop_df: DataFrame[ExplodedScopedLinkPropertyTable],
+    exp_scoped_prop_df: pd.DataFrame,
     timespan: list[TimeString] = DEFAULT_TIMESPAN,
-    category: Union[str, int] = DEFAULT_CATEGORY,
+    category: str | int = DEFAULT_CATEGORY,
     strict_timespan_match: bool = False,
     min_overlap_minutes: int = 60,
 ) -> pd.DataFrame:
@@ -343,10 +335,10 @@ def _filter_exploded_df_to_scope(
 
 @validate_call_pyd
 def prop_for_scope(
-    links_df: DataFrame[RoadLinksTable],
+    links_df: pd.DataFrame,
     prop_name: str,
-    timespan: Union[None, list[TimeString]] = DEFAULT_TIMESPAN,
-    category: Union[str, int, None] = DEFAULT_CATEGORY,
+    timespan: None | list[TimeString] = DEFAULT_TIMESPAN,
+    category: str | int | None = DEFAULT_CATEGORY,
     strict_timespan_match: bool = False,
     min_overlap_minutes: int = 60,
     allow_default: bool = True,

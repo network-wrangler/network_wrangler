@@ -21,16 +21,13 @@ import copy
 import hashlib
 from collections import defaultdict
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Optional, Union
+from typing import TYPE_CHECKING, Any
 
 import geopandas as gpd
-import ijson
 import networkx as nx
 import pandas as pd
-import pyarrow as pa
-import pyarrow.parquet as pq
 from projectcard import ProjectCard, SubProject
-from pydantic import BaseModel, field_validator, model_validator
+from pydantic import BaseModel, ConfigDict, field_validator, model_validator
 from shapely.geometry import LineString, Point
 from shapely.ops import split
 
@@ -50,7 +47,6 @@ from ..models.roadway.tables import RoadLinksTable, RoadNodesAttrs, RoadNodesTab
 from ..params import DEFAULT_CATEGORY, DEFAULT_TIMESPAN, LAT_LON_CRS
 from ..utils.data import concat_with_attr
 from ..utils.models import empty_df_from_datamodel, validate_df_to_model
-from .graph import net_to_graph
 from .links.create import data_to_links_df
 from .links.delete import delete_links_by_ids
 from .links.edit import edit_link_geometry_from_nodes
@@ -79,7 +75,6 @@ from .shapes.create import df_to_shapes_df
 from .shapes.delete import delete_shapes_by_ids
 from .shapes.edit import edit_shape_geometry_from_nodes
 from .shapes.io import read_shapes
-from .shapes.shapes import shape_ids_without_links
 
 if TYPE_CHECKING:
     from networkx import MultiDiGraph
@@ -88,7 +83,7 @@ if TYPE_CHECKING:
     from ..transit.network import TransitNetwork
 
 
-Selections = Union[RoadwayLinkSelection, RoadwayNodeSelection]
+Selections = RoadwayLinkSelection | RoadwayNodeSelection
 
 # Constants
 MIN_SPLIT_SEGMENTS = 2
@@ -151,26 +146,30 @@ class RoadwayNetwork(BaseModel):
         network_hash: dynamic property of the hashed value of links_df and nodes_df. Used for
             quickly identifying if a network has changed since various expensive operations have
             taken place (i.e. generating a ModelRoadwayNetwork or a network graph)
+        _modification_version (int): counter that increments each time the network is modified.
+            Used for efficient change detection without expensive hash computation.
         model_net (ModelRoadwayNetwork): referenced `ModelRoadwayNetwork` object which will be
-            lazily created if None or if the `network_hash` has changed.
+            lazily created if None or if the network has been modified.
         config (WranglerConfig): wrangler configuration object
     """
 
-    model_config = {"arbitrary_types_allowed": True}
+    model_config = ConfigDict(arbitrary_types_allowed=True)
 
     nodes_df: pd.DataFrame
     links_df: pd.DataFrame
-    _shapes_df: Optional[pd.DataFrame] = None
+    _shapes_df: pd.DataFrame | None = None
 
-    _links_file: Optional[Path] = None
-    _nodes_file: Optional[Path] = None
-    _shapes_file: Optional[Path] = None
+    _links_file: Path | None = None
+    _nodes_file: Path | None = None
+    _shapes_file: Path | None = None
 
     config: WranglerConfig = DefaultConfig
 
     _model_net: Optional[ModelRoadwayNetwork] = None
+    _model_net_version: int = -1  # Version when model_net was last created
     _selections: dict[str, Selections] = {}
     _modal_graphs: dict[str, dict] = defaultdict(lambda: {"graph": None, "hash": None})
+    _modification_version: int = 0  # Incremented each time network is modified
 
     def __str__(self):
         """Return string representation of RoadwayNetwork.
@@ -184,19 +183,35 @@ class RoadwayNetwork(BaseModel):
         return my_str
 
     @field_validator("config")
+    @classmethod
     def validate_config(cls, v):
         """Validate config."""
         return load_wrangler_config(v)
 
-    @field_validator("nodes_df", "links_df")
-    def coerce_crs(cls, v):
-        """Coerce crs of nodes_df and links_df to LAT_LON_CRS."""
-        if v.crs != LAT_LON_CRS:
+    @field_validator("nodes_df", mode="before")
+    @classmethod
+    def validate_nodes_df(cls, v):
+        """Validate nodes_df to RoadNodesTable and coerce CRS."""
+        v = validate_df_to_model(v, RoadNodesTable)
+        if hasattr(v, "crs") and v.crs != LAT_LON_CRS:
+            WranglerLogger.warning(
+                f"CRS of nodes_df ({v.crs}) doesn't match network crs {LAT_LON_CRS}. \
+                    Changing to network crs."
+            )
+            v = v.to_crs(LAT_LON_CRS)
+        return v
+
+    @field_validator("links_df", mode="before")
+    @classmethod
+    def validate_links_df(cls, v):
+        """Validate links_df to RoadLinksTable and coerce CRS."""
+        v = validate_df_to_model(v, RoadLinksTable)
+        if hasattr(v, "crs") and v.crs != LAT_LON_CRS:
             WranglerLogger.warning(
                 f"CRS of links_df ({v.crs}) doesn't match network crs {LAT_LON_CRS}. \
                     Changing to network crs."
             )
-            v.to_crs(LAT_LON_CRS)
+            v = v.to_crs(LAT_LON_CRS)
         return v
 
     # TODO: This may be overkill if many edits are being made.
@@ -239,9 +254,33 @@ class RoadwayNetwork(BaseModel):
     def shapes_df(self, value):
         self._shapes_df = df_to_shapes_df(value, config=self.config)
 
+    def _mark_modified(self) -> None:
+        """Mark the network as modified by incrementing the modification version.
+
+        This should be called whenever the network data is modified to ensure
+        that dependent computations (selections, model networks, graphs) are
+        re-evaluated. Uses a simple version counter which is much faster than
+        computing hashes for change detection.
+        """
+        self._modification_version += 1
+        WranglerLogger.debug(f"Network modified. Version: {self._modification_version}")
+
+    @property
+    def modification_version(self) -> int:
+        """Return the current modification version of the network.
+
+        This counter increments each time the network is modified and can be used
+        for efficient change detection without computing expensive hashes.
+        """
+        return self._modification_version
+
     @property
     def network_hash(self) -> str:
-        """Hash of the links and nodes dataframes."""
+        """Hash of the links and nodes dataframes.
+
+        Note: This is an expensive operation. For change detection, prefer using
+        modification_version which is much faster.
+        """
         _value = str.encode(self.links_df.df_hash() + "-" + self.nodes_df.df_hash())
 
         _hash = hashlib.sha256(_value).hexdigest()
@@ -249,9 +288,14 @@ class RoadwayNetwork(BaseModel):
 
     @property
     def model_net(self) -> ModelRoadwayNetwork:
-        """Return a ModelRoadwayNetwork object for this network."""
-        if self._model_net is None or self._model_net._net_hash != self.network_hash:
+        """Return a ModelRoadwayNetwork object for this network.
+
+        The model network is lazily created and cached. It is invalidated when
+        the network's modification version changes.
+        """
+        if self._model_net is None or self._model_net_version != self._modification_version:
             self._model_net = ModelRoadwayNetwork(self)
+            self._model_net_version = self._modification_version
         return self._model_net
 
     @property
@@ -286,8 +330,8 @@ class RoadwayNetwork(BaseModel):
     def get_property_by_timespan_and_group(
         self,
         link_property: str,
-        category: Optional[Union[str, int]] = DEFAULT_CATEGORY,
-        timespan: Optional[TimespanString] = DEFAULT_TIMESPAN,
+        category: str | int | None = DEFAULT_CATEGORY,
+        timespan: TimespanString | None = DEFAULT_TIMESPAN,
         strict_timespan_match: bool = False,
         min_overlap_minutes: int = 60,
     ) -> Any:
@@ -305,7 +349,7 @@ class RoadwayNetwork(BaseModel):
             min_overlap_minutes: If strict_timespan_match is False, will return links that overlap
                 with the timespan by at least this many minutes. Defaults to 60.
         """
-        from .links.scopes import prop_for_scope  # noqa: PLC0415
+        from .links.scopes import prop_for_scope
 
         return prop_for_scope(
             self.links_df,
@@ -318,9 +362,9 @@ class RoadwayNetwork(BaseModel):
 
     def get_selection(
         self,
-        selection_dict: Union[dict, SelectFacility],
+        selection_dict: dict | SelectFacility,
         overwrite: bool = False,
-    ) -> Union[RoadwayNodeSelection, RoadwayLinkSelection]:
+    ) -> RoadwayNodeSelection | RoadwayLinkSelection:
         """Return selection if it already exists, otherwise performs selection.
 
         Args:
@@ -357,7 +401,11 @@ class RoadwayNetwork(BaseModel):
         raise SelectionError(msg)
 
     def modal_graph_hash(self, mode) -> str:
-        """Hash of the links in order to detect a network change from when graph created."""
+        """Hash of the links in order to detect a network change from when graph created.
+
+        Note: This is an expensive operation. For internal change detection,
+        get_modal_graph uses modification_version instead.
+        """
         _value = str.encode(self.links_df.df_hash() + "-" + mode)
         _hash = hashlib.sha256(_value).hexdigest()
 
@@ -369,17 +417,20 @@ class RoadwayNetwork(BaseModel):
         Args:
             mode: mode of the network, one of `drive`,`transit`,`walk`, `bike`
         """
-        from .graph import net_to_graph  # noqa: PLC0415
+        from .graph import net_to_graph
 
-        if self._modal_graphs[mode]["hash"] != self.modal_graph_hash(mode):
+        # Use modification version for efficient change detection
+        current_version = (self._modification_version, mode)
+        if self._modal_graphs[mode].get("version") != current_version:
             self._modal_graphs[mode]["graph"] = net_to_graph(self, mode)
+            self._modal_graphs[mode]["version"] = current_version
 
         return self._modal_graphs[mode]["graph"]
 
     def apply(
         self,
-        project_card: Union[ProjectCard, dict],
-        transit_net: Optional[TransitNetwork] = None,
+        project_card: ProjectCard | dict,
+        transit_net: TransitNetwork | None = None,
         **kwargs,
     ) -> RoadwayNetwork:
         """Wrapper method to apply a roadway project, returning a new RoadwayNetwork instance.
@@ -391,7 +442,7 @@ class RoadwayNetwork(BaseModel):
                 skip anything related to transit network.
             **kwargs: keyword arguments to pass to project application
         """
-        if not (isinstance(project_card, (ProjectCard, SubProject))):
+        if not (isinstance(project_card, ProjectCard | SubProject)):
             project_card = ProjectCard(project_card)
 
         # project_card.validate()
@@ -409,8 +460,8 @@ class RoadwayNetwork(BaseModel):
 
     def _apply_change(
         self,
-        change: Union[ProjectCard, SubProject],
-        transit_net: Optional[TransitNetwork] = None,
+        change: ProjectCard | SubProject,
+        transit_net: TransitNetwork | None = None,
     ) -> RoadwayNetwork:
         """Apply a single change: a single-project project or a sub-project."""
         if not isinstance(change, SubProject):
@@ -492,6 +543,7 @@ class RoadwayNetwork(BaseModel):
         self.links_df = validate_df_to_model(
             concat_with_attr([self.links_df, add_links_df], axis=0), RoadLinksTable
         )
+        self._mark_modified()
 
     def add_nodes(
         self,
@@ -524,6 +576,7 @@ class RoadwayNetwork(BaseModel):
         if self.nodes_df.attrs.get("name") != "road_nodes":
             msg = f"Expected nodes_df to have name 'road_nodes', got {self.nodes_df.attrs.get('name')}"
             raise NotNodesError(msg)
+        self._mark_modified()
 
     def add_shapes(
         self,
@@ -552,13 +605,15 @@ class RoadwayNetwork(BaseModel):
         self.shapes_df = validate_df_to_model(
             concat_with_attr([self.shapes_df, add_shapes_df], axis=0), RoadShapesTable
         )
+        # Note: shapes don't affect network_hash (only links and nodes), but we invalidate
+        # for consistency in case future changes include shapes in hash calculation
 
     def delete_links(
         self,
-        selection_dict: Union[dict, SelectLinksDict],
+        selection_dict: dict | SelectLinksDict,
         clean_nodes: bool = False,
         clean_shapes: bool = False,
-        transit_net: Optional[TransitNetwork] = None,
+        transit_net: TransitNetwork | None = None,
     ):
         """Deletes links based on selection dictionary and optionally associated nodes and shapes.
 
@@ -612,10 +667,11 @@ class RoadwayNetwork(BaseModel):
             ignore_missing=selection.ignore_missing,
             transit_net=transit_net,
         )
+        self._mark_modified()
 
     def delete_nodes(
         self,
-        selection_dict: Union[dict, SelectNodesDict],
+        selection_dict: dict | SelectNodesDict,
         remove_links: bool = False,
     ) -> None:
         """Deletes nodes from roadway network. Wont delete nodes used by links in network.
@@ -647,6 +703,7 @@ class RoadwayNetwork(BaseModel):
         self.nodes_df = delete_nodes_by_ids(
             self.nodes_df, del_node_ids, ignore_missing=selection.ignore_missing
         )
+        self._mark_modified()
 
     def split_link(  # noqa: PLR0912, PLR0915
         self,
@@ -890,20 +947,22 @@ class RoadwayNetwork(BaseModel):
 
     def clean_unused_shapes(self):
         """Removes any unused shapes from network that aren't referenced by links_df."""
-        from .shapes.shapes import shape_ids_without_links  # noqa: PLC0415
+        from .shapes.shapes import shape_ids_without_links
 
         del_shape_ids = shape_ids_without_links(self.shapes_df, self.links_df)
         self.shapes_df = self.shapes_df.drop(del_shape_ids)
+        # Note: shapes don't affect network_hash, but invalidate for consistency
 
     def clean_unused_nodes(self):
         """Removes any unused nodes from network that aren't referenced by links_df.
 
         NOTE: does not check if these nodes are used by transit, so use with caution.
         """
-        from .nodes.nodes import node_ids_without_links  # noqa: PLC0415
+        from .nodes.nodes import node_ids_without_links
 
         node_ids = node_ids_without_links(self.nodes_df, self.links_df)
         self.nodes_df = self.nodes_df.drop(node_ids)
+        self._mark_modified()
 
     def move_nodes(
         self,
@@ -925,6 +984,7 @@ class RoadwayNetwork(BaseModel):
             self.shapes_df, self.links_df, self.nodes_df, node_ids
         )
         WranglerLogger.debug(f"Completed edit_shape_geometry_from_nodes()")
+        self._mark_modified()
 
     def has_node(self, model_node_id: int) -> bool:
         """Queries if network has node based on model_node_id.
@@ -964,7 +1024,7 @@ class RoadwayNetwork(BaseModel):
 def add_incident_link_data_to_nodes(
     links_df: pd.DataFrame,
     nodes_df: pd.DataFrame,
-    link_variables: Optional[list] = None,
+    link_variables: list | None = None,
 ) -> pd.DataFrame:
     """Add data from links going to/from nodes to node.
 

@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import time
 from pathlib import Path
-from typing import Union
 
 import pandas as pd
 from pandera.typing import DataFrame
@@ -13,7 +12,7 @@ from ...configs import DefaultConfig, WranglerConfig
 from ...logger import WranglerLogger
 from ...models._base.types import GeoFileTypes
 from ...models.roadway.converters import translate_links_df_v1_to_v0
-from ...models.roadway.tables import RoadLinksAttrs, RoadLinksTable, RoadNodesAttrs, RoadNodesTable
+from ...models.roadway.tables import RoadLinksTable, RoadNodesTable
 from ...params import LAT_LON_CRS
 from ...utils.io_table import read_table, write_table
 from ...utils.models import order_fields_from_data_model, validate_call_pyd
@@ -70,7 +69,7 @@ def read_links(
 @validate_call_pyd
 def write_links(
     links_df: DataFrame[RoadLinksTable],
-    out_dir: Union[str, Path] = ".",
+    out_dir: str | Path = ".",
     convert_complex_properties_to_single_field: bool = False,
     prefix: str = "",
     file_format: GeoFileTypes = "json",

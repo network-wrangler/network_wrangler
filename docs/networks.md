@@ -51,17 +51,54 @@ Network Wrangler is packaged with two examples located in the `/examples` direct
 - St Paul, MN
 - Small which is a several block exerpt of St Paul and is infinitely easier to trouble-shoot quickly.
 
-### Road Nodes & Links
+### Road Nodes
 
-These are valid `geojson`, `shp`, or `parquet` file.
+A  valid `geojson`, `shp`, or `parquet` file.
 
-See:
+::: network_wrangler.models.roadway.tables.RoadNodesTable
+    options:
+        members: []
+        heading_level: 3
+        show_bases: false
+    handlers:
+      python:
+        options:
+          show_root_toc_entry: false
 
-- [`RoadNodesTable`](api_roadway.md#network_wrangler.models.roadway.tables.RoadNodesTable)
-- [`RoadLinksTable`](api_roadway.md#network_wrangler.models.roadway.tables.RoadLinksTable)
-- [`RoadShapesTable`](api_roadway.md#network_wrangler.models.roadway.tables.RoadShapesTable)
+### Road Links
+
+A  valid `geojson`, `shp`, `parquet`, or `json` file.
+
+::: network_wrangler.models.roadway.tables.RoadLinksTable
+    options:
+        members: []
+        heading_level: 3
+        show_bases: false
+    handlers:
+      python:
+        options:
+          show_root_toc_entry: false
+
+### Road Shapes
+
+A  valid `geojson`, `shp`, or `parquet` file with `LineString` geometry features and the folowing `properties`.
+
+::: network_wrangler.models.roadway.tables.RoadShapesTable
+    options:
+        members: []
+        heading_level: 3
+        show_bases: false
+    handlers:
+        python:
+            options:
+            show_root_toc_entry: false
 
 ## Transit Network Format
+
+::: network_wrangler.models.gtfs.tables
+    options:
+        show_bases: false
+        members: []
 
 Transit Networks must use the the [GTFS](https://www.gtfs.org) Schedule format with the following additional constraints:
 
@@ -69,15 +106,89 @@ Transit Networks must use the the [GTFS](https://www.gtfs.org) Schedule format w
 2. Each `stop_id` must be a node in the RoadwayNetwork.
 3. `shapes.txt` is *required* (it is optional in GTFS) and must have the added field `model_node_id` associating a specific location with a node on the `RoadwayNetwork`.
 
-See:
+### Stops
 
-- [`WranglerStopsTable`](api_transit.md#network_wrangler.models.gtfs.tables.WranglerStopsTable)
-- [`RoutesTable`](api_transit.md#network_wrangler.models.gtfs.tables.RoutesTable)
-- [`WranglerTripsTable`](api_transit.md#network_wrangler.models.gtfs.tables.WranglerTripsTable)
-- [`WranglerStopTimesTable`](api_transit.md#network_wrangler.models.gtfs.tables.WranglerStopTimesTable)
-- [`WranglerShapesTable`](api_transit.md#network_wrangler.models.gtfs.tables.WranglerShapesTable)
-- [`WranglerFrequenciesTable`](api_transit.md#network_wrangler.models.gtfs.tables.WranglerFrequenciesTable)
-- [`AgenciesTable`](api_transit.md#network_wrangler.models.gtfs.tables.AgenciesTable)
+::: network_wrangler.models.gtfs.tables.WranglerStopsTable
+    options:
+        heading_level: 3
+        show_bases: false
+        members: []
+    handlers:
+        python:
+            options:
+                show_root_toc_entry: false
+
+### Routes
+
+::: network_wrangler.models.gtfs.tables.RoutesTable
+    options:
+        heading_level: 3
+        show_bases: false
+        members: []
+    handlers:
+        python:
+            options:
+                show_root_toc_entry: false
+
+### Trips
+
+::: network_wrangler.models.gtfs.tables.WranglerTripsTable
+    options:
+        members: []
+        heading_level: 3
+        show_bases: false
+    handlers:
+        python:
+            options:
+                show_root_toc_entry: false
+
+### Stop_times
+
+::: network_wrangler.models.gtfs.tables.WranglerStopTimesTable
+    options:
+        members: []
+        heading_level: 3
+        show_bases: false
+    handlers:
+        python:
+            options:
+                show_root_toc_entry: false
+
+### Shapes
+
+::: network_wrangler.models.gtfs.tables.WranglerShapesTable
+    options:
+        members: []
+        heading_level: 3
+        show_bases: false
+    handlers:
+        python:
+            options:
+                show_root_toc_entry: false
+
+### Frequencies
+
+::: network_wrangler.models.gtfs.tables.WranglerFrequenciesTable
+    options:
+        members: []
+        heading_level: 3
+        show_bases: false
+    handlers:
+        python:
+            options:
+                show_root_toc_entry: false
+
+### Agencies
+
+::: network_wrangler.models.gtfs.tables.AgenciesTable
+    options:
+        heading_level: 3
+        show_bases: false
+        members: []
+    handlers:
+        python:
+            options:
+                show_root_toc_entry: false
 
 ### Transit Validation
 
@@ -116,7 +227,7 @@ TransitNetworks can be validated using the following tools:
 
 ## Project Cards
 
-Project Cards, which define changes to the roadway and transit networks must use the [ProjectCard](https://network-wrangler.github.io/projectcard/) standard.
+Project Cards, which define changes to the roadway and transit networks must use the [ProjectCard](https://github.com/networkwrangler/projectcard) standard.
 
 ## Model Roadway Network Export Format
 
@@ -154,10 +265,8 @@ The parameter `ADDITIONAL_COPY_TO_ACCESS_EGRESS` defines what additional attribu
 - 1 + managed lane's `model_link_id` for access links
 - 2 + managed lane's `model_link_id` for access links
 
-See:
-
-- [`ModelRoadwayConfig`](api.md#network_wrangler.configs.wrangler.ModelRoadwayConfig)
-- [`IdGenerationConfig`](api.md#network_wrangler.configs.wrangler.IdGenerationConfig)
+::: network_wrangler.configs.wrangler.ModelRoadwayConfig
+::: network_wrangler.configs.wrangler.IdGenerationConfig
 
 ## Network Management
 

@@ -2,7 +2,6 @@
 
 import copy
 import time
-from typing import Union
 
 import geopandas as gpd
 import pandas as pd
@@ -20,7 +19,7 @@ from ..utils import set_df_index_to_pk
 
 
 def _create_node_geometries_from_xy(
-    nodes_df: Union[pd.DataFrame, list[dict]],
+    nodes_df: pd.DataFrame | list[dict],
     in_crs: int = LAT_LON_CRS,
     net_crs: int = LAT_LON_CRS,
 ) -> gpd.GeoDataFrame:
@@ -64,7 +63,7 @@ def _create_node_geometries_from_xy(
 
 @validate_call(config={"arbitrary_types_allowed": True})
 def data_to_nodes_df(
-    nodes_df: Union[pd.DataFrame, gpd.GeoDataFrame, list[dict]],
+    nodes_df: pd.DataFrame | gpd.GeoDataFrame | list[dict],
     config: WranglerConfig = DefaultConfig,  # noqa: ARG001
     in_crs: int = LAT_LON_CRS,
 ) -> DataFrame[RoadNodesTable]:

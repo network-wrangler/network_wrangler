@@ -1,0 +1,47 @@
+name: 'Build and Deploy Docs'
+description: 'Build and deploy documentation using mike'
+inputs:
+  python-version:
+    description: 'Python version to use'
+    required: true
+    default: '3.13'
+  branch-name:
+    description: 'Branch name for docs version'
+    required: true
+
+runs:
+  using: 'composite'
+  steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+
+    - name: Setup Python with UV
+      uses: ./.github/actions/setup-python-uv
+      with:
+        python-version: ${{ inputs.python-version }}
+
+    - name: Configure Git user
+      run: |
+        git config --local user.email "github-actions[bot]@users.noreply.github.com"
+        git config --local user.name "github-actions[bot]"
+      shell: bash
+
+    - name: Install dependencies
+      run: |
+        uv pip install --system -e .[docs]
+      shell: bash
+
+    - name: Build and deploy docs
+      continue-on-error: true
+      run: |
+        mike deploy --push ${{ inputs.branch-name }}
+      shell: bash
+
+    - name: Update latest docs alias
+      if: inputs.branch-name == 'main'
+      run: |
+        mike alias ${{ inputs.branch-name }} latest --update-aliases --push
+      shell: bash
+

@@ -5,7 +5,6 @@ Private methods may return mutated originals.
 """
 
 import copy
-from typing import Optional, Union
 
 import geopandas as gpd
 from pandera import Field
@@ -44,7 +43,7 @@ class NodeGeometryChange(RecordModel):
     model_config = ConfigDict(extra="ignore")
     X: float
     Y: float
-    in_crs: Optional[int] = LAT_LON_CRS
+    in_crs: int | None = LAT_LON_CRS
 
 
 @validate_call_pyd
@@ -97,8 +96,8 @@ def edit_node_property(
     nodes_df: DataFrame[RoadNodesTable],
     node_idx: list[int],
     prop_name: str,
-    prop_change: Union[dict, RoadPropertyChange],
-    project_name: Optional[str] = None,
+    prop_change: dict | RoadPropertyChange,
+    project_name: str | None = None,
     config: WranglerConfig = DefaultConfig,
     _geometry_ok: bool = False,
 ) -> DataFrame[RoadNodesTable]:

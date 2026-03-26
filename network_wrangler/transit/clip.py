@@ -19,7 +19,6 @@ write_transit(clipped_network, out_dir, prefix="ecolab", format="geojson", true_
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Optional, Union
 
 import geopandas as gpd
 import pandas as pd
@@ -134,9 +133,9 @@ def _remove_links_from_feed(
 def clip_feed_to_boundary(
     feed: Feed,
     ref_nodes_df: gpd.GeoDataFrame,
-    boundary_gdf: Optional[gpd.GeoDataFrame] = None,
-    boundary_geocode: Optional[Union[str, dict]] = None,
-    boundary_file: Optional[Union[str, Path]] = None,
+    boundary_gdf: gpd.GeoDataFrame | None = None,
+    boundary_geocode: str | dict | None = None,
+    boundary_file: str | Path | None = None,
     min_stops: int = DEFAULT_MIN_STOPS,
 ) -> Feed:
     """Clips a transit Feed object to a boundary and returns the resulting GeoDataFrames.
@@ -234,13 +233,13 @@ def _clip_feed_to_nodes(
 
 
 def clip_transit(
-    network: Union[TransitNetwork, str, Path],
-    node_ids: Optional[Union[None, list[str]]] = None,
-    boundary_geocode: Optional[Union[str, dict, None]] = None,
-    boundary_file: Optional[Union[str, Path]] = None,
-    boundary_gdf: Optional[Union[None, gpd.GeoDataFrame]] = None,
-    ref_nodes_df: Optional[Union[None, gpd.GeoDataFrame]] = None,
-    roadway_net: Optional[Union[None, RoadwayNetwork]] = None,
+    network: TransitNetwork | str | Path,
+    node_ids: None | list[str] = None,
+    boundary_geocode: None | str | dict = None,
+    boundary_file: str | Path | None = None,
+    boundary_gdf: None | gpd.GeoDataFrame = None,
+    ref_nodes_df: None | gpd.GeoDataFrame = None,
+    roadway_net: None | RoadwayNetwork = None,
     min_stops: int = DEFAULT_MIN_STOPS,
 ) -> TransitNetwork:
     """Returns a new TransitNetwork clipped to a boundary as determined by arguments.

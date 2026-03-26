@@ -2,10 +2,7 @@
 
 from __future__ import annotations
 
-import ijson
 import pandas as pd
-import pyarrow as pa
-import pyarrow.parquet as pq
 from pandera.typing import DataFrame
 
 from ...logger import WranglerLogger
@@ -75,7 +72,7 @@ def shapes_with_stop_id_for_trip_id(
             "pickup_only": only pickup > 0
             "dropoff_only": only dropoff > 0
     """
-    from .stop_times import stop_times_for_pickup_dropoff_trip_id  # noqa: PLC0415
+    from .stop_times import stop_times_for_pickup_dropoff_trip_id
 
     shapes = shapes_for_trip_id(shapes, trips, trip_id)
     trip_stop_times = stop_times_for_pickup_dropoff_trip_id(
@@ -123,7 +120,7 @@ def shapes_with_stops_for_shape_id(
     Returns:
         DataFrame[WranglerShapesTable]: DataFrame containing shapes with associated stops.
     """
-    from .trips import trip_ids_for_shape_id  # noqa: PLC0415
+    from .trips import trip_ids_for_shape_id
 
     trip_ids = trip_ids_for_shape_id(trips, shape_id)
     all_shape_stop_times = concat_with_attr(

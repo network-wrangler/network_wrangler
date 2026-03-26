@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import Optional
+import operator
 
 from pandas import DataFrame, Series
 
@@ -14,13 +14,13 @@ POTENTIAL_COMPLEX_PROPERTIES = ["lanes", "price", "ML_lanes", "ML_price"]
 
 
 def translate_links_df_v0_to_v1(
-    links_df: DataFrame, complex_properties: Optional[list[str]] = None
+    links_df: DataFrame, complex_properties: list[str] | None = None
 ) -> DataFrame:
     """Translates a links dataframe from v0 to v1 format.
 
     Args:
         links_df (DataFrame): _description_
-        complex_properties (Optional[list[str]], optional): List of complex properties to
+        complex_properties (list[str] | None, optional): List of complex properties to
             convert from v0 to v1 link data model. Defaults to None. If None, will detect
             complex properties.
     """
@@ -39,13 +39,13 @@ def translate_links_df_v0_to_v1(
 
 
 def translate_links_df_v1_to_v0(
-    links_df: DataFrame, complex_properties: Optional[list[str]] = None
+    links_df: DataFrame, complex_properties: list[str] | None = None
 ) -> DataFrame:
     """Translates a links dataframe from v1 to v0 format.
 
     Args:
         links_df (DataFrame): _description_
-        complex_properties (Optional[list[str]], optional): List of complex properties to
+        complex_properties (list[str] | None, optional): List of complex properties to
             convert from v0 to v1 link data model. Defaults to None. If None, will detect
             complex properties.
     """
@@ -85,7 +85,7 @@ def _v0_to_v1_scoped_link_property_list(v0_item_list: list[dict]) -> list[dict]:
     Returns:
         list[dict]: in v1 format
     """
-    import pprint  # noqa: PLC0415
+    import pprint
 
     v1_item_list = []
 
@@ -133,9 +133,11 @@ def _translate_scoped_link_property_v0_to_v1(links_df: DataFrame, prop: str) -> 
     )
 
     links_df.loc[complex_idx, f"sc_{prop}"] = links_df.loc[complex_idx, prop].apply(
-        lambda x: _v0_to_v1_scoped_link_property_list(x)
+        _v0_to_v1_scoped_link_property_list
     )
-    links_df.loc[complex_idx, prop] = links_df.loc[complex_idx, prop].apply(lambda x: x["default"])
+    links_df.loc[complex_idx, prop] = links_df.loc[complex_idx, prop].apply(
+        operator.itemgetter("default")
+    )
     return links_df
 
 

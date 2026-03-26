@@ -1,0 +1,203 @@
+name: 'Compare Benchmarks'
+description: 'Compare benchmark results between branches or commits and commit benchmark.json to the branch'
+inputs:
+  benchmark-json-path:
+    description: 'Path to benchmark.json file'
+    required: false
+    default: 'benchmark.json'
+  comparison-type:
+    description: 'Type of comparison: push (compare to previous commit) or pr (compare to base branch)'
+    required: true
+  base-branch:
+    description: 'Base branch name for PR comparisons'
+    required: false
+  github-token:
+    description: 'GitHub token for posting comments and committing'
+    required: true
+  pr-number:
+    description: 'Pull request number for posting comments'
+    required: false
+  alert-threshold:
+    description: 'Alert threshold percentage (e.g., 125 means 25% slower triggers alert)'
+    required: false
+    default: '125'
+  python-version:
+    description: 'Python version for installing pytest-benchmark'
+    required: false
+    default: '3.13'
+
+runs:
+  using: 'composite'
+  steps:
+    - name: Setup Python with UV
+      uses: ./.github/actions/setup-python-uv
+      with:
+        python-version: ${{ inputs.python-version }}
+
+    - name: Install pytest-benchmark
+      shell: bash
+      run: |
+        uv pip install --system pytest-benchmark
+
+    - name: Compare benchmarks (Push - previous commit)
+      id: compare-push
+      if: inputs.comparison-type == 'push'
+      shell: bash
+      run: |
+        set -e
+        
+        CURRENT_COMMIT=$(git rev-parse HEAD)
+        PREVIOUS_COMMIT=$(git rev-parse HEAD~1 2>/dev/null || echo "")
+        
+        if [ -z "$PREVIOUS_COMMIT" ]; then
+          echo "No previous commit found. This appears to be the first commit with benchmarks."
+          echo "comparison_result=No previous commit to compare against" >> $GITHUB_OUTPUT
+          exit 0
+        fi
+        
+        # Check if current benchmark.json exists
+        if [ ! -f "${{ inputs.benchmark-json-path }}" ]; then
+          echo "ERROR: Current benchmark.json not found at ${{ inputs.benchmark-json-path }}"
+          exit 1
+        fi
+        
+        # Try to get previous commit's benchmark.json
+        PREV_BENCHMARK=$(git show ${PREVIOUS_COMMIT}:${{ inputs.benchmark-json-path }} 2>/dev/null || echo "")
+        
+        if [ -z "$PREV_BENCHMARK" ]; then
+          echo "No previous benchmark.json found in commit ${PREVIOUS_COMMIT}. This is the first benchmark run."
+          echo "comparison_result=No previous benchmark to compare against" >> $GITHUB_OUTPUT
+          exit 0
+        fi
+        
+        # Save previous benchmark to temp file
+        echo "$PREV_BENCHMARK" > /tmp/previous_benchmark.json
+        
+        # Compare benchmarks
+        echo "Comparing current commit (${CURRENT_COMMIT:0:7}) to previous commit (${PREVIOUS_COMMIT:0:7})"
+        COMPARE_OUTPUT=$(pytest-benchmark compare /tmp/previous_benchmark.json ${{ inputs.benchmark-json-path }} 2>&1 || echo "Comparison completed")
+        echo "$COMPARE_OUTPUT"
+        
+        echo "comparison_result<<EOF" >> $GITHUB_OUTPUT
+        echo "$COMPARE_OUTPUT" >> $GITHUB_OUTPUT
+        echo "EOF" >> $GITHUB_OUTPUT
+
+    - name: Compare benchmarks (PR - base branch)
+      id: compare-pr
+      if: inputs.comparison-type == 'pr'
+      shell: bash
+      run: |
+        set -e
+        
+        BASE_BRANCH="${{ inputs.base-branch }}"
+        CURRENT_COMMIT=$(git rev-parse HEAD)
+        
+        if [ -z "$BASE_BRANCH" ]; then
+          echo "ERROR: Base branch not specified for PR comparison"
+          exit 1
+        fi
+        
+        # Check if current benchmark.json exists
+        if [ ! -f "${{ inputs.benchmark-json-path }}" ]; then
+          echo "ERROR: Current benchmark.json not found at ${{ inputs.benchmark-json-path }}"
+          exit 1
+        fi
+        
+        # Fetch base branch with full history
+        git fetch origin ${BASE_BRANCH} --depth=100 || git fetch origin ${BASE_BRANCH}
+        
+        # Get base branch's latest commit
+        BASE_COMMIT=$(git rev-parse origin/${BASE_BRANCH} 2>/dev/null || echo "")
+        
+        if [ -z "$BASE_COMMIT" ]; then
+          echo "ERROR: Could not find base branch ${BASE_BRANCH}"
+          exit 1
+        fi
+        
+        # Try to get base branch's benchmark.json from the latest commit
+        BASE_BENCHMARK=$(git show origin/${BASE_BRANCH}:${{ inputs.benchmark-json-path }} 2>/dev/null || echo "")
+        
+        if [ -z "$BASE_BENCHMARK" ]; then
+          echo "WARNING: No benchmark.json found in base branch ${BASE_BRANCH}. Cannot compare."
+          echo "This PR will be the baseline for future comparisons."
+          echo "comparison_result=No benchmark.json found in base branch" >> $GITHUB_OUTPUT
+          echo "has_regression=false" >> $GITHUB_OUTPUT
+          exit 0
+        fi
+        
+        # Save base benchmark to temp file
+        echo "$BASE_BENCHMARK" > /tmp/base_benchmark.json
+        
+        # Compare benchmarks
+        echo "Comparing PR branch (${CURRENT_COMMIT:0:7}) to base branch ${BASE_BRANCH} (${BASE_COMMIT:0:7})"
+        COMPARE_OUTPUT=$(pytest-benchmark compare /tmp/base_benchmark.json ${{ inputs.benchmark-json-path }} 2>&1 || echo "Comparison completed")
+        echo "$COMPARE_OUTPUT"
+        
+        echo "comparison_result<<EOF" >> $GITHUB_OUTPUT
+        echo "$COMPARE_OUTPUT" >> $GITHUB_OUTPUT
+        echo "EOF" >> $GITHUB_OUTPUT
+        
+        # Check for regressions (look for significant slowdown indicators)
+        if echo "$COMPARE_OUTPUT" | grep -qiE "slower|regression|worse"; then
+          echo "has_regression=true" >> $GITHUB_OUTPUT
+        else
+          echo "has_regression=false" >> $GITHUB_OUTPUT
+        fi
+
+    - name: Commit benchmark.json to branch
+      shell: bash
+      run: |
+        set -e
+        
+        # Configure git
+        git config --local user.email "github-actions[bot]@users.noreply.github.com"
+        git config --local user.name "github-actions[bot]"
+        
+        # Check if benchmark.json exists and has changes
+        if [ ! -f "${{ inputs.benchmark-json-path }}" ]; then
+          echo "No benchmark.json to commit"
+          exit 0
+        fi
+        
+        # Check if file is already committed and unchanged
+        if git diff --quiet HEAD -- "${{ inputs.benchmark-json-path }}" 2>/dev/null; then
+          echo "benchmark.json is already committed and unchanged"
+          exit 0
+        fi
+        
+        # Add and commit benchmark.json
+        git add "${{ inputs.benchmark-json-path }}"
+        git commit -m "ci: Update benchmark results [skip ci]" || echo "No changes to commit"
+        
+        # Push to current branch
+        git push || echo "Push failed (may not have permissions or branch may be protected)"
+
+    - name: Post PR comment with comparison
+      id: post-comment
+      if: inputs.comparison-type == 'pr' && inputs.pr-number != ''
+      uses: actions/github-script@v7
+      with:
+        github-token: ${{ inputs.github-token }}
+        script: |
+          const comparison = `${{ steps.compare-pr.outputs.comparison_result }}`;
+          const hasRegression = '${{ steps.compare-pr.outputs.has_regression }}' === 'true';
+          
+          let comment = '## 📊 Benchmark Comparison\n\n';
+          comment += `Comparing PR branch to base branch \`${{ inputs.base-branch }}\`\n\n`;
+          
+          if (comparison && comparison.trim() && !comparison.includes('No benchmark')) {
+            comment += '```\n' + comparison + '\n```\n';
+          } else {
+            comment += 'No previous benchmark found in base branch. This will serve as the baseline.\n';
+          }
+          
+          if (hasRegression === 'true') {
+            comment += '\n⚠️ **Performance regression detected!**';
+          }
+          
+          await github.rest.issues.createComment({
+            owner: context.repo.owner,
+            repo: context.repo.repo,
+            issue_number: ${{ inputs.pr-number }},
+            body: comment,
+          });

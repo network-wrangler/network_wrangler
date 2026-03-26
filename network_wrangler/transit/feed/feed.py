@@ -2,8 +2,9 @@
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from pathlib import Path
-from typing import Callable, ClassVar, Literal, Optional
+from typing import ClassVar, Literal
 
 import geopandas as gpd
 import pandas as pd
@@ -138,7 +139,7 @@ class Feed(DBModelMixin):
         table_name: str,
         set_df: pd.DataFrame,
         id_property: str = "index",
-        properties: Optional[list[str]] = None,
+        properties: list[str] | None = None,
     ):
         """Set one or more property values based on an ID property for a given table.
 

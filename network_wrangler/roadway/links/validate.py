@@ -1,12 +1,8 @@
 """Utilities for validating a RoadLinksTable beyond its data model."""
 
 from pathlib import Path
-from typing import Optional
 
-import ijson
 import pandas as pd
-import pyarrow as pa
-import pyarrow.parquet as pq
 
 from ...errors import NodesInLinksMissingError
 from ...logger import WranglerLogger
@@ -31,7 +27,7 @@ def validate_links_have_nodes(links_df: pd.DataFrame, nodes_df: pd.DataFrame) ->
 
 def validate_links_file(
     links_filename: Path,
-    nodes_df: Optional[pd.DataFrame] = None,
+    nodes_df: pd.DataFrame | None = None,
     strict: bool = False,
     errors_filename: Path = Path("link_errors.csv"),
 ) -> bool:
@@ -55,7 +51,7 @@ def validate_links_file(
 
 def validate_links_df(
     links_df: pd.DataFrame,
-    nodes_df: Optional[pd.DataFrame] = None,
+    nodes_df: pd.DataFrame | None = None,
     strict: bool = False,
     errors_filename: Path = Path("link_errors.csv"),
 ) -> bool:
@@ -71,13 +67,13 @@ def validate_links_df(
     Returns:
         bool: True if the links dataframe is valid.
     """
-    from ...models.roadway.tables import RoadLinksTable  # noqa: PLC0415
-    from ...utils.models import TableValidationError, validate_df_to_model  # noqa: PLC0415
+    from ...models.roadway.tables import RoadLinksTable
+    from ...utils.models import TableValidationError, validate_df_to_model
 
     is_valid = True
 
     if not strict:
-        from .create import data_to_links_df  # noqa: PLC0415
+        from .create import data_to_links_df
 
         try:
             links_df = data_to_links_df(links_df)

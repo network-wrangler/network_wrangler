@@ -24,7 +24,7 @@ links_df = edit_link_geometry_from_nodes(links_df, nodes_df, node_ids)
 from __future__ import annotations
 
 import copy
-from typing import Any, Literal, Optional, Union
+from typing import Any, Literal
 
 import geopandas as gpd
 import numpy as np
@@ -97,7 +97,7 @@ def _resolve_conflicting_scopes(
 
 
 def _valid_default_value_for_change(value: Any) -> bool:
-    if isinstance(value, (int, np.integer)):
+    if isinstance(value, int | np.integer):
         return True
     return bool(isinstance(value, float))
 
@@ -132,7 +132,7 @@ def _update_property_for_scope(
 
 @validate_call(config={"arbitrary_types_allowed": True}, validate_return=True)
 def _edit_scoped_link_property(
-    scoped_prop_value_list: Union[None, list[ScopedLinkValueItem]],
+    scoped_prop_value_list: None | list[ScopedLinkValueItem],
     scoped_prop_set: ScopedPropertySetList,
     default_value: Any = None,
     overwrite_scoped: Literal["conflicting", "all", "error"] = "error",
@@ -234,7 +234,7 @@ def _edit_link_property(
     link_idx: list[int],
     prop_name: str,
     prop_change: dict,
-    project_name: Optional[str] = None,
+    project_name: str | None = None,
     config: WranglerConfig = DefaultConfig,
 ) -> DataFrame[RoadLinksTable]:
     """Return edited (in place) RoadLinksTable with property changes for a list of links.
@@ -354,7 +354,7 @@ def edit_link_properties(
     links_df: DataFrame[RoadLinksTable],
     link_idx: list,
     property_changes: dict[str, dict],
-    project_name: Optional[str] = None,
+    project_name: str | None = None,
     config: WranglerConfig = DefaultConfig,
 ) -> DataFrame[RoadLinksTable]:
     """Return copy of RoadLinksTable with edited link properties for a list of links.

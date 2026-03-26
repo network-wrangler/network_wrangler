@@ -2,7 +2,7 @@
 
 The module includes the following classes:
 
-- [AgenciesTable][network_wrangler.models.gtfs.tables.AgenciesTable]: Optional. Represents the Agency table in the GTFS dataset.
+- AgencyTable: Optional. Represents the Agency table in the GTFS dataset.
 - WranglerStopsTable: Represents the Stops table in the GTFS dataset.
 - RoutesTable: Represents the Routes table in the GTFS dataset.
 - WranglerShapesTable: Represents the Shapes table in the GTFS dataset.
@@ -23,16 +23,14 @@ such as uniqueness constraints.
     ```
 """
 
-from typing import ClassVar, Optional
+from typing import ClassVar
 
 import pandas as pd
 import pandera as pa
 from pandas import Timestamp
-from pandera import Field
-from pandera.api.pandas.model import DataFrameModel
+from pandera import DataFrameModel, Field
 from pandera.typing import Category, Series
 
-from ...logger import WranglerLogger
 from ...params import DEFAULT_TIMESPAN
 from ...utils.time import str_to_time, str_to_time_series
 from .._base.db import TableForeignKeys, TablePrimaryKeys
@@ -91,22 +89,22 @@ class StopsTable(DataFrameModel):
         stop_id (str): The stop_id. Primary key. Required to be unique.
         stop_lat (float): The stop latitude.
         stop_lon (float): The stop longitude.
-        wheelchair_boarding (Optional[int]): The wheelchair boarding.
-        stop_code (Optional[str]): The stop code.
-        stop_name (Optional[str]): The stop name.
-        tts_stop_name (Optional[str]): The text-to-speech stop name.
-        stop_desc (Optional[str]): The stop description.
-        zone_id (Optional[str]): The zone id.
-        stop_url (Optional[str]): The stop URL.
-        location_type (Optional[LocationType]): The location type. Values can be:
+        wheelchair_boarding (int | None): The wheelchair boarding.
+        stop_code (str | None): The stop code.
+        stop_name (str | None): The stop name.
+        tts_stop_name (str | None): The text-to-speech stop name.
+        stop_desc (str | None): The stop description.
+        zone_id (str | None): The zone id.
+        stop_url (str | None): The stop URL.
+        location_type (LocationType | None): The location type. Values can be:
             - 0: stop platform
             - 1: station
             - 2: entrance/exit
             - 3: generic node
             - 4: boarding area
             Default of blank assumes a stop platform.
-        parent_station (Optional[str]): The `stop_id` of the parent station.
-        stop_timezone (Optional[str]): The stop timezone.
+        parent_station (str | None): The `stop_id` of the parent station.
+        stop_timezone (str | None): The stop timezone.
     """
 
     stop_id: Series[str] = Field(coerce=True, nullable=False, unique=True)
@@ -114,23 +112,23 @@ class StopsTable(DataFrameModel):
     stop_lon: Series[float] = Field(coerce=True, nullable=False, ge=-180, le=180)
 
     # Optional Fields
-    wheelchair_boarding: Optional[Series[Category]] = Field(
+    wheelchair_boarding: Series[Category] | None = Field(
         dtype_kwargs={"categories": WheelchairAccessible}, coerce=True, default=0
     )
-    stop_code: Optional[Series[str]] = Field(nullable=True, coerce=True)
-    stop_name: Optional[Series[str]] = Field(nullable=True, coerce=True)
-    tts_stop_name: Optional[Series[str]] = Field(nullable=True, coerce=True)
-    stop_desc: Optional[Series[str]] = Field(nullable=True, coerce=True)
-    zone_id: Optional[Series[str]] = Field(nullable=True, coerce=True)
-    stop_url: Optional[Series[str]] = Field(nullable=True, coerce=True)
-    location_type: Optional[Series[Category]] = Field(
+    stop_code: Series[str] | None = Field(nullable=True, coerce=True)
+    stop_name: Series[str] | None = Field(nullable=True, coerce=True)
+    tts_stop_name: Series[str] | None = Field(nullable=True, coerce=True)
+    stop_desc: Series[str] | None = Field(nullable=True, coerce=True)
+    zone_id: Series[str] | None = Field(nullable=True, coerce=True)
+    stop_url: Series[str] | None = Field(nullable=True, coerce=True)
+    location_type: Series[Category] | None = Field(
         dtype_kwargs={"categories": LocationType},
         nullable=True,
         coerce=True,
         default=0,
     )
-    parent_station: Optional[Series[str]] = Field(nullable=True, coerce=True)
-    stop_timezone: Optional[Series[str]] = Field(nullable=True, coerce=True)
+    parent_station: Series[str] | None = Field(nullable=True, coerce=True)
+    stop_timezone: Series[str] | None = Field(nullable=True, coerce=True)
 
     class Config:
         """Config for the StopsTable data model."""
@@ -150,23 +148,23 @@ class WranglerStopsTable(StopsTable):
         stop_id (int): The stop_id. Primary key. Required to be unique. **Wrangler assumes that this is a reference to a roadway node and as such must be an integer**
         stop_lat (float): The stop latitude.
         stop_lon (float): The stop longitude.
-        wheelchair_boarding (Optional[int]): The wheelchair boarding.
-        stop_code (Optional[str]): The stop code.
-        stop_name (Optional[str]): The stop name.
-        tts_stop_name (Optional[str]): The text-to-speech stop name.
-        stop_desc (Optional[str]): The stop description.
-        zone_id (Optional[str]): The zone id.
-        stop_url (Optional[str]): The stop URL.
-        location_type (Optional[LocationType]): The location type. Values can be:
+        wheelchair_boarding (int | None): The wheelchair boarding.
+        stop_code (str | None): The stop code.
+        stop_name (str | None): The stop name.
+        tts_stop_name (str | None): The text-to-speech stop name.
+        stop_desc (str | None): The stop description.
+        zone_id (str | None): The zone id.
+        stop_url (str | None): The stop URL.
+        location_type (LocationType | None): The location type. Values can be:
             - 0: stop platform
             - 1: station
             - 2: entrance/exit
             - 3: generic node
             - 4: boarding area
             Default of blank assumes a stop platform.
-        parent_station (Optional[int]): The `stop_id` of the parent station. **Since stop_id is an integer in Wrangler, this field is also an integer**
-        stop_timezone (Optional[str]): The stop timezone.
-        stop_id_GTFS (Optional[str]): The stop_id from the GTFS data.
+        parent_station (int | None): The `stop_id` of the parent station. **Since stop_id is an integer in Wrangler, this field is also an integer**
+        stop_timezone (str | None): The stop timezone.
+        stop_id_GTFS (str | None): The stop_id from the GTFS data.
         projects (str): A comma-separated string value for projects that have been applied to this stop.
     """
 
@@ -190,18 +188,18 @@ class RoutesTable(DataFrameModel):
 
     Attributes:
         route_id (str): The route_id. Primary key. Required to be unique.
-        route_short_name (Optional[str]): The route short name.
-        route_long_name (Optional[str]): The route long name.
+        route_short_name (str | None): The route short name.
+        route_long_name (str | None): The route long name.
         route_type (RouteType): The route type. Required. Values can be:
             - 0: Tram, Streetcar, Light rail
             - 1: Subway, Metro
             - 2: Rail
             - 3: Bus
-        agency_id (Optional[str]): The agency_id. Foreign key to agency_id in the agencies table.
-        route_desc (Optional[str]): The route description.
-        route_url (Optional[str]): The route URL.
-        route_color (Optional[str]): The route color.
-        route_text_color (Optional[str]): The route text color.
+        agency_id (str | None): The agency_id. Foreign key to agency_id in the agencies table.
+        route_desc (str | None): The route description.
+        route_url (str | None): The route URL.
+        route_color (str | None): The route color.
+        route_text_color (str | None): The route text color.
     """
 
     route_id: Series[str] = Field(nullable=False, unique=True, coerce=True)
@@ -212,11 +210,11 @@ class RoutesTable(DataFrameModel):
     )
 
     # Optional Fields
-    agency_id: Optional[Series[str]] = Field(nullable=True, coerce=True)
-    route_desc: Optional[Series[str]] = Field(nullable=True, coerce=True)
-    route_url: Optional[Series[str]] = Field(nullable=True, coerce=True)
-    route_color: Optional[Series[str]] = Field(nullable=True, coerce=True)
-    route_text_color: Optional[Series[str]] = Field(nullable=True, coerce=True)
+    agency_id: Series[str] | None = Field(nullable=True, coerce=True)
+    route_desc: Series[str] | None = Field(nullable=True, coerce=True)
+    route_url: Series[str] | None = Field(nullable=True, coerce=True)
+    route_color: Series[str] | None = Field(nullable=True, coerce=True)
+    route_text_color: Series[str] | None = Field(nullable=True, coerce=True)
 
     class Config:
         """Config for the RoutesTable data model."""
@@ -237,7 +235,7 @@ class ShapesTable(DataFrameModel):
         shape_pt_lat (float): The shape point latitude.
         shape_pt_lon (float): The shape point longitude.
         shape_pt_sequence (int): The shape point sequence.
-        shape_dist_traveled (Optional[float]): The shape distance traveled.
+        shape_dist_traveled (float | None): The shape distance traveled.
     """
 
     shape_id: Series[str] = Field(nullable=False, coerce=True)
@@ -246,7 +244,7 @@ class ShapesTable(DataFrameModel):
     shape_pt_sequence: Series[int] = Field(coerce=True, nullable=False, ge=0)
 
     # Optional
-    shape_dist_traveled: Optional[Series[float]] = Field(coerce=True, nullable=True, ge=0)
+    shape_dist_traveled: Series[float] | None = Field(coerce=True, nullable=True, ge=0)
 
     class Config:
         """Config for the ShapesTable data model."""
@@ -268,8 +266,8 @@ class WranglerShapesTable(ShapesTable):
         shape_pt_lat (float): The shape point latitude.
         shape_pt_lon (float): The shape point longitude.
         shape_pt_sequence (int): The shape point sequence.
-        shape_dist_traveled (Optional[float]): The shape distance traveled.
-        shape_model_node_id (int): The `model_node_id` of the shape point. Foreign key to the `model_node_id` in the nodes table.
+        shape_dist_traveled (float | None): The shape distance traveled.
+        shape_model_node_id (int): The model_node_id of the shape point. Foreign key to the model_node_id in the nodes table.
         projects (str): A comma-separated string value for projects that have been applied to this shape.
     """
 
@@ -284,27 +282,27 @@ class TripsTable(DataFrameModel):
 
     Attributes:
         trip_id (str): Primary key. Required to be unique.
-        shape_id (Optional[str]): Foreign key to `shape_id` in the shapes table.
+        shape_id (str): Foreign key to `shape_id` in the shapes table.
         direction_id (DirectionID): The direction id. Required. Values can be:
             - 0: Outbound
             - 1: Inbound
         service_id (str): The service id.
         route_id (str): The route id. Foreign key to `route_id` in the routes table.
-        trip_short_name (Optional[str]): The trip short name.
-        trip_headsign (Optional[str]): The trip headsign.
-        block_id (Optional[str]): The block id.
-        wheelchair_accessible (Optional[int]): The wheelchair accessible. Values can be:
+        trip_short_name (str | None): The trip short name.
+        trip_headsign (str | None): The trip headsign.
+        block_id (str | None): The block id.
+        wheelchair_accessible (int | None): The wheelchair accessible. Values can be:
             - 0: No information
             - 1: Allowed
             - 2: Not allowed
-        bikes_allowed (Optional[int]): The bikes allowed. Values can be:
+        bikes_allowed (int | None): The bikes allowed. Values can be:
             - 0: No information
             - 1: Allowed
             - 2: Not allowed
     """
 
     trip_id: Series[str] = Field(nullable=False, unique=True, coerce=True)
-    shape_id: Series[str] = Field(nullable=True, coerce=True)
+    shape_id: Series[str] = Field(nullable=False, coerce=True)
     direction_id: Series[Category] = Field(
         dtype_kwargs={"categories": DirectionID}, coerce=True, nullable=False, default=0
     )
@@ -312,13 +310,13 @@ class TripsTable(DataFrameModel):
     route_id: Series[str] = Field(nullable=False, coerce=True)
 
     # Optional Fields
-    trip_short_name: Optional[Series[str]] = Field(nullable=True, coerce=True)
-    trip_headsign: Optional[Series[str]] = Field(nullable=True, coerce=True)
-    block_id: Optional[Series[str]] = Field(nullable=True, coerce=True)
-    wheelchair_accessible: Optional[Series[Category]] = Field(
+    trip_short_name: Series[str] | None = Field(nullable=True, coerce=True)
+    trip_headsign: Series[str] | None = Field(nullable=True, coerce=True)
+    block_id: Series[str] | None = Field(nullable=True, coerce=True)
+    wheelchair_accessible: Series[Category] | None = Field(
         dtype_kwargs={"categories": WheelchairAccessible}, coerce=True, default=0
     )
-    bikes_allowed: Optional[Series[Category]] = Field(
+    bikes_allowed: Series[Category] | None = Field(
         dtype_kwargs={"categories": BikesAllowed},
         coerce=True,
         default=0,
@@ -340,27 +338,26 @@ class WranglerTripsTable(TripsTable):
 
     Attributes:
         trip_id (str): Primary key. Required to be unique.
-        shape_id (str): Foreign key to `shape_id` in the shapes table. **Required in Wrangler feeds.**
+        shape_id (str): Foreign key to `shape_id` in the shapes table.
         direction_id (DirectionID): The direction id. Required. Values can be:
             - 0: Outbound
             - 1: Inbound
         service_id (str): The service id.
         route_id (str): The route id. Foreign key to `route_id` in the routes table.
-        trip_short_name (Optional[str]): The trip short name.
-        trip_headsign (Optional[str]): The trip headsign.
-        block_id (Optional[str]): The block id.
-        wheelchair_accessible (Optional[int]): The wheelchair accessible. Values can be:
+        trip_short_name (str | None): The trip short name.
+        trip_headsign (str | None): The trip headsign.
+        block_id (str | None): The block id.
+        wheelchair_accessible (int | None): The wheelchair accessible. Values can be:
             - 0: No information
             - 1: Allowed
             - 2: Not allowed
-        bikes_allowed (Optional[int]): The bikes allowed. Values can be:
+        bikes_allowed (int | None): The bikes allowed. Values can be:
             - 0: No information
             - 1: Allowed
             - 2: Not allowed
         projects (str): A comma-separated string value for projects that have been applied to this trip.
     """
 
-    shape_id: Series[str] = Field(nullable=False, coerce=True)  # Override to make required
     projects: Series[str] = Field(coerce=True, default="")
 
     class Config:
@@ -477,8 +474,8 @@ class StopTimesTable(DataFrameModel):
             - 3: Must coordinate with driver to arrange drop off
         arrival_time (TimeString): The arrival time in HH:MM:SS format.
         departure_time (TimeString): The departure time in HH:MM:SS format.
-        shape_dist_traveled (Optional[float]): The shape distance traveled.
-        timepoint (Optional[TimepointType]): The timepoint type. Values can be:
+        shape_dist_traveled (float | None): The shape distance traveled.
+        timepoint (TimepointType | None): The timepoint type. Values can be:
             - 0: The stop is not a timepoint
             - 1: The stop is a timepoint
     """
@@ -500,8 +497,8 @@ class StopTimesTable(DataFrameModel):
     departure_time: Series[pa.Timestamp] = Field(nullable=True, default=pd.NaT, coerce=True)
 
     # Optional
-    shape_dist_traveled: Optional[Series[float]] = Field(coerce=True, nullable=True, ge=0)
-    timepoint: Optional[Series[Category]] = Field(
+    shape_dist_traveled: Series[float] | None = Field(coerce=True, nullable=True, ge=0)
+    timepoint: Series[Category] | None = Field(
         dtype_kwargs={"categories": TimepointType}, coerce=True, default=0
     )
 
@@ -551,8 +548,8 @@ class WranglerStopTimesTable(StopTimesTable):
             - 1: No drop off available
             - 2: Must phone agency to arrange drop off
             - 3: Must coordinate with driver to arrange drop off
-        shape_dist_traveled (Optional[float]): The shape distance traveled.
-        timepoint (Optional[TimepointType]): The timepoint type. Values can be:
+        shape_dist_traveled (float | None): The shape distance traveled.
+        timepoint (TimepointType | None): The timepoint type. Values can be:
             - 0: The stop is not a timepoint
             - 1: The stop is a timepoint
         projects (str): A comma-separated string value for projects that have been applied to this stop.

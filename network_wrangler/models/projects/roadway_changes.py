@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import itertools
 from datetime import datetime
-from typing import Any, ClassVar, Literal, Optional, Union
+from typing import Any, ClassVar, Literal
 
 from pydantic import (
     BaseModel,
@@ -13,7 +13,6 @@ from pydantic import (
     ValidationError,
     field_validator,
     model_validator,
-    validate_call,
 )
 
 from ...errors import ScopeConflictError
@@ -36,12 +35,12 @@ class IndivScopedPropertySetItem(BaseModel):
 
     model_config = ConfigDict(extra="forbid", exclude_none=True)
 
-    category: Optional[Union[str, int]] = DEFAULT_CATEGORY
-    timespan: Optional[TimespanString] = DEFAULT_TIMESPAN
-    set: Optional[Any] = None
-    existing: Optional[Any] = None
-    overwrite_conflicts: Optional[bool] = False
-    change: Optional[Union[int, float]] = None
+    category: str | int | None = DEFAULT_CATEGORY
+    timespan: TimespanString | None = DEFAULT_TIMESPAN
+    set: Any | None = None
+    existing: Any | None = None
+    overwrite_conflicts: bool | None = False
+    change: int | float | None = None
     _examples = [
         {"category": "hov3", "timespan": ["6:00", "9:00"], "set": 2.0},
         {"category": "hov2", "set": 2.0},
@@ -96,14 +95,14 @@ class GroupedScopedPropertySetItem(BaseModel):
 
     model_config = ConfigDict(extra="forbid", exclude_none=True)
 
-    category: Optional[Union[str, int]] = None
-    timespan: Optional[TimespanString] = None
-    categories: Optional[list[Any]] = []
-    timespans: Optional[list[TimespanString]] = []
-    set: Optional[Any] = None
-    overwrite_conflicts: Optional[bool] = False
-    existing: Optional[Any] = None
-    change: Optional[Union[int, float]] = None
+    category: str | int | None = None
+    timespan: TimespanString | None = None
+    categories: list[Any] | None = []
+    timespans: list[TimespanString] | None = []
+    set: Any | None = None
+    overwrite_conflicts: bool | None = False
+    existing: Any | None = None
+    change: int | float | None = None
     _examples = [
         {"category": "hov3", "timespan": ["6:00", "9:00"], "set": 2.0},
         {"category": "hov2", "set": 2.0},
@@ -151,7 +150,7 @@ class GroupedScopedPropertySetItem(BaseModel):
 
 
 def _grouped_to_indiv_list_of_scopedpropsetitem(
-    scoped_prop_set_list: list[Union[GroupedScopedPropertySetItem, IndivScopedPropertySetItem]],
+    scoped_prop_set_list: list[GroupedScopedPropertySetItem | IndivScopedPropertySetItem],
 ) -> list[IndivScopedPropertySetItem]:
     """Converts a list of ScopedPropertySetItem to a list of IndivScopedPropertySetItem.
 
@@ -241,12 +240,12 @@ class RoadPropertyChange(RecordModel):
 
     model_config = ConfigDict(extra="forbid", exclude_none=True)
 
-    existing: Optional[Any] = None
-    change: Optional[Union[int, float]] = None
-    set: Optional[Any] = None
-    scoped: Optional[Union[None, ScopedPropertySetList]] = None
-    overwrite_scoped: Optional[Literal["conflicting", "all", "error"]] = None
-    existing_value_conflict: Optional[Literal["error", "warn", "skip"]] = None
+    existing: Any | None = None
+    change: int | float | None = None
+    set: Any | None = None
+    scoped: None | ScopedPropertySetList = None
+    overwrite_scoped: Literal["conflicting", "all", "error"] | None = None
+    existing_value_conflict: Literal["error", "warn", "skip"] | None = None
 
     require_one_of: ClassVar[OneOf] = [
         ["change", "set"],
@@ -289,14 +288,14 @@ class RoadwayDeletion(RecordModel):
     require_any_of: ClassVar[AnyOf] = [["links", "nodes"]]
     model_config = ConfigDict(extra="forbid")
 
-    links: Optional[SelectLinksDict] = None
-    nodes: Optional[SelectNodesDict] = None
+    links: SelectLinksDict | None = None
+    nodes: SelectNodesDict | None = None
     clean_shapes: bool = False
     clean_nodes: bool = False
 
     @field_validator("links")
     @classmethod
-    def set_to_all_modes(cls, links: Optional[SelectLinksDict] = None):
+    def set_to_all_modes(cls, links: SelectLinksDict | None = None):
         """Set the search mode to 'any' if not specified explicitly."""
         if links is not None and links.modes == DEFAULT_SEARCH_MODES:
             links.modes = DEFAULT_DELETE_MODES
