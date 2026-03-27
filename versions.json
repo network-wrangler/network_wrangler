@@ -22,6 +22,11 @@
     "aliases": []
   },
   {
+    "version": "fix-ci-release-workflow-cleanup",
+    "title": "fix-ci-release-workflow-cleanup",
+    "aliases": []
+  },
+  {
     "version": "drop-python3-9",
     "title": "drop-python3-9",
     "aliases": []
