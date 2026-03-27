@@ -33,10 +33,17 @@ runs:
         uv pip install --system -e .[docs]
       shell: bash
 
-    - name: Build and deploy docs
-      continue-on-error: true
+    - name: Slugify branch name for mike
+      id: slug
       run: |
-        mike deploy --push ${{ inputs.branch-name }}
+        SLUG=$(echo "${{ inputs.branch-name }}" | sed 's|[^a-zA-Z0-9._-]|-|g' | sed 's|-\{2,\}|-|g' | sed 's|^-||;s|-$||')
+        echo "Branch slug for mike: $SLUG"
+        echo "value=$SLUG" >> $GITHUB_OUTPUT
+      shell: bash
+
+    - name: Build and deploy docs
+      run: |
+        mike deploy --push ${{ steps.slug.outputs.value }}
       shell: bash
 
     - name: Update latest docs alias
