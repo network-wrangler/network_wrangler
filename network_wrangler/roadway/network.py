@@ -568,8 +568,7 @@ class RoadwayNetwork(BaseModel):
 
         # this will perform validation to the nodes schema
         self.nodes_df = data_to_nodes_df(
-            nodes_df = concat_with_attr([self.nodes_df, add_nodes_df], axis=0),
-            in_crs = in_crs
+            nodes_df=concat_with_attr([self.nodes_df, add_nodes_df], axis=0), in_crs=in_crs
         )
         # Ensure attrs are preserved after validation
         self.nodes_df.attrs.update(RoadNodesAttrs)

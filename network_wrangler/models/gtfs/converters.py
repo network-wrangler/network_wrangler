@@ -92,10 +92,11 @@ def convert_stop_times_to_wrangler_stop_times(
     wr_stop_times_df = wr_stop_times_df.rename(columns={"model_node_id": "stop_id"})
     return wr_stop_times_df
 
+
 def create_feed_frequencies(  # noqa: PLR0915
     feed_tables: dict[str, pd.DataFrame],
     timeperiods: dict[str, tuple[TimeString, TimeString]],
-    frequency_method: Literal["uniform_headway","mean_headway","median_headway"],
+    frequency_method: Literal["uniform_headway", "mean_headway", "median_headway"],
     default_frequency_for_onetime_route: int = 180,
     trace_shape_ids: list[str] | None = None,
 ):
@@ -305,9 +306,7 @@ def create_feed_frequencies(  # noqa: PLR0915
         .aggregate(
             num_trip_ids=pd.NamedAgg(column="trip_id", aggfunc="nunique"),
             trip_ids=pd.NamedAgg(column="trip_id", aggfunc=list),
-            trip_depart_time=pd.NamedAgg(
-                column="trip_depart_time", aggfunc=lambda x: sorted(x)
-            ),
+            trip_depart_time=pd.NamedAgg(column="trip_depart_time", aggfunc=lambda x: sorted(x)),
             stop_pattern=pd.NamedAgg(column="stop_pattern", aggfunc="first"),
         )
         .reset_index(drop=False)
@@ -358,8 +357,12 @@ def create_feed_frequencies(  # noqa: PLR0915
         default_frequency_for_onetime_route
     )
     # if it's zero, use uniform_headway
-    WranglerLogger.debug(f"Updating zero headway_mins to uniform_headway:\n{shape_patterns_df.loc[ shape_patterns_df['headway_mins']==0]}")
-    shape_patterns_df.loc[ shape_patterns_df['headway_mins']==0, 'headway_mins'] = shape_patterns_df['uniform_headway']
+    WranglerLogger.debug(
+        f"Updating zero headway_mins to uniform_headway:\n{shape_patterns_df.loc[shape_patterns_df['headway_mins'] == 0]}"
+    )
+    shape_patterns_df.loc[shape_patterns_df["headway_mins"] == 0, "headway_mins"] = (
+        shape_patterns_df["uniform_headway"]
+    )
 
     WranglerLogger.debug(
         f"After calculating different versions of headways, shape_patterns_df:\n{shape_patterns_df}"

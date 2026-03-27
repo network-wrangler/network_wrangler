@@ -170,7 +170,7 @@ def load_roadway_from_dataframes(
         ]
         WranglerLogger.debug(
             f"Filtered links to only those that connect to nodes: "
-            f"filtered {link_count-len(links_df)} links"
+            f"filtered {link_count - len(links_df)} links"
         )
 
     WranglerLogger.debug("Processing links_df through data_to_links_df")

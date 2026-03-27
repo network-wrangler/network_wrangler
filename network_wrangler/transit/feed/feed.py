@@ -112,7 +112,9 @@ class Feed(DBModelMixin):
             if hasattr(self, table_name):
                 table = getattr(self, table_name)
                 table_type = type(table)
-                summary_dict[table_name] = f"{len(getattr(self, table_name)):,} {table_name} (type={table_type})"
+                summary_dict[table_name] = (
+                    f"{len(getattr(self, table_name)):,} {table_name} (type={table_type})"
+                )
             else:
                 summary_dict[table_name] = "not set"
 
@@ -122,7 +124,7 @@ class Feed(DBModelMixin):
         """Return a string representation of the Feed with table summaries."""
         lines = ["Feed (Wrangler GTFS):"]
 
-        for k,v in self.summary.items():
+        for k, v in self.summary.items():
             lines.append(f"  {k}: {v}")
 
         # Add note about model_node_ids if stops have them

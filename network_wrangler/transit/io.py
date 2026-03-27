@@ -62,7 +62,8 @@ def load_feed_from_path(
     # Use the appropriate table names based on the model type
     model_class = Feed if wrangler_flavored else GtfsModel
     feed_possible_files = {
-        table: list(feed_path.glob(f"*{table}.{file_format}")) for table in model_class.table_names + model_class.optional_table_names
+        table: list(feed_path.glob(f"*{table}.{file_format}"))
+        for table in model_class.table_names + model_class.optional_table_names
     }
     WranglerLogger.debug(f"model_class={model_class}  feed_possible_files={feed_possible_files}")
 
@@ -76,8 +77,6 @@ def load_feed_from_path(
             # missiong optional is ok
             if table_name in model_class.table_names:
                 _missing_files.append(table_name)
-
-        
 
     if _missing_files:
         WranglerLogger.debug(f"!!! Missing transit files: {_missing_files}")
@@ -94,27 +93,30 @@ def load_feed_from_path(
         )
 
     feed_files = {t: f[0] for t, f in feed_possible_files.items()}
-    feed_dfs = {table: _read_table_from_file(table, file, **read_kwargs) for table, file in feed_files.items()}
-    
+    feed_dfs = {
+        table: _read_table_from_file(table, file, **read_kwargs)
+        for table, file in feed_files.items()
+    }
+
     # Create the feed object first
     feed_obj = load_feed_from_dfs(feed_dfs, wrangler_flavored=wrangler_flavored)
     WranglerLogger.debug(f"loaded {type(feed_obj)} from dfs:\n{feed_obj}")
-    
+
     # Apply service_ids filter if provided
     if service_ids_filter is not None:
         feed_obj = filter_feed_by_service_ids(feed_obj, service_ids_filter)
-    
+
     return feed_obj
 
 
 def _read_table_from_file(table: str, file: Path, **kwargs) -> pd.DataFrame:
     """Read a table from a file with support for additional kwargs.
-    
+
     Args:
         table: Name of the table being read (for error messages)
         file: Path to the file to read
         **kwargs: Additional keyword arguments to pass to the appropriate reader
-        
+
     Returns:
         pd.DataFrame: The loaded dataframe
     """
