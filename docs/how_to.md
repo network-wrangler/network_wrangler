@@ -19,22 +19,34 @@
 
 ::: network_wrangler.configs.scenario
     options:
-        members: []
-        heading_level: 3
+      members: []
+      heading_level: 3
     handlers:
       python:
         options:
           show_root_toc_entry: false
+          show_root_heading: false
+          show_source: false
+          show_submodules: false
+          show_classes: false
+          show_functions: false
 
 ## Change Wrangler Configuration
 
 ::: network_wrangler.configs.wrangler
     options:
-        heading_level: 3
+      members: []
+      heading_level: 3
     handlers:
       python:
         options:
           show_root_toc_entry: false
+          show_root_toc_entry: false
+          show_root_heading: false
+          show_source: false
+          show_submodules: false
+          show_classes: false
+          show_functions: false
 
 ## Review changes beetween networks
 

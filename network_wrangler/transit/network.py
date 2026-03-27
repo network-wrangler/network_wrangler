@@ -67,7 +67,7 @@ class TransitNetwork:
     ```
 
     Attributes:
-        feed: gtfs feed object with interlinked tables.
+        feed (Feed): Feed object with interlinked tables.
         road_net (RoadwayNetwork): Associated roadway network object.
         graph (nx.MultiDiGraph): Graph for associated roadway network object.
         config (WranglerConfig): Configuration object for the transit network.
@@ -120,8 +120,10 @@ class TransitNetwork:
     @feed.setter
     def feed(self, feed: Feed):
         if not isinstance(feed, Feed):
-            msg = f"TransitNetwork's feed value must be a valid Feed instance. \
-                             This is a {type(feed)}."
+            msg = (
+                f"TransitNetwork's feed value must be a valid Feed instance. "
+                + f"This is a {type(feed)}."
+            )
             WranglerLogger.error(msg)
             raise TransitValidationError(msg)
         if self._road_net is None or transit_road_net_consistency(feed, self._road_net):
@@ -140,8 +142,10 @@ class TransitNetwork:
     @road_net.setter
     def road_net(self, road_net_in: RoadwayNetwork):
         if road_net_in is None or road_net_in.__class__.__name__ != "RoadwayNetwork":
-            msg = f"TransitNetwork's road_net: value must be a valid RoadwayNetwork instance. \
-                             This is a {type(road_net_in)}."
+            msg = (
+                f"TransitNetwork's road_net: value must be a valid RoadwayNetwork instance."
+                + f"This is a {type(road_net_in)}."
+            )
             WranglerLogger.error(msg)
             raise TransitValidationError(msg)
         if transit_road_net_consistency(self.feed, road_net_in):
@@ -149,8 +153,10 @@ class TransitNetwork:
             self._stored_road_net_version = road_net_in.modification_version
             self._consistent_with_road_net = True
         else:
-            msg = "Can't assign inconsistent RoadwayNetwork - Roadway Network not \
-                   set, but can be referenced separately."
+            msg = (
+                "Can't assign inconsistent RoadwayNetwork - Roadway Network not "
+                + "set, but can be referenced separately."
+            )
             WranglerLogger.error(msg)
             raise TransitRoadwayConsistencyError(msg)
 

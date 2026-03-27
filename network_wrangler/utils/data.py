@@ -209,6 +209,12 @@ def _update_props_for_common_idx(
         # In pandas 3.0+, named RangeIndex creates column with the name, not "index"
         col_to_drop = original_index.name if original_index.name else "index"
         updated_df = updated_df.drop(columns=[col_to_drop])
+    elif original_index.names == [None] or all(name is None for name in original_index.names):
+        # WranglerLogger.debug("original_index.names == [None], original_index is not pd.RangeIndex")
+        # Same logic as pd.RangeIndex
+        updated_df = destination_df.reset_index().set_index(original_index)
+        col_to_drop = original_index.name if original_index.name else "index"
+        updated_df = updated_df.drop(columns=[col_to_drop])
     else:
         updated_df = destination_df.reset_index().set_index(original_index.names)
 
@@ -676,8 +682,7 @@ def fk_in_pk(
 
     if missing_flag.any():
         WranglerLogger.warning(
-            f"Following keys referenced in {fk.name} but missing in\
-            primary key table: \n{fk[missing_flag]} "
+            f"Following keys referenced in {fk.name} but missing in primary key {pk.name} table:\n{fk[missing_flag]}"
         )
         return False, fk[missing_flag].tolist()
 

@@ -1,13 +1,13 @@
 fontawesome_markdown
 jupyter
-markdown>=3.4.0,<4.0  # 3.4.0+ supports new EntryPoints API, compatible with mkdocs (>3.2.1)
+markdown >= 3.8.0  # Updated for mkdocs 1.6+ compatibility
 mike
-mkdocs
-mkdocs-autorefs
+mkdocs >= 1.6.0  # Required for latest mkdocstrings features
+mkdocs-autorefs >= 1.4.0
 mkdocs-awesome-pages-plugin
 mkdocs-include-markdown-plugin
 mkdocs-jupyter
 mkdocs-material
 mkdocs-mermaid2-plugin
-mkdocstrings
-mkdocstrings-python
+mkdocstrings >= 0.29.0  # Required for external inventory linking
+mkdocstrings-python >= 1.16.0  # Required for improved cross-references
