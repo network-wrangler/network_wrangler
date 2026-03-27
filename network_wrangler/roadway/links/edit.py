@@ -279,7 +279,12 @@ def _edit_link_property(
         links_df = _edit_ml_access_egress_points(links_df, prop_name, prop_change, link_idx)
     elif prop_change.set is not None:
         WranglerLogger.debug(f"Setting {prop_name} to {prop_change.set}")
-        links_df.loc[link_idx, prop_name] = prop_change.set
+        # Cast value to column dtype to avoid pandas dtype incompatibility warnings
+        set_value = prop_change.set
+        col_dtype = links_df[prop_name].dtype
+        if col_dtype == bool and not isinstance(set_value, bool):
+            set_value = bool(set_value)
+        links_df.loc[link_idx, prop_name] = set_value
     elif prop_change.change is not None:
         WranglerLogger.debug(f"Changing {prop_name} by {prop_change.change}")
         links_df.loc[link_idx, prop_name] += prop_change.change

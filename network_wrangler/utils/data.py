@@ -206,12 +206,15 @@ def _update_props_for_common_idx(
     # 3. Reset the index to bring back the join_col
     if isinstance(original_index, pd.RangeIndex):
         updated_df = destination_df.reset_index().set_index(original_index)
-        updated_df = updated_df.drop(columns=["index"])
+        # In pandas 3.0+, named RangeIndex creates column with the name, not "index"
+        col_to_drop = original_index.name if original_index.name else "index"
+        updated_df = updated_df.drop(columns=[col_to_drop])
     elif original_index.names == [None] or all(name is None for name in original_index.names):
         # WranglerLogger.debug("original_index.names == [None], original_index is not pd.RangeIndex")
         # Same logic as pd.RangeIndex
         updated_df = destination_df.reset_index().set_index(original_index)
-        updated_df = updated_df.drop(columns=["index"])
+        col_to_drop = original_index.name if original_index.name else "index"
+        updated_df = updated_df.drop(columns=[col_to_drop])
     else:
         updated_df = destination_df.reset_index().set_index(original_index.names)
 
@@ -259,7 +262,7 @@ def compare_df_values(
         comp_df = df1[comp_c].merge(df2[comp_c], how="inner", on=join_col, suffixes=["_a", "_b"])
 
     # Filter columns by data type
-    numeric_cols = [col for col in comp_c if np.issubdtype(df1[col].dtype, np.number)]
+    numeric_cols = [col for col in comp_c if pd.api.types.is_numeric_dtype(df1[col].dtype)]
     ll_cols = list(set(list_like_columns(df1) + list_like_columns(df2)))
     other_cols = [col for col in comp_c if col not in numeric_cols and col not in ll_cols]
 
@@ -704,7 +707,12 @@ def concat_with_attr(dfs: list[pd.DataFrame], **kwargs) -> pd.DataFrame:
         msg = "No dataframes to concatenate."
         raise ValueError(msg)
     attrs = copy.deepcopy(dfs[0].attrs)
-    df = pd.concat(dfs, **kwargs)
+    # Filter out empty dataframes to avoid pandas FutureWarning about empty/all-NA entries
+    non_empty_dfs = [df for df in dfs if not df.empty]
+    if not non_empty_dfs:
+        # If all dfs are empty, return the first one with its structure
+        return dfs[0].copy()
+    df = pd.concat(non_empty_dfs, **kwargs)
     df.attrs = attrs
     return df
 
