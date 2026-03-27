@@ -1,7 +1,7 @@
 """Utils for converting original gtfs to wrangler gtfs."""
 
 from pathlib import Path
-from typing import Optional
+from typing import Literal, Optional
 
 import numpy as np
 import pandas as pd

@@ -81,7 +81,7 @@ def shape_links_without_road_links(
         (rd_links_df["drive_access"])
         | (rd_links_df["bus_only"])
         | (rd_links_df["rail_only"])
-        | (rd_links_df["ferry_only"])
+        | (rd_links_df["ferry_only"] if "ferry_only" in rd_links_df.columns else False)
     ]
 
     merged_df = tr_shape_links.merge(

@@ -42,9 +42,12 @@ def _create_node_geometries_from_xy(
 
     geo_start_time = time.time()
     if "geometry" in nodes_df:
-        nodes_df["geometrys"] = nodes_df["geometry"].fillna(
-            lambda x: point_from_xy(x["X"], x["Y"], xy_crs=in_crs, point_crs=net_crs),
-        )
+        mask = nodes_df["geometry"].isna()
+        if mask.any():
+            nodes_df.loc[mask, "geometry"] = nodes_df.loc[mask].apply(
+                lambda x: point_from_xy(x["X"], x["Y"], xy_crs=in_crs, point_crs=net_crs),
+                axis=1,
+            )
         WranglerLogger.debug(
             f"Filled missing geometry from X and Y in {round(time.time() - geo_start_time, 2)}."
         )
