@@ -3596,16 +3596,14 @@ def create_feed_from_gtfs_model(  # noqa: PLR0912, PLR0915
     )
 
     # for fixed route transit, add the links and stops to the roadway network
-    station_id_to_model_node_id_dict, bus_stop_links_gdf = (
-        add_stations_and_links_to_roadway_network(
-            feed_tables,
-            roadway_net,
-            local_crs,
-            crs_units,
-            trace_shape_ids,
-            default_node_attribute_dict,
-            default_link_attribute_dict,
-        )
+    _, bus_stop_links_gdf = add_stations_and_links_to_roadway_network(
+        feed_tables,
+        roadway_net,
+        local_crs,
+        crs_units,
+        trace_shape_ids,
+        default_node_attribute_dict,
+        default_link_attribute_dict,
     )
 
     # Create connector links for unmatched bus stops

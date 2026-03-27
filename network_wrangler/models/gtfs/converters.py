@@ -62,9 +62,7 @@ def convert_stops_to_wrangler_stops(stops_df: pd.DataFrame) -> pd.DataFrame:
     # if stop_id is an int, convert to string
     if stops_df["stop_id"].dtype == "int64":
         stops_df["stop_id"] = stops_df["stop_id"].astype(str)
-    stop_id_GTFS = (
-        stops_df.groupby("model_node_id").stop_id.apply(lambda x: ",".join(x)).reset_index()
-    )
+    stop_id_GTFS = stops_df.groupby("model_node_id").stop_id.apply(",".join).reset_index()
     wr_stops_df["stop_id_GTFS"] = stop_id_GTFS["stop_id"]
     wr_stops_df = wr_stops_df.rename(columns={"model_node_id": "stop_id"})
     return wr_stops_df
@@ -306,7 +304,7 @@ def create_feed_frequencies(  # noqa: PLR0915
         .aggregate(
             num_trip_ids=pd.NamedAgg(column="trip_id", aggfunc="nunique"),
             trip_ids=pd.NamedAgg(column="trip_id", aggfunc=list),
-            trip_depart_time=pd.NamedAgg(column="trip_depart_time", aggfunc=lambda x: sorted(x)),
+            trip_depart_time=pd.NamedAgg(column="trip_depart_time", aggfunc=sorted),
             stop_pattern=pd.NamedAgg(column="stop_pattern", aggfunc="first"),
         )
         .reset_index(drop=False)
