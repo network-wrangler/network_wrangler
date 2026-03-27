@@ -256,7 +256,7 @@ def compare_df_values(
         comp_df = df1[comp_c].merge(df2[comp_c], how="inner", on=join_col, suffixes=["_a", "_b"])
 
     # Filter columns by data type
-    numeric_cols = [col for col in comp_c if np.issubdtype(df1[col].dtype, np.number)]
+    numeric_cols = [col for col in comp_c if pd.api.types.is_numeric_dtype(df1[col].dtype)]
     ll_cols = list(set(list_like_columns(df1) + list_like_columns(df2)))
     other_cols = [col for col in comp_c if col not in numeric_cols and col not in ll_cols]
 
