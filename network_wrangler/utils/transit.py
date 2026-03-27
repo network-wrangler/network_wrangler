@@ -2895,14 +2895,15 @@ def add_stations_and_links_to_roadway_network(  # noqa: PLR0912, PLR0915
 
     # turn them into multi-point lines
     stop_links_df["geometry"] = stop_links_df.apply(
-        lambda row:
-        # if intermediate points
-        shapely.geometry.LineString(
-            [row["stop_geometry"]] + row["point_list"] + [row["next_stop_geometry"]]
-        )
-        if row["num_points"] > 0
-        # no intermediate points
-        else shapely.geometry.LineString([row["stop_geometry"], row["next_stop_geometry"]]),
+        lambda row: (
+            # if intermediate points
+            shapely.geometry.LineString(
+                [row["stop_geometry"]] + row["point_list"] + [row["next_stop_geometry"]]
+            )
+            if row["num_points"] > 0
+            # no intermediate points
+            else shapely.geometry.LineString([row["stop_geometry"], row["next_stop_geometry"]])
+        ),
         axis=1,
     )
     WranglerLogger.debug(f"stop_links_df including multi-point lines:\n{stop_links_df}")
