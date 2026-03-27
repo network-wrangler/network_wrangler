@@ -60,6 +60,7 @@ pip-log.txt
 pip-delete-this-directory.txt
 
 # Virtual Envs
+.test_venv_*
 .*venv*
 .env
 .venv
