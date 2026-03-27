@@ -39,25 +39,18 @@ jobs:
         if: github.event_name == 'release'
         run: |
           TAG="${GITHUB_REF_NAME}"  # e.g. v1.2.3
-          if [[ ! "$TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+([a-zA-Z0-9\.\-]+)?$ ]]; then
-            echo "Release tag must look like v1.2.3 (optionally with pre-release suffix). Got: $TAG"
+          if [[ ! "$TAG" =~ ^v[0-9]+\.[0-9]+(\.[0-9]+)?([a-zA-Z0-9\.\-]+)?$ ]]; then
+            echo "Release tag must look like v1.2.3 or v1.0-beta.5 (optionally with pre-release suffix). Got: $TAG"
             exit 1
           fi
           VERSION="${TAG#v}"
           echo "version=$VERSION" >> "$GITHUB_OUTPUT"
-          export VERSION
-
-          python - <<'PY'
-          import importlib, os, sys
-          version = os.environ["VERSION"]
-          pkg = "network_wrangler"
-          m = importlib.import_module(pkg)
-          v = getattr(m, "__version__", None)
-          if v != version:
-            print(f"ERROR: tag version {version} != {pkg}.__version__ {v}")
-            sys.exit(1)
-          print(f"OK: {pkg}.__version__ matches tag ({version})")
-          PY
+          PKG_VERSION=$(grep -m1 '__version__' network_wrangler/__init__.py | sed 's/.*"\(.*\)".*/\1/')
+          if [ "$PKG_VERSION" != "$VERSION" ]; then
+            echo "ERROR: tag version $VERSION != network_wrangler.__version__ $PKG_VERSION"
+            exit 1
+          fi
+          echo "OK: network_wrangler.__version__ matches tag ($VERSION)"
 
       - name: Check if version already exists on PyPI
         id: check-version
