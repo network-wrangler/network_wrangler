@@ -186,16 +186,14 @@ jobs:
 
       - name: Post docs comment
         if: github.event.action == 'opened'
-        uses: actions/github-script@v7
+        uses: actions/github-script@v8
         continue-on-error: true
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           script: |
-            const branchName = '${{ steps.branch.outputs.branch-name }}';
-            const docsUrl = `https://network-wrangler.github.io/network_wrangler/${branchName}/`;
-            const comment = `📚 Documentation has been built and deployed!
-            
-            View the docs for this PR: [${docsUrl}](${docsUrl})`;
+            const branchSlug = '${{ steps.branch.outputs.branch-slug }}';
+            const docsUrl = `https://network-wrangler.github.io/network_wrangler/${branchSlug}/`;
+            const comment = `📚 Documentation has been built and deployed!\n\nView the docs for this PR: [${docsUrl}](${docsUrl})`;
             
             await github.rest.issues.createComment({
               owner: context.repo.owner,
