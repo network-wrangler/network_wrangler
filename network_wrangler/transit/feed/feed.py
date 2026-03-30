@@ -6,8 +6,12 @@ from collections.abc import Callable
 from pathlib import Path
 from typing import ClassVar, Literal
 
+import geopandas as gpd
 import pandas as pd
 from pandera.typing import DataFrame
+
+# Constants
+MAX_AGENCIES_DISPLAY = 3
 
 from ...logger import WranglerLogger
 from ...models._base.db import DBModelMixin
@@ -26,7 +30,8 @@ from ...utils.data import update_df_by_col_value
 class Feed(DBModelMixin):
     """Wrapper class around Wrangler flavored GTFS feed.
 
-    Most functionality derives from mixin class DBModelMixin which provides:
+    Most functionality derives from mixin class
+    [`DBModelMixin`][network_wrangler.models._base.db.DBModelMixin] which provides:
 
     - validation of tables to schemas when setting a table attribute (e.g. self.trips = trips_df)
     - validation of fks when setting a table attribute (e.g. self.trips = trips_df)
@@ -34,12 +39,20 @@ class Feed(DBModelMixin):
     - overload of __eq__ to apply only to tables in table_names.
     - convenience methods for accessing tables
 
+    !!! note "What is Wrangler-flavored GTFS?"
+
+        A Wrangler-flavored GTFS feed differs from a GTFS feed in the following ways:
+
+        * `frequencies.txt` is required
+        * `shapes.txt` requires additional field, `shape_model_node_id`, corresponding to `model_node_id` in the `RoadwayNetwork`
+        * `stops.txt` - `stop_id` is required to be an int
+
     Attributes:
         table_names (list[str]): list of table names in GTFS feed.
-        tables (list[DataFrame]):: list tables as dataframes.
-        stop_times (DataFrame[WranglerStopTimesTable]):: stop_times dataframe with roadway node_ids
-        stops (DataFrame[WranglerStopsTable]):stops dataframe
-        shapes(DataFrame[WranglerShapesTable]): shapes dataframe
+        tables (list[DataFrame]): list tables as dataframes.
+        stop_times (DataFrame[WranglerStopTimesTable]): stop_times dataframe with roadway node_ids
+        stops (DataFrame[WranglerStopsTable]): stops dataframe
+        shapes (DataFrame[WranglerShapesTable]): shapes dataframe
         trips (DataFrame[WranglerTripsTable]): trips dataframe
         frequencies (DataFrame[WranglerFrequenciesTable]): frequencies dataframe
         routes (DataFrame[RoutesTable]): route dataframe
@@ -90,6 +103,37 @@ class Feed(DBModelMixin):
             WranglerLogger.info(f"Adding additional attributes to Feed: {extra_attr.keys()}")
         for k, v in extra_attr.items():
             self.__setattr__(k, v)
+
+    @property
+    def summary(self) -> dict:
+        """A high level summary of the GTFS model object and public attributes."""
+        summary_dict = {}
+        for table_name in self._table_models:
+            if hasattr(self, table_name):
+                table = getattr(self, table_name)
+                table_type = type(table)
+                summary_dict[table_name] = (
+                    f"{len(getattr(self, table_name)):,} {table_name} (type={table_type})"
+                )
+            else:
+                summary_dict[table_name] = "not set"
+
+        return summary_dict
+
+    def __repr__(self) -> str:
+        """Return a string representation of the Feed with table summaries."""
+        lines = ["Feed (Wrangler GTFS):"]
+
+        for k, v in self.summary.items():
+            lines.append(f"  {k}: {v}")
+
+        # Add note about model_node_ids if stops have them
+        if hasattr(self, "stops") and self.stops is not None and "stop_id" in self.stops.columns:
+            # In Feed, stop_id contains the model_node_id
+            unique_nodes = len(self.stops.stop_id.unique())
+            lines.append(f"  Model nodes: {unique_nodes} unique nodes referenced")
+
+        return "\n".join(lines)
 
     def set_by_id(
         self,

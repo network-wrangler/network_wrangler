@@ -11,6 +11,7 @@ from geopandas import GeoDataFrame
 from pandas import DataFrame
 
 from ..logger import WranglerLogger
+from .nodes.filters import filter_nodes_to_links
 
 if TYPE_CHECKING:
     from .network import RoadwayNetwork
@@ -57,6 +58,9 @@ def _nodes_to_graph_nodes(nodes_df: GeoDataFrame) -> GeoDataFrame:
     # drop column types which could have complex types (i.e. lists, dicts, etc)
     graph_nodes_df = _drop_complex_df_columns(graph_nodes_df)
 
+    # the model_node_id is the index
+    graph_nodes_df.set_index("model_node_id", inplace=True)
+
     # OSMNX is expecting id, x, y
     graph_nodes_df["id"] = graph_nodes_df.index
     graph_nodes_df = graph_nodes_df.rename(columns={"X": "x", "Y": "y"})
@@ -94,13 +98,15 @@ def _links_to_graph_links(
 
     # osm-nx is expecting u and v instead of A B - but first have to drop existing u/v
 
-    if "u" in graph_links_df.columns and (links_df.u != links_df.A).any():
+    if "u" in graph_links_df.columns and (graph_links_df.u != graph_links_df.A).any():
         graph_links_df = graph_links_df.drop("u", axis=1)
 
-    if "v" in graph_links_df.columns and (links_df.v != links_df.B).any():
+    if "v" in graph_links_df.columns and (graph_links_df.v != graph_links_df.B).any():
         graph_links_df = graph_links_df.drop("v", axis=1)
 
     graph_links_df = graph_links_df.rename(columns={"A": "u", "B": "v"})
+
+    # lmz: Why not use model_link_id as the key rather than index?
 
     graph_links_df["key"] = graph_links_df.index.copy()
     # Per osmnx u,v,key should be a multi-index;
@@ -134,16 +140,20 @@ def links_nodes_to_ox_graph(
 
     Returns: a networkx multidigraph
     """
-    WranglerLogger.debug("starting ox_graph()")
+    # WranglerLogger.debug("links_nodes_to_ox_graph()")
     graph_nodes_df = _nodes_to_graph_nodes(nodes_df)
+    # WranglerLogger.debug(f"graph_nodes_df:\n{graph_nodes_df}")
     graph_links_df = _links_to_graph_links(
         links_df,
         sp_weight_col=sp_weight_col,
         sp_weight_factor=sp_weight_factor,
     )
+    # WranglerLogger.debug(f"graph_links_df:\n{graph_links_df}")
 
     try:
-        WranglerLogger.debug("starting ox.gdfs_to_graph()")
+        WranglerLogger.debug(
+            f"starting ox.graph_from_gdfs() with {len(graph_nodes_df)=:,} {len(graph_links_df)=:,}"
+        )
         G = ox.graph_from_gdfs(graph_nodes_df, graph_links_df)
 
     except AttributeError as attr_error:
@@ -151,9 +161,9 @@ def links_nodes_to_ox_graph(
             # This is the only exception for which we have a workaround
             # Does this still work given the u,v,key multi-indexing?
             #
-            WranglerLogger.warn(
-                "Please upgrade your OSMNX package. For now, using deprecated\
-                        osmnx.gdfs_to_graph because osmnx.graph_from_gdfs not found"
+            WranglerLogger.warning(
+                "Please upgrade your OSMNX package. For now, using deprecated "
+                "osmnx.gdfs_to_graph because osmnx.graph_from_gdfs not found"
             )
             G = ox.gdfs_to_graph(graph_nodes_df, graph_links_df)
         else:
@@ -178,7 +188,7 @@ def net_to_graph(net: RoadwayNetwork, mode: str | None = None) -> nx.MultiDiGrap
     """
     _links_df = net.links_df.mode_query(mode)
 
-    _nodes_df = net.nodes_in_links()
+    _nodes_df = filter_nodes_to_links(_links_df, net.nodes_df)
 
     G = links_nodes_to_ox_graph(_links_df, _nodes_df)
 

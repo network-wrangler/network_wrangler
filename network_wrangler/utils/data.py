@@ -209,6 +209,12 @@ def _update_props_for_common_idx(
         # In pandas 3.0+, named RangeIndex creates column with the name, not "index"
         col_to_drop = original_index.name if original_index.name else "index"
         updated_df = updated_df.drop(columns=[col_to_drop])
+    elif original_index.names == [None] or all(name is None for name in original_index.names):
+        # WranglerLogger.debug("original_index.names == [None], original_index is not pd.RangeIndex")
+        # Same logic as pd.RangeIndex
+        updated_df = destination_df.reset_index().set_index(original_index)
+        col_to_drop = original_index.name if original_index.name else "index"
+        updated_df = updated_df.drop(columns=[col_to_drop])
     else:
         updated_df = destination_df.reset_index().set_index(original_index.names)
 
@@ -256,14 +262,25 @@ def compare_df_values(
         comp_df = df1[comp_c].merge(df2[comp_c], how="inner", on=join_col, suffixes=["_a", "_b"])
 
     # Filter columns by data type
-    numeric_cols = [col for col in comp_c if pd.api.types.is_numeric_dtype(df1[col].dtype)]
+    # Exclude bool columns: pd.api.types.is_numeric_dtype returns True for bool,
+    # but np.isfinite (used by np.isclose) is not defined for boolean arrays.
+    numeric_cols = [
+        col
+        for col in comp_c
+        if pd.api.types.is_numeric_dtype(df1[col].dtype)
+        and not pd.api.types.is_bool_dtype(df1[col].dtype)
+    ]
     ll_cols = list(set(list_like_columns(df1) + list_like_columns(df2)))
     other_cols = [col for col in comp_c if col not in numeric_cols and col not in ll_cols]
 
-    # For numeric columns, use np.isclose
+    # For numeric columns, use np.isclose; convert to float to handle pandas extension types
     if numeric_cols:
-        numeric_a = comp_df[[f"{col}_a" for col in numeric_cols]]
-        numeric_b = comp_df[[f"{col}_b" for col in numeric_cols]]
+        numeric_a = comp_df[[f"{col}_a" for col in numeric_cols]].to_numpy(
+            dtype=float, na_value=np.nan
+        )
+        numeric_b = comp_df[[f"{col}_b" for col in numeric_cols]].to_numpy(
+            dtype=float, na_value=np.nan
+        )
         is_close = np.isclose(numeric_a, numeric_b, atol=atol, equal_nan=True)
         comp_df[numeric_cols] = ~is_close
 
@@ -676,8 +693,7 @@ def fk_in_pk(
 
     if missing_flag.any():
         WranglerLogger.warning(
-            f"Following keys referenced in {fk.name} but missing in\
-            primary key table: \n{fk[missing_flag]} "
+            f"Following keys referenced in {fk.name} but missing in primary key {pk.name} table:\n{fk[missing_flag]}"
         )
         return False, fk[missing_flag].tolist()
 

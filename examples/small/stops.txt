@@ -1,4 +1,4 @@
-gtfs_stop_id,stop_name,stop_lat,stop_lon,location_type,wheelchair_boarding,stop_id
+stop_id_GTFS,stop_name,stop_lat,stop_lon,location_type,wheelchair_boarding,stop_id
 111,ones,44.94974427235539,-93.09489405742123,,0,1
 222,twos,44.95052589259677,-93.09383485029893,,0,2
 333,threes,44.951229798791985,-93.09241396269603,,0,3

@@ -1,10 +1,12 @@
 """Functions for reading and writing transit feeds and networks."""
 
+import os
 from pathlib import Path
-from typing import Literal
+from typing import Literal, Optional, Union
 
 import geopandas as gpd
 import pandas as pd
+import pyarrow as pa
 
 from ..configs import DefaultConfig, WranglerConfig
 from ..errors import FeedReadError
@@ -15,6 +17,7 @@ from ..models.gtfs.gtfs import GtfsModel
 from ..utils.geo import to_points_gdf
 from ..utils.io_table import unzip_file, write_table
 from .feed.feed import Feed
+from .filter import filter_feed_by_service_ids
 from .network import TransitNetwork
 
 
@@ -28,15 +31,25 @@ def _feed_path_ref(path: Path) -> Path:
     return path
 
 
-def load_feed_from_path(feed_path: Path | str, file_format: TransitFileTypes = "txt") -> Feed:
-    """Create a Feed object from the path to a GTFS transit feed.
+def load_feed_from_path(
+    feed_path: Path | str,
+    file_format: TransitFileTypes = "txt",
+    wrangler_flavored: bool = True,
+    service_ids_filter: list[str] | None = None,
+    **read_kwargs,
+) -> Feed | GtfsModel:
+    """Create a Feed or GtfsModel object from the path to a GTFS transit feed.
 
     Args:
         feed_path (Union[Path, str]): The path to the GTFS transit feed.
         file_format: the format of the files to read. Defaults to "txt"
+        wrangler_flavored: If True, creates a Wrangler-enhanced Feed object.
+                          If False, creates a pure GtfsModel object. Defaults to True.
+        service_ids_filter (Optional[list[str]]): If not None, filter to these service_ids. Assumes service_id is a str.
+        **read_kwargs: Additional keyword arguments to pass to the file reader (e.g., low_memory, dtype)
 
     Returns:
-        Feed: The TransitNetwork object created from the GTFS transit feed.
+        Union[Feed, GtfsModel]: The Feed or GtfsModel object created from the GTFS transit feed.
     """
     feed_path = _feed_path_ref(Path(feed_path))  # unzips if needs to be unzipped
 
@@ -46,72 +59,115 @@ def load_feed_from_path(feed_path: Path | str, file_format: TransitFileTypes = "
 
     WranglerLogger.info(f"Reading GTFS feed tables from {feed_path}")
 
+    # Use the appropriate table names based on the model type
+    model_class = Feed if wrangler_flavored else GtfsModel
     feed_possible_files = {
-        table: list(feed_path.glob(f"*{table}.{file_format}")) for table in Feed.table_names
+        table: list(feed_path.glob(f"*{table}.{file_format}"))
+        for table in model_class.table_names + model_class.optional_table_names
     }
+    WranglerLogger.debug(f"model_class={model_class}  feed_possible_files={feed_possible_files}")
 
-    # make sure we have all the tables we need
-    _missing_files = [t for t, v in feed_possible_files.items() if not v]
+    # make sure we have all the tables we need -- missing optional is ok
+    _missing_files = []
+    for table_name in list(feed_possible_files.keys()):
+        if not feed_possible_files[table_name]:
+            # remove those that don't have files
+            del feed_possible_files[table_name]
+
+            # missiong optional is ok
+            if table_name in model_class.table_names:
+                _missing_files.append(table_name)
 
     if _missing_files:
         WranglerLogger.debug(f"!!! Missing transit files: {_missing_files}")
-        msg = f"Required GTFS Feed table(s) not in {feed_path}: \n  {_missing_files}"
+        model_name = "Feed" if wrangler_flavored else "GtfsModel"
+        msg = f"Required GTFS {model_name} table(s) not in {feed_path}: \n  {_missing_files}"
         raise RequiredTableError(msg)
 
     # but don't want to have more than one file per search
     _ambiguous_files = [t for t, v in feed_possible_files.items() if len(v) > 1]
     if _ambiguous_files:
         WranglerLogger.warning(
-            f"! More than one file matches following tables. \
-                               Using the first on the list: {_ambiguous_files}"
+            f"! More than one file matches following tables. "
+            + f"Using the first on the list: {_ambiguous_files}"
         )
 
     feed_files = {t: f[0] for t, f in feed_possible_files.items()}
-    feed_dfs = {table: _read_table_from_file(table, file) for table, file in feed_files.items()}
+    feed_dfs = {
+        table: _read_table_from_file(table, file, **read_kwargs)
+        for table, file in feed_files.items()
+    }
 
-    return load_feed_from_dfs(feed_dfs)
+    # Create the feed object first
+    feed_obj = load_feed_from_dfs(feed_dfs, wrangler_flavored=wrangler_flavored)
+    WranglerLogger.debug(f"loaded {type(feed_obj)} from dfs:\n{feed_obj}")
+
+    # Apply service_ids filter if provided
+    if service_ids_filter is not None:
+        feed_obj = filter_feed_by_service_ids(feed_obj, service_ids_filter)
+
+    return feed_obj
 
 
-def _read_table_from_file(table: str, file: Path) -> pd.DataFrame:
+def _read_table_from_file(table: str, file: Path, **kwargs) -> pd.DataFrame:
+    """Read a table from a file with support for additional kwargs.
+
+    Args:
+        table: Name of the table being read (for error messages)
+        file: Path to the file to read
+        **kwargs: Additional keyword arguments to pass to the appropriate reader
+
+    Returns:
+        pd.DataFrame: The loaded dataframe
+    """
     WranglerLogger.debug(f"...reading {file}.")
     try:
         if file.suffix in [".csv", ".txt"]:
-            return pd.read_csv(file)
+            return pd.read_csv(file, **kwargs)
         if file.suffix == ".parquet":
-            return pd.read_parquet(file)
+            return pd.read_parquet(file, **kwargs)
     except Exception as e:
         msg = f"Error reading table {table} from file: {file}.\n{e}"
         WranglerLogger.error(msg)
         raise FeedReadError(msg) from e
 
 
-def load_feed_from_dfs(feed_dfs: dict) -> Feed:
-    """Create a TransitNetwork object from a dictionary of DataFrames representing a GTFS feed.
+def load_feed_from_dfs(feed_dfs: dict, wrangler_flavored: bool = True) -> Feed | GtfsModel:
+    """Create a Feed or GtfsModel object from a dictionary of DataFrames representing a GTFS feed.
 
     Args:
         feed_dfs (dict): A dictionary containing DataFrames representing the tables of a GTFS feed.
+        wrangler_flavored: If True, creates a Wrangler-enhanced Feed] object.
+                           If False, creates a pure GtfsModel object. Defaults to True.
 
     Returns:
-        Feed: A Feed object representing the transit network.
+        Union[Feed, GtfsModel]: A Feed or GtfsModel object representing the transit network.
 
     Raises:
         ValueError: If the feed_dfs dictionary does not contain all the required tables.
 
-    Example:
-        >>> feed_dfs = {
-        ...     "agency": agency_df,
-        ...     "routes": routes_df,
-        ...     "stops": stops_df,
-        ...     "trips": trips_df,
-        ...     "stop_times": stop_times_df,
-        ... }
-        >>> feed = load_feed_from_dfs(feed_dfs)
+    Example usage:
+    ```python
+    feed_dfs = {
+        "agency": agency_df,
+        "routes": routes_df,
+        "stops": stops_df,
+        "trips": trips_df,
+        "stop_times": stop_times_df,
+    }
+    feed = load_feed_from_dfs(feed_dfs)  # Creates Feed by default
+    gtfs_model = load_feed_from_dfs(feed_dfs, wrangler_flavored=False)  # Creates GtfsModel
+    ```
     """
-    if not all(table in feed_dfs for table in Feed.table_names):
-        msg = f"feed_dfs must contain the following tables: {Feed.table_names}"
+    # Use the appropriate model class based on the parameter
+    model_class = Feed if wrangler_flavored else GtfsModel
+
+    if not all(table in feed_dfs for table in model_class.table_names):
+        model_name = "Feed" if wrangler_flavored else "GtfsModel"
+        msg = f"feed_dfs must contain the following tables for {model_name}: {model_class.table_names}"
         raise ValueError(msg)
 
-    feed = Feed(**feed_dfs)
+    feed = model_class(**feed_dfs)
 
     return feed
 
@@ -120,10 +176,11 @@ def load_transit(
     feed: Feed | GtfsModel | dict[str, pd.DataFrame] | str | Path,
     file_format: TransitFileTypes = "txt",
     config: WranglerConfig = DefaultConfig,
-) -> "TransitNetwork":
-    """Create a TransitNetwork object.
+) -> TransitNetwork:
+    """Create a [`TransitNetwork`][network_wrangler.transit.network.TransitNetwork] object.
 
     This function takes in a `feed` parameter, which can be one of the following types:
+
     - `Feed`: A Feed object representing a transit feed.
     - `dict[str, pd.DataFrame]`: A dictionary of DataFrames representing transit data.
     - `str` or `Path`: A string or a Path object representing the path to a transit feed file.
@@ -134,13 +191,13 @@ def load_transit(
         config: WranglerConfig object. Defaults to DefaultConfig.
 
     Returns:
-    A TransitNetwork object representing the loaded transit network.
+        (TransitNetwork): object representing the loaded transit network.
 
     Raises:
     ValueError: If the `feed` parameter is not one of the supported types.
 
     Example usage:
-    ```
+    ```python
     transit_network_from_zip = load_transit("path/to/gtfs.zip")
 
     transit_network_from_unzipped_dir = load_transit("path/to/files")
@@ -170,16 +227,16 @@ def load_transit(
 
 
 def write_transit(
-    transit_net,
+    transit_obj: TransitNetwork | Feed | GtfsModel,
     out_dir: Path | str = ".",
     prefix: Path | str | None = None,
     file_format: Literal["txt", "csv", "parquet"] = "txt",
     overwrite: bool = True,
 ) -> None:
-    """Writes a network in the transit network standard.
+    """Writes a transit network, feed, or GTFS model to files.
 
     Args:
-        transit_net: a TransitNetwork instance
+        transit_obj: a TransitNetwork, Feed, or GtfsModel instance
         out_dir: directory to write the network to
         file_format: the format of the output files. Defaults to "txt" which is csv with txt
             file format.
@@ -188,11 +245,31 @@ def write_transit(
     """
     out_dir = Path(out_dir)
     prefix = f"{prefix}_" if prefix else ""
-    for table in transit_net.feed.table_names:
-        df = transit_net.feed.get_table(table)
-        outpath = out_dir / f"{prefix}{table}.{file_format}"
-        write_table(df, outpath, overwrite=overwrite)
-    WranglerLogger.info(f"Wrote {len(transit_net.feed.tables)} files to {out_dir}")
+
+    # Determine the data source based on input type
+    if isinstance(transit_obj, TransitNetwork):
+        data_source = transit_obj.feed
+        source_type = "TransitNetwork"
+    elif isinstance(transit_obj, Feed | GtfsModel):
+        data_source = transit_obj
+        source_type = type(transit_obj).__name__
+    else:
+        msg = (
+            f"transit_obj must be a TransitNetwork, Feed, or GtfsModel instance, "
+            f"not {type(transit_obj).__name__}"
+        )
+        raise TypeError(msg)
+
+    # Write tables
+    tables_written = 0
+    for table in data_source.table_names:
+        df = data_source.get_table(table)
+        if df is not None and len(df) > 0:  # Only write non-empty tables
+            outpath = out_dir / f"{prefix}{table}.{file_format}"
+            write_table(df, outpath, overwrite=overwrite)
+            tables_written += 1
+
+    WranglerLogger.info(f"Wrote {tables_written} {source_type} tables to {out_dir}")
 
 
 def convert_transit_serialization(

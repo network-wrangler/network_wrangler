@@ -68,12 +68,20 @@ def shape_links_without_road_links(
         rd_links_df: Links dataframe from roadway network to validate
 
     Returns:
-        df with shape_id and A, B
+        df with shape_id and A, B, as well as whatever other columns were in tr_shapes
     """
+    WranglerLogger.debug(
+        f"shape_links_without_road_links(): tr_shapes.head():\n{tr_shapes.head()}"
+    )
     tr_shape_links = unique_shape_links(tr_shapes)
-    # WranglerLogger.debug(f"Unique shape links: \n {tr_shape_links}")
+    WranglerLogger.debug(
+        f"shape_links_without_road_links(): tr_shape_links.head():\n{tr_shape_links.head()}"
+    )
     rd_links_transit_ok = rd_links_df[
-        (rd_links_df["drive_access"]) | (rd_links_df["bus_only"]) | (rd_links_df["rail_only"])
+        (rd_links_df["drive_access"])
+        | (rd_links_df["bus_only"])
+        | (rd_links_df["rail_only"])
+        | (rd_links_df["ferry_only"] if "ferry_only" in rd_links_df.columns else False)
     ]
 
     merged_df = tr_shape_links.merge(
@@ -83,12 +91,12 @@ def shape_links_without_road_links(
         indicator=True,
     )
 
-    missing_links_df = merged_df.loc[merged_df._merge == "left_only", ["shape_id", "A", "B"]]
+    missing_links_df = merged_df.loc[merged_df._merge == "left_only"]
     if len(missing_links_df):
         WranglerLogger.error(
             f"! Transit shape links missing in roadway network: \n {missing_links_df}"
         )
-    return missing_links_df[["shape_id", "A", "B"]]
+    return missing_links_df
 
 
 def stop_times_without_road_links(

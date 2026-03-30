@@ -61,13 +61,13 @@ def read_nodes(
         read_speed=config.CPU.EST_PD_READ_SPEED,
     )
     WranglerLogger.debug(
-        f"Read {len(nodes_df)} nodes from file in {round(time.time() - start_time, 2)}."
+        f"Read {len(nodes_df):,} nodes from file in {round(time.time() - start_time, 2)}."
     )
 
     nodes_df = data_to_nodes_df(nodes_df, in_crs=in_crs, config=config)
     nodes_df.attrs["source_file"] = filename
     WranglerLogger.info(
-        f"Read {len(nodes_df)} nodes from {filename} in {round(time.time() - start_time, 2)}."
+        f"Read {len(nodes_df):,} nodes from {filename} in {round(time.time() - start_time, 2)}."
     )
     nodes_df = validate_df_to_model(nodes_df, RoadNodesTable)
     return nodes_df

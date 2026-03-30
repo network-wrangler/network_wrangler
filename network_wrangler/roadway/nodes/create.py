@@ -42,9 +42,12 @@ def _create_node_geometries_from_xy(
 
     geo_start_time = time.time()
     if "geometry" in nodes_df:
-        nodes_df["geometrys"] = nodes_df["geometry"].fillna(
-            lambda x: point_from_xy(x["X"], x["Y"], xy_crs=in_crs, point_crs=net_crs),
-        )
+        mask = nodes_df["geometry"].isna()
+        if mask.any():
+            nodes_df.loc[mask, "geometry"] = nodes_df.loc[mask].apply(
+                lambda x: point_from_xy(x["X"], x["Y"], xy_crs=in_crs, point_crs=net_crs),
+                axis=1,
+            )
         WranglerLogger.debug(
             f"Filled missing geometry from X and Y in {round(time.time() - geo_start_time, 2)}."
         )
@@ -105,6 +108,7 @@ def data_to_nodes_df(
     nodes_df = validate_df_to_model(nodes_df, RoadNodesTable)
     nodes_df.attrs.update(RoadNodesAttrs)
     nodes_df.gdf_name = nodes_df.attrs["name"]
+    # lmz: why would we do this?
     nodes_df = set_df_index_to_pk(nodes_df)
 
     return nodes_df

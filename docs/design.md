@@ -189,44 +189,44 @@ For an interactive demonstration of what this means: `notebooks.Roadway Network 
 | ------ | ----- |
 | `__init__.py` | Things that **must** get done every time `network_wrangler` is used.|
 | `bin`| Executable scripts. |
-| `configs` | Structure and default values for user-settable configuration. |
-| `errors.py` | User-facing errors. |
-| `logger.py` | Logging utilities and the WranglerLogger class. |
-| `models`| Pydantic and pandera data models and helper functions for them. |
-| `params.py` | Package-wide constants. |
-| `roadway` | Classes and functions pertaining to read, write, analyzing and editing roadway networks. |
-| `scenario.py`| Scenario object class and helper functions. |
-| `time.py` | Time helper functions. |
-| `transit` | Classes and functions pertaining to read, write, analyzing and editing transit networks. |
-| `utils`| Utility functions. |
-| `viz.py` | Visualization helper functions. |
+| [`configs`](api.md#network_wrangler.configs) | Structure and default values for user-settable configuration. |
+| [`errors.py`](api_utils.md#network_wrangler.errors) | User-facing errors. |
+| [`logger.py`](api_utils.md#network_wrangler.logger) | Logging utilities and the WranglerLogger class. |
+| [`models`](data_models.md)| Pydantic and pandera data models and helper functions for them. |
+| [`params.py`](api_utils.md#network_wrangler.params) | Package-wide constants. |
+| [`roadway`](api_roadway.md) | Classes and functions pertaining to read, write, analyzing and editing roadway networks. |
+| [`scenario.py`](api.md#network_wrangler.scenario)| Scenario object class and helper functions. |
+| [`time.py`](api_utils.md#network_wrangler.time) | Time helper functions. |
+| [`transit`](api_transit.md) | Classes and functions pertaining to read, write, analyzing and editing transit networks. |
+| [`utils`](api_utils.md#network_wrangler.utils.utils)| Utility functions. |
+| [`viz.py`](api_utils.md#network_wrangler.viz) | Visualization helper functions. |
 
 | **`network_wrangler/roadway`** |  |
 | ------ | ----- |
-| `links` | Module for managing roadway links. |
-| `nodes` | Module for managing roadway nodes. |
-| `projects` | Module with functions to apply various types of roadway projects. |
-| `shapes` | Module for managing roadway shapes. |
-| `clip.py` | Functions to clip a RoadwayNetwork object to a boundary. |
-| `graph.py` | Functions to convert RoadwayNetwork to osmnx graph and perform graph operations. |
-| `io.py` | Functions for reading and writing roadway networks. |
-| `model_roadway.py` | Functions to create a model roadway network from a roadway network. |
-| `network.py` | Roadway Network class and functions for Network Wrangler. |
-| `segment.py` | Segment class and related functions for working with segments of a RoadwayNetwork. |
-| `selection.py` | Roadway selection classes for selecting links and nodes from a roadway network. |
-| `subnet.py` | Subnet class for RoadwayNetwork object. |
-| `utils.py` | Utility functions for RoadwayNetwork and ModelRoadwayNetwork classes. |
-| `validate.py` | Validates a roadway network to the wrangler data model specifications. |
-| `viz.py` | Visualization functions for RoadwayNetwork and RoadwayLinkSelection. |
+| [`links`](api_roadway.md#network_wrangler.roadway.links) | Module for managing roadway links. |
+| [`nodes`](api_roadway.md#network_wrangler.roadway.nodes) | Module for managing roadway nodes. |
+| [`projects`](api_roadway.md#network_wrangler.roadway.projects) | Module with functions to apply various types of roadway projects. |
+| [`shapes`](api_roadway.md#network_wrangler.roadway.shapes) | Module for managing roadway shapes. |
+| [`clip.py`](api_roadway.md#network_wrangler.roadway.clip) | Functions to clip a RoadwayNetwork object to a boundary. |
+| [`graph.py`](api_roadway.md#network_wrangler.roadway.graph) | Functions to convert RoadwayNetwork to osmnx graph and perform graph operations. |
+| [`io.py`](api_roadway.md#network_wrangler.roadway.io) | Functions for reading and writing roadway networks. |
+| [`model_roadway.py`](api_roadway.md#network_wrangler.roadway.model_roadway) | Functions to create a model roadway network from a roadway network. |
+| [`network.py`](api_roadway.md#network_wrangler.roadway.network) | RoadwayNetwork class and functions for Network Wrangler. |
+| [`segment.py`](api_roadway.md#network_wrangler.roadway.segment) | Segment class and related functions for working with segments of a RoadwayNetwork. |
+| [`selection.py`](api_roadway.md#network_wrangler.roadway.selection) | Roadway selection classes for selecting links and nodes from a roadway network. |
+| [`subnet.py`](api_roadway.md#network_wrangler.roadway.subnet) | Subnet class for RoadwayNetwork object. |
+| [`utils.py`](api_roadway.md#network_wrangler.roadway.utils) | Utility functions for RoadwayNetwork and ModelRoadwayNetwork classes. |
+| [`validate.py`](api_roadway.md#network_wrangler.roadway.validate) | Validates a roadway network to the wrangler data model specifications. |
+| [`viz.py`](api_roadway.md#network_wrangler.roadway.viz) | Visualization functions for RoadwayNetwork and RoadwayLinkSelection. |
 
 | **`network_wrangler/transit`** |  |
 | ------ | ----- |
-| `feed` | Relational tables representing transit service.  |
-| `projects` | Module with functions to apply various types of transit projects. |
-| `clip.py` | Functions to clip a TransitNetwork object to a boundary. |
-| `geo.py` | Geographic functions for GTFS tables. |
-| `io.py` | Functions for reading and writing transit feeds and networks. |
-| `model_transit.py` | ModelTransit class and functions for managing consistency between roadway and transit networks. |
-| `network.py` | TransitNetwork class for representing a transit network consisting of a schedule `Feed` mapped to a `RoadwayNetwork`. |
-| `selection.py` | Classes and functions for selecting transit trips from a transit network. |
-| `validate.py` | Functions to check for transit network validity and consistency with roadway network. |
+| [`feed`](api_transit.md#network_wrangler.transit.feed) | Relational tables representing transit service.  |
+| [`projects`](api_transit.md#network_wrangler.transit.projects) | Module with functions to apply various types of transit projects. |
+| [`clip.py`](api_transit.md#network_wrangler.transit.clip) | Functions to clip a TransitNetwork object to a boundary. |
+| [`geo.py`](api_transit.md#network_wrangler.transit.geo) | Geographic functions for GTFS tables. |
+| [`io.py`](api_transit.md#network_wrangler.transit.io) | Functions for reading and writing transit feeds and networks. |
+| [`model_transit.py`](api_transit.md#network_wrangler.transit.model_transit) | ModelTransit class and functions for managing consistency between roadway and transit networks. |
+| [`network.py`](api_transit.md#network_wrangler.transit.network) | TransitNetwork class for representing a transit network consisting of a schedule `Feed` mapped to a `RoadwayNetwork`. |
+| [`selection.py`](api_transit.md#network_wrangler.transit.selection) | Classes and functions for selecting transit trips from a transit network. |
+| [`validate.py`](api_transit.md#network_wrangler.transit.validate) | Functions to check for transit network validity and consistency with roadway network. |

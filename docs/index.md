@@ -175,7 +175,7 @@ my_scenario.write("my_project/build", "baseline")
 
 ## Attribution
 
-NetworkWrangler was developed using resources from the [Metropolitan Transportation Commission](bayareametro.gov), [Metropolitan Council MN](https://metrocouncil.org/), and in-kind time from [UrbanLabs LLC](https://urbanlabs.io) and [WSP](www.wsp.com).  It is currently maintained using in-kind time...so please be patient.
+NetworkWrangler was developed using resources from the [Metropolitan Transportation Commission](https://bayareametro.gov), [Metropolitan Council MN](https://metrocouncil.org/), and in-kind time from [UrbanLabs LLC](https://urbanlabs.io) and [WSP](httops://www.wsp.com).  It is currently maintained using in-kind time...so please be patient.
 
 This project is built upon the ideas and concepts implemented in the [network wrangler project](https://github.com/sfcta/networkwrangler) by the [San Francisco County Transportation Authority](http://github.com/sfcta) and expanded upon by the [Metropolitan Transportation Commission](https://github.com/BayAreaMetro/NetworkWrangler).
 

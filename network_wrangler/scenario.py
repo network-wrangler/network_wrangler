@@ -21,8 +21,8 @@ my_scenario = create_scenario(
 
 A `base_year_scenario` is a dictionary representation of key components of a scenario:
 
-- `road_net`: RoadwayNetwork instance
-- `transit_net`: TransitNetwork instance
+- `road_net`: [RoadwayNetwork][network_wrangler.roadway.network.RoadwayNetwork] instance
+- `transit_net`: [TransitNetwork][network_wrangler.transit.network.TransitNetwork] instance
 - `applied_projects`: list of projects that have been applied to the base scenario so that the
     scenario knows if there will be conflicts with future projects or if a future project's
     pre-requisite is satisfied.
