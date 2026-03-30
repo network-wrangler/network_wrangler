@@ -275,8 +275,12 @@ def compare_df_values(
 
     # For numeric columns, use np.isclose; convert to float to handle pandas extension types
     if numeric_cols:
-        numeric_a = comp_df[[f"{col}_a" for col in numeric_cols]].to_numpy(dtype=float, na_value=np.nan)
-        numeric_b = comp_df[[f"{col}_b" for col in numeric_cols]].to_numpy(dtype=float, na_value=np.nan)
+        numeric_a = comp_df[[f"{col}_a" for col in numeric_cols]].to_numpy(
+            dtype=float, na_value=np.nan
+        )
+        numeric_b = comp_df[[f"{col}_b" for col in numeric_cols]].to_numpy(
+            dtype=float, na_value=np.nan
+        )
         is_close = np.isclose(numeric_a, numeric_b, atol=atol, equal_nan=True)
         comp_df[numeric_cols] = ~is_close
 
