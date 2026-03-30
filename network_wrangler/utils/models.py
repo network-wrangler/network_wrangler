@@ -35,9 +35,7 @@ def _convert_string_dtype_to_object(df: DataFrame) -> DataFrame:
     df = df.copy()
     for col in df.columns:
         dtype = df[col].dtype
-        if isinstance(dtype, pd.StringDtype):
-            df[col] = df[col].astype(object)
-        elif isinstance(dtype, pd.ArrowDtype) and pa.types.is_string(dtype.pyarrow_dtype):
+        if isinstance(dtype, pd.StringDtype) or (isinstance(dtype, pd.ArrowDtype) and pa.types.is_string(dtype.pyarrow_dtype)):
             df[col] = df[col].astype(object)
     return df
 
