@@ -262,14 +262,21 @@ def compare_df_values(
         comp_df = df1[comp_c].merge(df2[comp_c], how="inner", on=join_col, suffixes=["_a", "_b"])
 
     # Filter columns by data type
-    numeric_cols = [col for col in comp_c if pd.api.types.is_numeric_dtype(df1[col].dtype)]
+    # Exclude bool columns: pd.api.types.is_numeric_dtype returns True for bool,
+    # but np.isfinite (used by np.isclose) is not defined for boolean arrays.
+    numeric_cols = [
+        col
+        for col in comp_c
+        if pd.api.types.is_numeric_dtype(df1[col].dtype)
+        and not pd.api.types.is_bool_dtype(df1[col].dtype)
+    ]
     ll_cols = list(set(list_like_columns(df1) + list_like_columns(df2)))
     other_cols = [col for col in comp_c if col not in numeric_cols and col not in ll_cols]
 
-    # For numeric columns, use np.isclose
+    # For numeric columns, use np.isclose; convert to float to handle pandas extension types
     if numeric_cols:
-        numeric_a = comp_df[[f"{col}_a" for col in numeric_cols]]
-        numeric_b = comp_df[[f"{col}_b" for col in numeric_cols]]
+        numeric_a = comp_df[[f"{col}_a" for col in numeric_cols]].to_numpy(dtype=float, na_value=np.nan)
+        numeric_b = comp_df[[f"{col}_b" for col in numeric_cols]].to_numpy(dtype=float, na_value=np.nan)
         is_close = np.isclose(numeric_a, numeric_b, atol=atol, equal_nan=True)
         comp_df[numeric_cols] = ~is_close
 
