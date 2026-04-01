@@ -4,6 +4,9 @@ outputs:
   branch-name:
     description: 'Normalized branch name (without refs/heads/ prefix)'
     value: ${{ steps.branch-name.outputs.value }}
+  branch-slug:
+    description: 'URL/mike-safe slug: slashes and special chars replaced with hyphens'
+    value: ${{ steps.branch-slug.outputs.value }}
 
 runs:
   using: 'composite'
@@ -44,5 +47,13 @@ runs:
         
         echo "Branch name determined: $BRANCH_NAME"
         echo "value=$BRANCH_NAME" >> $GITHUB_OUTPUT
+      shell: bash
+
+    - name: Slugify branch name
+      id: branch-slug
+      run: |
+        SLUG=$(echo "${{ steps.branch-name.outputs.value }}" | sed 's|[^a-zA-Z0-9._-]|-|g' | sed 's|-\{2,\}|-|g' | sed 's|^-||;s|-$||')
+        echo "Branch slug: $SLUG"
+        echo "value=$SLUG" >> $GITHUB_OUTPUT
       shell: bash
 
