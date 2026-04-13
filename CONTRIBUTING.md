@@ -122,6 +122,10 @@ Leveraging these extensions to their full potential may take some configuration.
 !!! tip
     Don't forget to update any associated [documentation](#documentation) as well!
 
+## Diagram Maintenance
+
+Architecture and data flow diagrams live as mermaid blocks in `docs/design.md`. When your PR changes module relationships, class hierarchies, or data flow, update the relevant diagram in the same PR. Current diagrams cover: ecosystem data flow, core object model, roadway selection, project application flow, scoped property resolution, and IO pipeline.
+
 ## Documentation
 
 Documentation is stored in the `/docs` folder and created by [`mkdocs`](https://www.mkdocs.org/) using the [`material-for-mkdocs`](https://squidfunk.github.io/mkdocs-material/) theme.
@@ -148,7 +152,20 @@ Your code **must** pass the pre-commit tests as a part of continuous integration
 
 ### Adding Tests
 
-..to come
+Tests live in `/tests` organized by module (`test_roadway/`, `test_transit/`, `test_models/`, `test_utils/`).
+
+**Fixtures**: Use session-scoped fixtures in `tests/conftest.py` for expensive setup like loading networks. Module-specific fixtures go in subdirectory `conftest.py` files.
+
+**Markers**:
+
+- `@pytest.mark.skipci` — tests that should not run in CI (e.g., require large data or external services)
+- `@pytest.mark.failing` — known failures being investigated
+
+**Naming**: Test files match source files (`test_links.py` for `links.py`). Test functions start with `test_` and describe the behavior being tested.
+
+**Pandas compatibility**: Tests must pass on both pandas 2.x and 3.x. Use `pd.testing.assert_frame_equal()` for DataFrame comparisons. Be aware that string dtype behavior differs between versions.
+
+**Benchmarks**: Performance-critical tests go in `test_benchmarks.py` and are tracked via `pytest-benchmark` across PRs.
 
 ### Running Tests
 
