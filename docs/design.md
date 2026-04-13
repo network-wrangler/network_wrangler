@@ -1,5 +1,136 @@
 # Design
 
+## Ecosystem Data Flow
+
+```mermaid
+flowchart LR
+    cube["Cube Model Files"] --> cw["cube_wrangler"]
+    cw --> cards["ProjectCards (.yml)"]
+    cards --> nw["network_wrangler"]
+    nw --> mcw["met_council_wrangler"]
+    mcw --> model["Cube-ready model network"]
+
+    pc["projectcard (schema)"] -.->|validates| cards
+    pc -.->|consumed by| nw
+    pc -.->|consumed by| cw
+```
+
+## Core Object Model
+
+```mermaid
+classDiagram
+    class Scenario {
+        +RoadwayNetwork road_net
+        +TransitNetwork transit_net
+        +dict project_cards
+        +list applied_projects
+        +WranglerConfig config
+        +apply_all_projects()
+        +add_project_cards(cards)
+        +queued_projects: list
+        +write(out_dir, file_format)
+    }
+
+    class RoadwayNetwork {
+        +DataFrame links_df
+        +DataFrame nodes_df
+        +DataFrame shapes_df
+        +WranglerConfig config
+        +str network_hash
+        +ModelRoadwayNetwork model_net
+        +apply(project_card)
+        +get_selection(selection_dict)
+        +add_links(links_df)
+        +delete_links(selection_dict)
+    }
+
+    class TransitNetwork {
+        +Feed feed
+        +RoadwayNetwork road_net
+        +WranglerConfig config
+        +apply(project_card)
+        +get_selection(selection_dict)
+        +bool consistent_with_road_net
+    }
+
+    class Feed {
+        +DataFrame stops
+        +DataFrame stop_times
+        +DataFrame routes
+        +DataFrame trips
+        +DataFrame shapes
+        +DataFrame frequencies
+        +set_by_id(table, set_df)
+    }
+
+    class ModelRoadwayNetwork {
+        +RoadwayNetwork net
+        +DataFrame links_df
+        +DataFrame nodes_df
+        +DataFrame ml_links_df
+        +DataFrame gp_links_df
+        +write(out_dir, file_format)
+    }
+
+    class ProjectCard {
+        <<from projectcard package>>
+        +str project
+        +list prerequisites
+        +list corequisites
+        +list conflicts
+        +dict change_types
+    }
+
+    Scenario o-- RoadwayNetwork
+    Scenario o-- TransitNetwork
+    Scenario o-- ProjectCard
+    TransitNetwork o-- Feed
+    TransitNetwork o-- RoadwayNetwork : optional
+    RoadwayNetwork --> ModelRoadwayNetwork : lazy creates
+    ModelRoadwayNetwork o-- RoadwayNetwork
+```
+
+## Roadway Selection & Search
+
+```mermaid
+classDiagram
+    class RoadwayLinkSelection {
+        +RoadwayNetwork net
+        +str selection_method
+        +list selected_links
+        +DataFrame selected_links_df
+        +Segment segment
+    }
+
+    class RoadwayNodeSelection {
+        +RoadwayNetwork net
+        +str selection_method
+        +list selected_nodes
+        +DataFrame selected_nodes_df
+    }
+
+    class Segment {
+        +RoadwayNetwork net
+        +RoadwayLinkSelection selection
+        +Subnet subnet
+        +list segment_nodes
+        +list segment_links
+        +connected_path_search()
+    }
+
+    class Subnet {
+        +RoadwayNetwork net
+        +MultiDiGraph graph
+        +DataFrame subnet_links_df
+        +list subnet_nodes
+    }
+
+    RoadwayNetwork --> RoadwayLinkSelection : cached in selections
+    RoadwayNetwork --> RoadwayNodeSelection : cached in selections
+    RoadwayLinkSelection o-- Segment : for segment selections
+    Segment o-- Subnet
+```
+
 ## Atomic Parts
 
 ```mermaid
@@ -13,7 +144,7 @@ flowchart TD
     BaseScenario --> base_scenario
     subgraph Scenario
     base_scenario["base_scenario(dict)"]
-    projects["projects(ProjectCard`"]
+    projects["projects(ProjectCard)"]
     road_net["road_net(RoadwayNetwork)"]
     transit_net["transit_net(TransitNetwork)"]
     config["config(WranglerConfig)"]
@@ -52,6 +183,35 @@ my_scenario.queued_projects
 my_scenario.apply_all_projects()
 my_scenario.applied_projects
 >> ["project_a", "project_b", "project_c"]
+```
+
+### Project Application Flow
+
+```mermaid
+sequenceDiagram
+    participant U as User
+    participant S as Scenario
+    participant PC as ProjectCard
+    participant RN as RoadwayNetwork
+    participant TN as TransitNetwork
+    participant H as Handler (projects/)
+
+    U->>S: add_project_cards(cards)
+    S->>PC: validate & store
+    U->>S: apply_all_projects()
+    S->>S: order_projects() (topological sort)
+    loop For each queued project
+        S->>PC: get change type
+        alt roadway change
+            S->>RN: apply(project_card)
+            RN->>H: dispatch to handler
+            H->>RN: modify links_df/nodes_df
+        else transit change
+            S->>TN: apply(project_card)
+            TN->>H: dispatch to handler
+            H->>TN: modify feed tables
+        end
+    end
 ```
 
 ### Project Dependencies
@@ -182,6 +342,41 @@ Pertinent relationships:
 - `Subnet.graph` is the associated `networkx.MultiDiGraph` connected graph object which is used to conduct the shortest path search.
 
 For an interactive demonstration of what this means: `notebooks.Roadway Network Search.ipynb`
+
+## Scoped Property Resolution
+
+```mermaid
+flowchart TD
+    link["Link record with scoped properties"]
+    link --> check{"Is property scoped?"}
+    check -->|No| direct["Return direct value"]
+    check -->|Yes| scope_list["List of ScopedLinkValueItem"]
+    scope_list --> match{"Match category + timespan?"}
+    match -->|Found| resolved["Return scoped value"]
+    match -->|Not found| default["Return default/unscoped value"]
+    resolved --> model["ModelRoadwayNetwork explodes to flat columns"]
+    model --> flat["e.g. lanes_AM_sov, price_PM_hov2"]
+```
+
+Key function: `roadway/links/scopes.py::prop_for_scope()`
+
+## IO Pipeline
+
+```mermaid
+flowchart LR
+    subgraph Read
+        files["Files (geojson/parquet/csv)"] --> detect["Auto-detect format"]
+        detect --> load["load_roadway() / load_transit()"]
+        load --> validate["Pandera schema validation"]
+        validate --> df["DataFrame[RoadLinksTable] etc."]
+    end
+
+    subgraph Write
+        net["RoadwayNetwork / TransitNetwork"] --> write["write_roadway() / write_transit()"]
+        write --> fmt["Choose format (parquet preferred)"]
+        fmt --> out["Output files"]
+    end
+```
 
 ## Organization
 
