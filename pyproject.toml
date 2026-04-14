@@ -6,7 +6,7 @@ build-backend = "setuptools.build_meta"
 name = "network-wrangler"
 dynamic = ["version"]
 description = ""
-license =  {file = "LICENSE"}
+license = "Apache-2.0"
 readme = "README.md"
 requires-python = ">=3.10"
 authors = [
@@ -17,7 +17,6 @@ authors = [
 ]
 classifiers = [
     "Development Status :: 1 - Planning",
-    "License :: OSI Approved :: Apache Software License",
     "Natural Language :: English",
     "Operating System :: OS Independent",
     "Programming Language :: Python",
@@ -31,11 +30,11 @@ dependencies = [
     "fiona>=1.10.1",
     "geographiclib>=2.0",
     "geojson>=3.1.0",
-    "geopandas>=1.0.1",
+    "geopandas>=1.1.2",
     "ijson>=3.3.0",
     "osmnx>=1.9.3",
-    "pandas>=2.2.3,<3.0",
-    "pandera[pandas,geopandas]>=0.24.0",
+    "pandas>=2.2.3",
+    "pandera[pandas]>=0.29.0",
     "projectcard>=0.3.3",
     "psutil>=6.0.0",
     "pyarrow>=17.0.0",
@@ -84,8 +83,10 @@ tests = [
 ]
 
 
+[tool.setuptools.packages.find]
+where = ["."]
+
 [tool.setuptools]
-packages = ["network_wrangler"]
 script-files = [
     "network_wrangler/bin/clip_roadway.py",
     "network_wrangler/bin/clip_transit.py",

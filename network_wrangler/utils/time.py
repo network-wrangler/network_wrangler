@@ -183,7 +183,7 @@ def filter_df_to_overlapping_timespans(
     mask = pd.Series([False] * len(orig_df), index=orig_df.index)
     for query_timespan in query_timespans:
         q_start_time, q_end_time = str_to_time_list(query_timespan)
-        end_time_s = orig_df["end_time"]
+        end_time_s = orig_df["end_time"].copy()
         end_time_s.loc[orig_df["end_time"] < orig_df["start_time"]] += pd.Timedelta(days=1)
         this_ts_mask = (orig_df["start_time"] < q_end_time) & (q_start_time < end_time_s)
         mask |= this_ts_mask
@@ -243,19 +243,21 @@ def filter_df_to_max_overlapping_timespans(
         raise TimespanDfQueryError(msg)
     q_start, q_end = str_to_time_list(query_timespan)
 
-    real_end = orig_df["end_time"]
-    real_end.loc[orig_df["end_time"] < orig_df["start_time"]] += pd.Timedelta(days=1)
+    # Work with a copy to avoid SettingWithCopyWarning
+    working_df = orig_df.copy()
+    real_end = working_df["end_time"].copy()
+    real_end.loc[working_df["end_time"] < working_df["start_time"]] += pd.Timedelta(days=1)
 
-    orig_df["overlap_duration"] = calc_overlap_duration_with_query(
-        orig_df["start_time"],
+    working_df["overlap_duration"] = calc_overlap_duration_with_query(
+        working_df["start_time"],
         real_end,
         q_start,
         q_end,
     )
     if strict_match:
-        overlap_df = orig_df.loc[(orig_df.start_time <= q_start) & (real_end >= q_end)]
+        overlap_df = working_df.loc[(working_df.start_time <= q_start) & (real_end >= q_end)]
     else:
-        overlap_df = orig_df.loc[orig_df.overlap_duration > min_overlap_minutes]
+        overlap_df = working_df.loc[working_df.overlap_duration > min_overlap_minutes]
     WranglerLogger.debug(f"overlap_df: \n{overlap_df}")
     if keep_max_of_cols:
         # keep only the maximum overlap

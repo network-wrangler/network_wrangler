@@ -269,7 +269,7 @@ def test_feed_equality(request, small_transit_net):
     import copy
 
     new_stops = copy.deepcopy(feed2.stops)
-    new_stops.loc[new_stops.stop_id == 1, "stop_name"] = 999
+    new_stops.loc[new_stops.stop_id == 1, "stop_name"] = "999"
     feed2.stops = new_stops
     assert feed1 != feed2
     WranglerLogger.info(f"--Finished: {request.node.name}")

@@ -16,64 +16,37 @@ jobs:
   lint:
     name: Lint code
     runs-on: ubuntu-latest
-    permissions:
-      contents: write  # Required to commit fixes back to PR
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
-        with:
-          token: ${{ secrets.GITHUB_TOKEN }}
-          ref: ${{ github.event.pull_request.head.ref }}
-          repository: ${{ github.event.pull_request.head.repo.full_name }}
 
-      - name: Setup Python with UV
-        uses: ./.github/actions/setup-python-uv
-        with:
-          python-version: "3.13"
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
 
-      - name: Install ruff
-        run: |
-          uv pip install --system ruff
-        shell: bash
+      # Lint is enforced, not auto-fixed. Run `ruff format` and
+      # `ruff check --fix` locally (the pre-commit hook does this) and push
+      # the result. Auto-committing from CI with GITHUB_TOKEN suppresses the
+      # follow-up workflow run (GitHub's anti-recursion policy), which leaves
+      # the auto-fix commit untested in the PR UI.
+      - name: Check formatting
+        run: uvx ruff format --check network_wrangler
 
-      - name: Format code with ruff
-        run: ruff format network_wrangler
-        continue-on-error: true
-
-      - name: Fix linting issues
-        run: ruff check --fix --output-format=github network_wrangler
-        continue-on-error: false
-
-      - name: Check for changes
-        id: check-changes
-        run: |
-          if [ -n "$(git status --porcelain)" ]; then
-            echo "has_changes=true" >> $GITHUB_OUTPUT
-          else
-            echo "has_changes=false" >> $GITHUB_OUTPUT
-          fi
-
-      - name: Commit fixes
-        if: steps.check-changes.outputs.has_changes == 'true'
-        run: |
-          git config --local user.email "github-actions[bot]@users.noreply.github.com"
-          git config --local user.name "github-actions[bot]"
-          git add -A
-          git commit -m "style: Auto-fix code formatting and linting issues"
-          git push origin HEAD:${{ github.event.pull_request.head.ref }}
-        shell: bash
-
-      - name: Check for remaining issues
-        run: ruff check --output-format=github network_wrangler
+      - name: Check linting
+        run: uvx ruff check --output-format=github network_wrangler
 
   test:
-    name: Test (Python ${{ matrix.python-version }})
+    name: Test (Python ${{ matrix.python-version }}, pandas ${{ matrix.pandas-version }})
     needs: lint
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
       matrix:
         python-version: ["3.10", "3.11", "3.12", "3.13"]
+        pandas-version: ["2", "3"]
+        exclude:
+          # pandas 3.0 requires Python 3.11+
+          - python-version: "3.10"
+            pandas-version: "3"
 
     steps:
       - name: Checkout code
@@ -84,22 +57,26 @@ jobs:
         with:
           python-version: ${{ matrix.python-version }}
 
-      - name: Install dependencies
+      - name: Install dependencies with pandas version
         run: |
-          uv pip install --system -e .[tests]
+          if [ "${{ matrix.pandas-version }}" = "2" ]; then
+            uv pip install --system -e .[tests] "pandas>=2.2.3,<3.0"
+          else
+            uv pip install --system -e .[tests] "pandas>=3.0.0"
+          fi
         shell: bash
 
       - name: Run tests
         run: |
-          # Only generate coverage for Python 3.13 to save time and simplify artifacts
-          if [ "${{ matrix.python-version }}" = "3.13" ]; then
+          # Only generate coverage for Python 3.13 + pandas 3 to save time and simplify artifacts
+          if [ "${{ matrix.python-version }}" = "3.13" ] && [ "${{ matrix.pandas-version }}" = "3" ]; then
             pytest --junitxml=pytest.xml --cov=network_wrangler --cov-report "xml:coverage.xml" --benchmark-save=benchmark --benchmark-json=benchmark.json
           else
             pytest --benchmark-save=benchmark --benchmark-json=benchmark.json
           fi
 
       - name: Verify coverage files exist
-        if: matrix.python-version == '3.13'
+        if: matrix.python-version == '3.13' && matrix.pandas-version == '3'
         shell: bash
         run: |
           echo "=== Checking for coverage files ==="
@@ -113,7 +90,7 @@ jobs:
             ls -lah | head -20
             exit 1
           fi
-          
+
           if [ -f "pytest.xml" ]; then
             echo "✓ pytest.xml exists ($(wc -c < pytest.xml) bytes)"
           else
@@ -121,10 +98,10 @@ jobs:
           fi
 
       - name: Upload coverage artifacts
-        if: matrix.python-version == '3.13'
+        if: matrix.python-version == '3.13' && matrix.pandas-version == '3'
         uses: actions/upload-artifact@v4
         with:
-          name: coverage-py3.13
+          name: coverage-py3.13-pandas3
           path: |
             coverage.xml
             pytest.xml
@@ -133,7 +110,7 @@ jobs:
       - name: Check benchmark files exist
         if: |
           (github.event.pull_request.base.ref == 'main' || github.event.pull_request.base.ref == 'develop') &&
-          matrix.python-version == '3.13'
+          matrix.python-version == '3.13' && matrix.pandas-version == '3'
         shell: bash
         run: |
           echo "Checking for benchmark files..."
@@ -145,10 +122,10 @@ jobs:
       - name: Upload benchmark artifacts
         if: |
           (github.event.pull_request.base.ref == 'main' || github.event.pull_request.base.ref == 'develop') &&
-          matrix.python-version == '3.13'
+          matrix.python-version == '3.13' && matrix.pandas-version == '3'
         uses: actions/upload-artifact@v4
         with:
-          name: benchmark-py3.13
+          name: benchmark-py3.13-pandas3
           path: |
             benchmark.json
             .benchmarks/
@@ -177,16 +154,14 @@ jobs:
 
       - name: Post docs comment
         if: github.event.action == 'opened'
-        uses: actions/github-script@v7
+        uses: actions/github-script@v8
         continue-on-error: true
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           script: |
-            const branchName = '${{ steps.branch.outputs.branch-name }}';
-            const docsUrl = `https://network-wrangler.github.io/network_wrangler/${branchName}/`;
-            const comment = `📚 Documentation has been built and deployed!
-            
-            View the docs for this PR: [${docsUrl}](${docsUrl})`;
+            const branchSlug = '${{ steps.branch.outputs.branch-slug }}';
+            const docsUrl = `https://network-wrangler.github.io/network_wrangler/${branchSlug}/`;
+            const comment = `📚 Documentation has been built and deployed!\n\nView the docs for this PR: [${docsUrl}](${docsUrl})`;
             
             await github.rest.issues.createComment({
               owner: context.repo.owner,
@@ -214,7 +189,7 @@ jobs:
       - name: Download benchmark artifacts
         uses: actions/download-artifact@v4
         with:
-          name: benchmark-py3.13
+          name: benchmark-py3.13-pandas3
           path: ./
 
       - name: Check if benchmark files exist

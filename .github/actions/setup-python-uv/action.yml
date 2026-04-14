@@ -17,12 +17,6 @@ runs:
       uses: astral-sh/setup-uv@v4
       with:
         version: "latest"
-
-    - name: Cache UV packages
-      uses: actions/cache@v4
-      with:
-        path: ~/.cache/uv
-        key: uv-packages-${{ runner.os }}-${{ hashFiles('**/pyproject.toml') }}
-        restore-keys: |
-          uv-packages-${{ runner.os }}-
+        enable-cache: true
+        cache-dependency-glob: "**/pyproject.toml"
 

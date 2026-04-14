@@ -21,17 +21,23 @@ from ..params import LAT_LON_CRS, SMALL_RECS
 from .data import coerce_val_to_df_types
 
 
-# Convert StringDtype columns to object dtype to avoid numpy.issubdtype compatibility issues
-# in pandas 2.2+ with Python 3.11+
+# Convert string extension dtype columns to object dtype to maintain consistency with
+# pd.options.future.infer_string = False and avoid numpy.issubdtype errors.
 def _convert_string_dtype_to_object(df: DataFrame) -> DataFrame:
-    """Convert StringDtype columns to object dtype for compatibility with numpy.issubdtype.
+    """Convert any pandas string extension dtype columns to object dtype.
 
-    This fixes compatibility issues with pandas 2.2+ StringDtype and numpy.issubdtype
-    in Python 3.11+ when used with pandera validation.
+    Handles both pd.StringDtype (python-backed) and pd.ArrowDtype string columns
+    (which pandera 0.30+ may produce when pyarrow is available with pandas 3).
+    This keeps string dtypes consistent with the infer_string=False setting in __init__.py.
     """
+    import pyarrow as pa
+
     df = df.copy()
     for col in df.columns:
-        if isinstance(df[col].dtype, pd.StringDtype):
+        dtype = df[col].dtype
+        if isinstance(dtype, pd.StringDtype) or (
+            isinstance(dtype, pd.ArrowDtype) and pa.types.is_string(dtype.pyarrow_dtype)
+        ):
             df[col] = df[col].astype(object)
     return df
 
@@ -104,10 +110,9 @@ def validate_df_to_model(
     attrs = copy.deepcopy(df.attrs)
     err_msg = f"Validation to {model.__name__} failed."
     try:
-        # Convert StringDtype columns to object dtype before validation to avoid
-        # numpy.issubdtype compatibility issues with pandas 2.2+ and Python 3.11+
         df = _convert_string_dtype_to_object(df)
         model_df = model.validate(df, lazy=True)
+        model_df = _convert_string_dtype_to_object(model_df)
         model_df = fill_df_with_defaults_from_model(model_df, model)
         model_df.attrs = attrs
         return model_df
