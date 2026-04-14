@@ -16,55 +16,23 @@ jobs:
   lint:
     name: Lint code
     runs-on: ubuntu-latest
-    permissions:
-      contents: write  # Required to commit fixes back to PR
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
-        with:
-          token: ${{ secrets.GITHUB_TOKEN }}
-          ref: ${{ github.event.pull_request.head.ref }}
-          repository: ${{ github.event.pull_request.head.repo.full_name }}
 
-      - name: Setup Python with UV
-        uses: ./.github/actions/setup-python-uv
-        with:
-          python-version: "3.13"
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
 
-      - name: Install ruff
-        run: |
-          uv pip install --system ruff
-        shell: bash
+      # Lint is enforced, not auto-fixed. Run `ruff format` and
+      # `ruff check --fix` locally (the pre-commit hook does this) and push
+      # the result. Auto-committing from CI with GITHUB_TOKEN suppresses the
+      # follow-up workflow run (GitHub's anti-recursion policy), which leaves
+      # the auto-fix commit untested in the PR UI.
+      - name: Check formatting
+        run: uvx ruff format --check network_wrangler
 
-      - name: Format code with ruff
-        run: ruff format network_wrangler
-        continue-on-error: true
-
-      - name: Fix linting issues
-        run: ruff check --fix --output-format=github network_wrangler
-        continue-on-error: false
-
-      - name: Check for changes
-        id: check-changes
-        run: |
-          if [ -n "$(git status --porcelain)" ]; then
-            echo "has_changes=true" >> $GITHUB_OUTPUT
-          else
-            echo "has_changes=false" >> $GITHUB_OUTPUT
-          fi
-
-      - name: Commit fixes
-        if: steps.check-changes.outputs.has_changes == 'true'
-        run: |
-          git config --local user.email "github-actions[bot]@users.noreply.github.com"
-          git config --local user.name "github-actions[bot]"
-          git add -A
-          git commit -m "style: Auto-fix code formatting and linting issues"
-          git push origin HEAD:${{ github.event.pull_request.head.ref }}
-        shell: bash
-
-      - name: Check for remaining issues
-        run: ruff check --output-format=github network_wrangler
+      - name: Check linting
+        run: uvx ruff check --output-format=github network_wrangler
 
   test:
     name: Test (Python ${{ matrix.python-version }}, pandas ${{ matrix.pandas-version }})
