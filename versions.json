@@ -47,6 +47,11 @@
     "aliases": []
   },
   {
+    "version": "chore-bump-dependencies",
+    "title": "chore-bump-dependencies",
+    "aliases": []
+  },
+  {
     "version": "v1.0-beta.3",
     "title": "v1.0-beta.3",
     "aliases": []
