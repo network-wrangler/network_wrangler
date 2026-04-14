@@ -11,10 +11,10 @@
         <link rel="canonical" href="https://network-wrangler.github.io/network_wrangler/main/development/">
       
       
-        <link rel="prev" href="../design/">
+        <link rel="prev" href="../data_models/">
       
       
-        <link rel="next" href="../how_to/">
+        <link rel="next" href="../api/">
       
       
         
@@ -98,7 +98,9 @@
     
       
 
-<header class="md-header" data-md-component="header">
+  
+
+<header class="md-header md-header--shadow md-header--lifted" data-md-component="header">
   <nav class="md-header__inner md-grid" aria-label="Header">
     <a href=".." title="Network Wrangler" class="md-header__button md-logo" aria-label="Network Wrangler" data-md-component="logo">
       
@@ -200,7 +202,7 @@
     
     
       <div class="md-header__source">
-        <a href="https://github.com/wsp-sag/network_wrangler" title="Go to repository" class="md-source" data-md-component="source">
+        <a href="https://github.com/network-wrangler/network_wrangler" title="Go to repository" class="md-source" data-md-component="source">
   <div class="md-source__icon md-icon">
     
     <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
@@ -213,14 +215,8 @@
     
   </nav>
   
-</header>
     
-    <div class="md-container" data-md-component="container">
       
-      
-        
-          
-            
 <nav class="md-tabs" aria-label="Tabs" data-md-component="tabs">
   <div class="md-grid">
     <ul class="md-tabs__list">
@@ -250,32 +246,13 @@
   
   
     <li class="md-tabs__item">
-      <a href="../api/" class="md-tabs__link">
+      <a href="../how_to/" class="md-tabs__link">
         
   
   
     
   
-  API Documentation
-
-      </a>
-    </li>
-  
-
-      
-        
-  
-  
-  
-  
-    <li class="md-tabs__item">
-      <a href="../data_models/" class="md-tabs__link">
-        
-  
-  
-    
-  
-  Data Models
+  How To
 
       </a>
     </li>
@@ -295,6 +272,25 @@
     
   
   Design
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../data_models/" class="md-tabs__link">
+        
+  
+  
+    
+  
+  Data Models
 
       </a>
     </li>
@@ -327,17 +323,20 @@
   
   
   
-    <li class="md-tabs__item">
-      <a href="../how_to/" class="md-tabs__link">
-        
+    
+    
+      <li class="md-tabs__item">
+        <a href="../api/" class="md-tabs__link">
+          
   
   
     
   
-  How To
+  API
 
-      </a>
-    </li>
+        </a>
+      </li>
+    
   
 
       
@@ -363,7 +362,13 @@
     </ul>
   </div>
 </nav>
-          
+    
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
         
       
       <main class="md-main" data-md-component="main">
@@ -371,9 +376,7 @@
           
             
               
-                
-              
-              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" hidden>
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
                 <div class="md-sidebar__scrollwrap">
                   <div class="md-sidebar__inner">
                     
@@ -396,7 +399,7 @@
   </label>
   
     <div class="md-nav__source">
-      <a href="https://github.com/wsp-sag/network_wrangler" title="Go to repository" class="md-source" data-md-component="source">
+      <a href="https://github.com/network-wrangler/network_wrangler" title="Go to repository" class="md-source" data-md-component="source">
   <div class="md-source__icon md-icon">
     
     <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
@@ -443,41 +446,14 @@
   
   
     <li class="md-nav__item">
-      <a href="../api/" class="md-nav__link">
+      <a href="../how_to/" class="md-nav__link">
         
   
   
   <span class="md-ellipsis">
     
   
-    API Documentation
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-    
-      
-      
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../data_models/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Data Models
+    How To
   
 
     
@@ -505,6 +481,33 @@
     
   
     Design
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../data_models/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Data Models
   
 
     
@@ -698,6 +701,23 @@
     </span>
   </a>
   
+    <nav class="md-nav" aria-label="Documentation">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#references" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        References
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
 </li>
         
           <li class="md-nav__item">
@@ -720,6 +740,23 @@
       
     </span>
   </a>
+  
+    <nav class="md-nav" aria-label="Linting and Type Checking">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#common-ruff-error-codes" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Common Ruff Error Codes
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
   
 </li>
         
@@ -868,15 +905,79 @@
   
   
   
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_6" >
+        
+          
+          <label class="md-nav__link" for="__nav_6" id="__nav_6_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    API
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_6_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_6">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    API
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
     <li class="md-nav__item">
-      <a href="../how_to/" class="md-nav__link">
+      <a href="../api/" class="md-nav__link">
         
   
   
   <span class="md-ellipsis">
     
   
-    How To
+    Core
   
 
     
@@ -885,6 +986,126 @@
   
 
       </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../api_projects/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Projects
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../api_roadway/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Roadway
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../api_transit/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Transit
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../api_utils/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Utilities
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
     </li>
   
 
@@ -930,8 +1151,6 @@
               <article class="md-content__inner md-typeset">
                 
                   
-  
-
 
 
   
@@ -1090,6 +1309,13 @@
 </span></code></pre></div>
 </div>
 <p>Documentation is deployed using the <a href="https://github.com/jimporter/mike"><code>mike</code></a> package and Github Actions configured in <code>.github/workflows/</code> for each &ldquo;ref&rdquo; (i.e. branch) in the network_wrangler repository.</p>
+<h4 id="references">References<a class="headerlink" href="#references" title="Permanent link"> ¶</a></h4>
+<ul>
+<li><a href="https://www.mkdocs.org/user-guide/configuration/">MkDocs User Guide: Configuration</a></li>
+<li><a href="https://mkdocstrings.github.io/python/usage/">mkdocstrings-python</a></li>
+<li><a href="https://squidfunk.github.io/mkdocs-material/setup/">Material for MkDocs Setup</a></li>
+<li><a href="https://squidfunk.github.io/mkdocs-material/reference/admonitions/#supported-types">Admonitions</a></li>
+</ul>
 <h3 id="making-sure-your-code-works">Making sure your code works<a class="headerlink" href="#making-sure-your-code-works" title="Permanent link"> ¶</a></h3>
 <h4 id="linting-and-type-checking">Linting and Type Checking<a class="headerlink" href="#linting-and-type-checking" title="Permanent link"> ¶</a></h4>
 <p>Before even running the tests, its a good idea to lint and check the types of the code using pre-commit:</p>
@@ -1099,6 +1325,29 @@
 </span></code></pre></div>
 </div>
 <p>Your code <strong>must</strong> pass the pre-commit tests as a part of continuous integration, so you might as well fix anything now if it arises.</p>
+<h5 id="common-ruff-error-codes">Common Ruff Error Codes<a class="headerlink" href="#common-ruff-error-codes" title="Permanent link"> ¶</a></h5>
+<p>Network Wrangler uses <a href="https://docs.astral.sh/ruff/">Ruff</a> for linting. Here are some common error codes you may encounter:</p>
+<p><strong>Complexity Issues:</strong>
+- <a href="https://docs.astral.sh/ruff/rules/too-many-branches/"><code>PLR0912</code></a>: Too many branches (&gt;12) - Consider refactoring the function or add <code># noqa: PLR0912</code> if complexity is necessary
+- <a href="https://docs.astral.sh/ruff/rules/too-many-statements/"><code>PLR0915</code></a>: Too many statements (&gt;50) - Break down into smaller functions or add <code># noqa: PLR0915</code> if justified</p>
+<p><strong>Code Style:</strong>
+- <a href="https://docs.astral.sh/ruff/rules/magic-value-comparison/"><code>PLR2004</code></a>: Magic value used in comparison - Define constants instead of hardcoding values
+- <a href="https://docs.astral.sh/ruff/rules/import-outside-toplevel/"><code>PLC0415</code></a>: Import should be at top-level - Move imports to file top (use <code># noqa: PLC0415</code> for intentional lazy imports)
+- <a href="https://docs.astral.sh/ruff/rules/collapsible-if/"><code>SIM102</code></a>: Use a single if statement - Combine nested if statements with <code>and</code>
+- <a href="https://docs.astral.sh/ruff/rules/if-else-block-instead-of-if-exp/"><code>SIM108</code></a>: Use ternary operator - Replace if-else blocks with ternary for simple assignments
+- <a href="https://docs.astral.sh/ruff/rules/collection-literal-concatenation/"><code>RUF005</code></a>: Consider unpacking instead of concatenation - Use <code>[*list1, item]</code> instead of <code>list1 + [item]</code></p>
+<p><strong>Exception Handling:</strong>
+- <a href="https://docs.astral.sh/ruff/rules/raw-string-in-exception/"><code>EM101</code></a>: Exception must not use string literal - Assign message to variable first
+- <a href="https://docs.astral.sh/ruff/rules/f-string-in-exception/"><code>EM102</code></a>: Exception must not use f-string literal - Assign f-string to variable first</p>
+<p><strong>Function Arguments:</strong>
+- <a href="https://docs.astral.sh/ruff/rules/unused-function-argument/"><code>ARG001</code></a>: Unused function argument - Prefix with <code>_</code> if intentionally unused
+- <a href="https://docs.astral.sh/ruff/rules/unused-loop-control-variable/"><code>B007</code></a>: Loop control variable not used - Prefix with <code>_</code> (e.g., <code>for _idx, item in ...</code>)
+- <a href="https://docs.astral.sh/ruff/rules/function-uses-loop-variable/"><code>B023</code></a>: Function uses loop variable - Use default arguments to capture values (e.g., <code>lambda x, var=loop_var: ...</code>)</p>
+<p><strong>Other Common Issues:</strong>
+- <a href="https://docs.astral.sh/ruff/rules/unnecessary-list-comprehension-set/"><code>C403</code></a>: Unnecessary list comprehension - Use set comprehension directly <code>{item for ...}</code> instead of <code>set([item for ...])</code>
+- <a href="https://docs.astral.sh/ruff/rules/unnecessary-double-cast-or-process/"><code>C414</code></a>: Unnecessary <code>list()</code> call within <code>sorted()</code> - Remove redundant conversion
+- <a href="https://docs.astral.sh/ruff/rules/os-path-exists/"><code>PTH110</code></a>: Use <code>Path.exists()</code> instead of <code>os.path.exists()</code></p>
+<p>For a complete list of rules, see the <a href="https://docs.astral.sh/ruff/rules/">Ruff Rules Documentation</a>.</p>
 <h4 id="adding-tests">Adding Tests<a class="headerlink" href="#adding-tests" title="Permanent link"> ¶</a></h4>
 <p>..to come</p>
 <h4 id="running-tests">Running Tests<a class="headerlink" href="#running-tests" title="Permanent link"> ¶</a></h4>
@@ -1158,13 +1407,13 @@ All tests other than those with the decorator <code>@pytest.mark.skipci</code> w
 <p>Contributors to the Network Wrangler Project are expected to read and follow the <a href="../CODE_OF_CONDUCT.md">CODE_OF_CONDUCT</a> for the project.</p>
 <h2 id="contributors">Contributors<a class="headerlink" href="#contributors" title="Permanent link"> ¶</a></h2>
 <ol>
-<li><a href="../@lmz">Lisa Z.</a> - initial Network Wrangler implementation at <a href="../www.sfcta.org">SFCTA</a></li>
-<li><a href="../@billyc">Billy C.</a> - initial Network Wrangler implementation at <a href="../www.sfcta.org">SFCTA</a></li>
-<li><a href="../@e-lo">Elizabeh S.</a></li>
-<li><a href="../@i-am-sijia">Sijia W.</a></li>
-<li><a href="../@DavidOry">David O.</a></li>
-<li><a href="../@AshishKuls">Ashish K.</a></li>
-<li><a href="../@yueshuaing">Yue S.</a></li>
+<li><a href="https://github.com/lmz">Lisa Z.</a> - initial Network Wrangler implementation at <a href="http://www.sfcta.org">SFCTA</a></li>
+<li><a href="https://github.com/billyc">Billy C.</a> - initial Network Wrangler implementation at <a href="http://www.sfcta.org">SFCTA</a></li>
+<li><a href="https://github.com/e-lo">Elizabeth S.</a></li>
+<li><a href="https://github.com/i-am-sijia">Sijia W.</a></li>
+<li><a href="https://github.com/DavidOry">David O.</a></li>
+<li><a href="https://github.com/AshishKuls">Ashish K.</a></li>
+<li><a href="https://github.com/yueshuaing">Yue S.</a></li>
 </ol>
 <div class="admonition note">
 <p class="admonition-title">Note</p>
@@ -1231,13 +1480,8 @@ All tests other than those with the decorator <code>@pytest.mark.skipci</code> w
 
 
 
-  
-  
 
 
-
-
-  
 
 
 
@@ -1280,7 +1524,7 @@ All tests other than those with the decorator <code>@pytest.mark.skipci</code> w
     
       
       
-      <script id="__config" type="application/json">{"annotate": null, "base": "..", "features": ["content.code.annotate", "content.code.copy", "content.tabs.link", "navigation.indexes", "navigation.tabs", "navigation.expand", "toc.integrate", "toc.follow"], "search": "../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": {"default": "latest", "provider": "mike"}}</script>
+      <script id="__config" type="application/json">{"annotate": null, "base": "..", "features": ["content.code.annotate", "content.code.copy", "content.tabs.link", "navigation.indexes", "navigation.tabs", "navigation.tabs.sticky", "navigation.sections", "toc.integrate", "toc.follow"], "search": "../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": {"default": "latest", "provider": "mike"}}</script>
     
     
       <script src="../assets/javascripts/bundle.79ae519e.min.js"></script>
