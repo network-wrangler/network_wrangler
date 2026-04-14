@@ -1,4 +1,4 @@
-stop_id,stop_code,stop_name,stop_desc,stop_lat,stop_lon,zone_id,stop_url,location_type,wheelchair_boarding,osm_node_id,node_ssid,parent_station,gtfs_stop_id
+stop_id,stop_code,stop_name,stop_desc,stop_lat,stop_lon,zone_id,stop_url,location_type,wheelchair_boarding,osm_node_id,node_ssid,parent_station,stop_id_GTFS
 3261,,Westminster St & Cayuga St W,Near side S,44.966288,-93.085602,,http://www.metrotransit.org/NexTripBadge.aspx?stopnumber=53785,0,1.0,493882338,b6ee5e5a4adca2f379b20fe7ee7ca77d,,53785
 4219,,12th St W & John Ireland Blvd,Near side W,44.951319,-93.104096,,http://www.metrotransit.org/NexTripBadge.aspx?stopnumber=56164,0,1.0,954746986,9a057e241974a5839b6bf9c805892197,,56164
 5149,,Wabasha St & Vision Loss Resources,Near side N,44.936163,-93.086662,,http://www.metrotransit.org/NexTripBadge.aspx?stopnumber=291,0,1.0,652245100,55d02fa3aa91908ecba6798814bd9d73,,"291,47040"

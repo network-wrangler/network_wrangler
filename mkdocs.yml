@@ -1,6 +1,6 @@
 site_name: "Network Wrangler"
 site_url: https://network-wrangler.github.io/network_wrangler
-repo_url: https://github.com/wsp-sag/network_wrangler
+repo_url: https://github.com/network-wrangler/network_wrangler
 
 theme:
   name: material
@@ -10,7 +10,10 @@ theme:
     - content.tabs.link
     - navigation.indexes
     - navigation.tabs
-    - navigation.expand
+    - navigation.tabs.sticky
+    - navigation.sections
+# API contents are so long, disabling these
+#   - navigation.expand
     - toc.integrate
     - toc.follow
   palette:
@@ -23,6 +26,20 @@ theme:
         icon: material/brightness-4
         name: Switch to light mode
 
+nav:
+  - Home: index.md
+  - How To: how_to.md
+  - Design: design.md
+  - Data Models: data_models.md
+  - Development: development.md
+  - API:
+    - Core: api.md
+    - Projects: api_projects.md
+    - Roadway: api_roadway.md
+    - Transit: api_transit.md
+    - Utilities: api_utils.md
+  - Networks: networks.md
+
 plugins:
   - autorefs
   - awesome-pages
@@ -31,18 +48,30 @@ plugins:
       closing_tag: "!}"
   - mermaid2
   - mike
-  - mkdocs-jupyter:
-      include_source: True
+# disabling for now since this spits out a log of Unclosed Div warnings
+# https://github.com/danielfrg/mkdocs-jupyter/issues/231
+#  - mkdocs-jupyter:
+#      include_source: True
   - mkdocstrings:
-      default_handler: python
-      enable_inventory: true
       handlers:
         python:
           paths: [.]
-          rendering:
-            show_root_heading: true
+          inventories:
+            - https://docs.python.org/3/objects.inv
+            - https://docs.pydantic.dev/latest/objects.inv
+            - https://pandera.readthedocs.io/en/stable/objects.inv
+            - https://pandas.pydata.org/docs/objects.inv
+          options:
+            docstring_section_style: table
             show_source: true
-            heading_level: 3
+            show_if_no_docstring: false
+            show_object_full_path: true
+            show_root_full_path: true
+            show_root_members_full_path: true
+            show_bases: true
+            show_inheritance_diagram: true
+            separate_signature: true
+            signature_crossrefs: true
   - search
 
 watch:
@@ -86,3 +115,4 @@ markdown_extensions:
   - toc:
       # insert a blank space before the character
       permalink: " ¶"
+      # toc_depth: 3

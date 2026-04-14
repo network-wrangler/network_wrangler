@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import Annotated, ClassVar, Literal
+from typing import Annotated, ClassVar, Literal, Optional
 
 from pydantic import ConfigDict, Field, field_validator
 
@@ -79,11 +79,11 @@ class SelectTransitNodes(RecordModel):
     require_any_of: ClassVar[AnyOf] = [
         [
             "model_node_id",
-            # "gtfs_stop_id", TODO Not implemented
+            # "stop_id_GTFS", TODO Not implemented
         ]
     ]
 
-    # gtfs_stop_id: Annotated[list[ForcedStr] | None, Field(None, min_length=1)] TODO Not implemented
+    # stop_id_GTFS: Annotated[Optional[List[ForcedStr]], Field(None, min_length=1)] TODO Not implemented
     model_node_id: Annotated[list[int], Field(min_length=1)]
     require: SelectionRequire | None = "any"
 

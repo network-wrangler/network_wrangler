@@ -306,9 +306,11 @@ def update_nodes_in_linestring_geometry(
         axis=1,
     )
 
-    updated_df = updated_df.reset_index().set_index(original_index.names)
+    # Drop the merge columns and restore original index
+    updated_df = updated_df.drop(columns=["model_node_id", "geometry_node"])
+    updated_df.index = original_index
 
-    WranglerLogger.debug(f"updated_df - AFTER: \n {updated_df.geometry}")
+    # WranglerLogger.debug(f"updated_df - AFTER: \n {updated_df.geometry}")
     return updated_df["geometry"]
 
 

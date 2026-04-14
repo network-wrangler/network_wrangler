@@ -6,6 +6,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 
 from geopandas import GeoDataFrame
+from pandas import DataFrame
 
 from ..configs import ConfigInputTypes, DefaultConfig, WranglerConfig, load_wrangler_config
 from ..logger import WranglerLogger
@@ -59,7 +60,8 @@ def load_roadway(
             a dictionary, a path to a file, or a list of paths to files or a
             WranglerConfig instance. Defaults to None and will load defaults.
 
-    Returns: a RoadwayNetwork instance
+    Returns:
+        (RoadwayNetwork) instance of RoadwayNetwork
     """
     from .network import RoadwayNetwork
 
@@ -114,6 +116,78 @@ def load_roadway(
         roadway_network._shapes_file = shapes_file
     roadway_network._links_file = links_file
     roadway_network._nodes_file = nodes_file
+
+    return roadway_network
+
+
+def load_roadway_from_dataframes(
+    links_df: DataFrame,
+    nodes_df: DataFrame,
+    shapes_df: Optional[GeoDataFrame] = None,
+    config: ConfigInputTypes = DefaultConfig,
+    filter_to_nodes: bool = False,
+) -> RoadwayNetwork:
+    """Creates a RoadwayNetwork from DataFrames with validation.
+
+    Validates the DataFrames against their respective Pandera schemas before
+    creating the network instance. This method is useful if the user is already working with
+    networks in DataFrames and doesn't want to write it to disk just to read it again.
+
+    Args:
+        links_df: DataFrame containing roadway links data
+        nodes_df: DataFrame containing roadway nodes data
+        shapes_df: Optional GeoDataFrame containing roadway shapes data
+        config: a Configuration object to update with the new configuration. Can be
+            a dictionary, a path to a file, or a list of paths to files or a
+            WranglerConfig instance. Defaults to None and will load defaults.
+        filter_to_nodes: if True, will filter links to only those that connect to nodes.
+
+    Returns:
+        (RoadwayNetwork) instance with validated data
+    """
+    from ..models.roadway.tables import (
+        RoadLinksTable,
+        RoadNodesTable,
+        RoadShapesTable,
+    )
+    from ..utils.models import validate_df_to_model
+    from .links.create import data_to_links_df
+    from .network import RoadwayNetwork
+    from .nodes.create import data_to_nodes_df
+    from .shapes.create import df_to_shapes_df
+
+    if not isinstance(config, WranglerConfig):
+        config = load_wrangler_config(config)
+
+    # Process dataframes through the standard creation functions to ensure attrs are set
+    WranglerLogger.debug("Processing nodes_df through data_to_nodes_df")
+    processed_nodes_df = data_to_nodes_df(nodes_df, config=config)
+
+    if filter_to_nodes:
+        link_count = len(links_df)
+        links_df = links_df[
+            links_df["A"].isin(nodes_df.model_node_id) & links_df["B"].isin(nodes_df.model_node_id)
+        ]
+        WranglerLogger.debug(
+            f"Filtered links to only those that connect to nodes: "
+            f"filtered {link_count - len(links_df)} links"
+        )
+
+    WranglerLogger.debug("Processing links_df through data_to_links_df")
+    processed_links_df = data_to_links_df(links_df, nodes_df=processed_nodes_df)
+
+    processed_shapes_df = None
+    if shapes_df is not None:
+        WranglerLogger.debug("Processing shapes_df through df_to_shapes_df")
+        processed_shapes_df = df_to_shapes_df(shapes_df)
+
+    # Create RoadwayNetwork with processed DataFrames that have attrs set
+    roadway_network = RoadwayNetwork(
+        links_df=processed_links_df,
+        nodes_df=processed_nodes_df,
+        shapes_df=processed_shapes_df,
+        config=config,
+    )
 
     return roadway_network
 
@@ -184,7 +258,8 @@ def load_roadway_from_dir(
             a dictionary, a path to a file, or a list of paths to files or a
             WranglerConfig instance. Defaults to None and will load defaults.
 
-    Returns: a RoadwayNetwork instance
+    Returns:
+        (RoadwayNetwork) instance of RoadwayNetwork
     """
     links_file, nodes_file, shapes_file = id_roadway_file_paths_in_dir(dir, file_format)
 

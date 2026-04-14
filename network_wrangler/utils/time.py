@@ -17,6 +17,10 @@ from __future__ import annotations
 from datetime import date, datetime, timedelta
 
 import pandas as pd
+
+# Constants
+MIN_TIMESPAN_PARTS = 2
+MAX_HOURS_IN_DAY = 24
 from pydantic import validate_call
 
 from ..logger import WranglerLogger
@@ -403,3 +407,74 @@ def format_seconds_to_legible_str(seconds: int) -> str:
 def is_increasing(datetimes: list[datetime]) -> bool:
     """Check if a list of datetime objects is increasing in time."""
     return all(datetimes[i] <= datetimes[i + 1] for i in range(len(datetimes) - 1))
+
+
+def time_to_seconds(time_obj: Union[str, datetime, pd.Timestamp]) -> int:
+    """Convert various time formats to seconds since midnight.
+
+    This function handles multiple input types commonly found in GTFS data:
+    - String format: "HH:MM:SS" or "HH:MM"
+    - datetime objects
+    - pandas Timestamp objects
+
+    Args:
+        time_obj: Time to convert. Can be:
+            - str: Time string in "HH:MM:SS" or "HH:MM" format (24-hour)
+            - datetime: Python datetime object
+            - pd.Timestamp: Pandas Timestamp object
+
+    Returns:
+        int: Number of seconds since midnight (0-86399)
+
+    Examples:
+        >>> time_to_seconds("14:30:00")
+        52200
+        >>> time_to_seconds("09:45")
+        35100
+        >>> time_to_seconds(pd.Timestamp("2023-01-01 15:30:45"))
+        55845
+
+    Note:
+        For times after midnight (e.g., "25:00:00" representing 1 AM next day),
+        this function will wrap around to stay within 0-86399 seconds.
+    """
+    if isinstance(time_obj, str):
+        parts = time_obj.split(":")
+        hours = int(parts[0])
+        minutes = int(parts[1])
+        seconds = int(parts[2]) if len(parts) > MIN_TIMESPAN_PARTS else 0
+
+        # Handle times > 24 hours (common in GTFS for service past midnight)
+        if hours >= MAX_HOURS_IN_DAY:
+            hours = hours % MAX_HOURS_IN_DAY
+
+        return hours * 3600 + minutes * 60 + seconds
+    # Handle pandas Timestamp or datetime objects
+    return time_obj.hour * 3600 + time_obj.minute * 60 + time_obj.second
+
+
+def seconds_to_time(seconds: int) -> str:
+    """Convert seconds since midnight to time string format.
+
+    Args:
+        seconds: Number of seconds since midnight (0-86399 or higher)
+
+    Returns:
+        str: Time string in "HH:MM:SS" format (24-hour)
+
+    Examples:
+        >>> seconds_to_time(52200)
+        '14:30:00'
+        >>> seconds_to_time(3661)
+        '01:01:01'
+        >>> seconds_to_time(90000)  # 25 hours
+        '25:00:00'
+
+    Note:
+        This function preserves times > 24 hours, which is useful for GTFS
+        data where service past midnight is represented as 25:00:00, 26:00:00, etc.
+    """
+    hours = seconds // 3600
+    minutes = (seconds % 3600) // 60
+    secs = seconds % 60
+    return f"{hours:02d}:{minutes:02d}:{secs:02d}"

@@ -22,7 +22,6 @@ KeyError: 'Passing list-likes to .loc or [] with any missing labels is no longer
 
 <!-- What are the steps to reproduce the behavior -->
 
-
 ### Failing tests
 
 - [ ] No applicable test failed, need to create.

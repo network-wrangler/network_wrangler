@@ -281,7 +281,7 @@ def _filter_trips_by_nodes(
 
     require = select_nodes.get("require", "any")
     model_node_ids = select_nodes.get("model_node_id", [])
-    if select_nodes.get("gtfs_stop_id"):
+    if select_nodes.get("stop_id_GTFS"):
         msg = "GTFS Stop ID transit selection not implemented yet."
         raise NotImplementedError(msg)
 

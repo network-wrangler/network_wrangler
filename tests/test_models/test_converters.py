@@ -13,7 +13,7 @@ og_stops_df = pd.DataFrame(
 expected_stops_df = pd.DataFrame(
     {
         "stop_id": [1, 2, 3],
-        "gtfs_stop_id": ["a", "b,extra_b", "c"],
+        "stop_id_GTFS": ["a", "b,extra_b", "c"],
         "name": ["stop1", "stop2", "stop3"],
     }
 )

@@ -19,7 +19,12 @@ warnings.filterwarnings(
 
 from .configs import load_wrangler_config
 from .logger import WranglerLogger, setup_logging
-from .roadway.io import load_roadway, load_roadway_from_dir, write_roadway
+from .roadway.io import (
+    load_roadway,
+    load_roadway_from_dataframes,
+    load_roadway_from_dir,
+    write_roadway,
+)
 from .scenario import Scenario, create_scenario, load_scenario
 from .transit.io import load_transit, write_transit
 from .utils.df_accessors import *
@@ -29,6 +34,7 @@ __all__ = [
     "WranglerLogger",
     "create_scenario",
     "load_roadway",
+    "load_roadway_from_dataframes",
     "load_roadway_from_dir",
     "load_scenario",
     "load_transit",

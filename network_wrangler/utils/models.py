@@ -10,7 +10,7 @@ import geopandas as gpd
 import pandas as pd
 import pandera as pa
 from pandas import DataFrame
-from pandera import DataFrameModel
+from pandera.api.pandas.model import DataFrameModel
 from pandera.errors import SchemaError, SchemaErrors
 from pandera.typing import DataFrame as PanderaDataFrame
 from pydantic import BaseModel, ValidationError, validate_call
