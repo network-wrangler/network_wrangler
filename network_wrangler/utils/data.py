@@ -261,9 +261,9 @@ def compare_df_values(
     else:
         comp_df = df1[comp_c].merge(df2[comp_c], how="inner", on=join_col, suffixes=["_a", "_b"])
 
-    # Filter columns by data type
-    # Exclude bool columns: pd.api.types.is_numeric_dtype returns True for bool,
-    # but np.isfinite (used by np.isclose) is not defined for boolean arrays.
+    # Filter columns by data type. Exclude bools — is_numeric_dtype returns True
+    # for bool (it's an integer subtype), but semantically they should be compared
+    # with direct equality, and pandas' nullable BooleanDtype breaks np.isclose.
     numeric_cols = [
         col
         for col in comp_c
