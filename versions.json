@@ -27,6 +27,11 @@
     "aliases": []
   },
   {
+    "version": "feature-451-props-for-scopes",
+    "title": "feature-451-props-for-scopes",
+    "aliases": []
+  },
+  {
     "version": "drop-python3-9",
     "title": "drop-python3-9",
     "aliases": []
