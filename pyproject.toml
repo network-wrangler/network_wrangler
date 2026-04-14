@@ -6,7 +6,7 @@ build-backend = "setuptools.build_meta"
 name = "network-wrangler"
 dynamic = ["version"]
 description = ""
-license =  {file = "LICENSE"}
+license = "Apache-2.0"
 readme = "README.md"
 requires-python = ">=3.10"
 authors = [
@@ -17,7 +17,6 @@ authors = [
 ]
 classifiers = [
     "Development Status :: 1 - Planning",
-    "License :: OSI Approved :: Apache Software License",
     "Natural Language :: English",
     "Operating System :: OS Independent",
     "Programming Language :: Python",
@@ -84,8 +83,10 @@ tests = [
 ]
 
 
+[tool.setuptools.packages.find]
+where = ["."]
+
 [tool.setuptools]
-packages = ["network_wrangler"]
 script-files = [
     "network_wrangler/bin/clip_roadway.py",
     "network_wrangler/bin/clip_transit.py",

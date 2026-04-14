@@ -1,9 +1,10 @@
 name: Publish Release
 
 on:
-  # Publish to PyPI on release publish
-  release:
-    types: [published]
+  # Publish only after Prepare Release workflow succeeds
+  workflow_run:
+    workflows: ["Prepare Release"]
+    types: [completed]
   # Manual trigger
   workflow_dispatch:
     inputs:
@@ -17,7 +18,7 @@ jobs:
   publish-to-pypi:
     name: Publish to PyPI
     if: |
-      github.event_name == 'release' ||
+      (github.event_name == 'workflow_run' && github.event.workflow_run.conclusion == 'success') ||
       (github.event_name == 'workflow_dispatch' && github.event.inputs.test == 'false')
     runs-on: ubuntu-latest
     environment:
@@ -28,17 +29,20 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
+        with:
+          # For workflow_run, check out the tag that triggered prepare-release
+          ref: ${{ github.event_name == 'workflow_run' && github.event.workflow_run.head_sha || '' }}
 
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
-          python-version: "3.x"
+          python-version: "3.13"
 
       - name: Validate version matches tag
         id: version-check
-        if: github.event_name == 'release'
+        if: github.event_name == 'workflow_run'
         run: |
-          TAG="${GITHUB_REF_NAME}"  # e.g. v1.2.3
+          TAG="${{ github.event.workflow_run.head_branch }}"  # e.g. v1.2.3
           if [[ ! "$TAG" =~ ^v[0-9]+\.[0-9]+(\.[0-9]+)?([a-zA-Z0-9\.\-]+)?$ ]]; then
             echo "Release tag must look like v1.2.3 or v1.0-beta.5 (optionally with pre-release suffix). Got: $TAG"
             exit 1
@@ -61,7 +65,7 @@ jobs:
             echo "exists=false" >> "$GITHUB_OUTPUT"
             exit 0
           fi
-          
+
           # Check if version exists on PyPI
           RESPONSE=$(curl -s "https://pypi.org/pypi/network-wrangler/$VERSION/json" || echo "not found")
           if echo "$RESPONSE" | grep -q '"info"'; then
@@ -86,13 +90,19 @@ jobs:
 
   publish-docs:
     name: Publish documentation to GitHub Pages
-    if: github.event_name == 'release'
+    if: |
+      github.event_name == 'workflow_run' && github.event.workflow_run.conclusion == 'success'
     needs:
       - publish-to-pypi
     runs-on: ubuntu-latest
     steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.workflow_run.head_sha }}
+
       - name: Build and deploy docs
         uses: ./.github/actions/build-docs
         with:
           python-version: "3.13"
-          branch-name: ${{ github.ref_name }}
+          branch-name: ${{ github.event.workflow_run.head_branch }}
