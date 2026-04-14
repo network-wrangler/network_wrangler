@@ -48,3 +48,13 @@ Cube Files → cube_wrangler → ProjectCards (.yml)
 ## Conventions & Testing
 
 See `docs/conventions.md` for full details on: coding style, validation strategy, pandas/pandera/geopandas patterns, scoped properties, testing, commits, and diagram maintenance.
+
+## Task-Specific Skills
+
+Behavioral guidance for common task types lives in `skills/` (Anthropic Agent Skill format, usable by Claude Code, Codex, and other skill-aware agents):
+
+- `skills/debugging-root-cause/` — root-cause discipline for bugs, test failures, pandera/FK errors
+- `skills/performance-work/` — measure-before-optimize workflow for regional-scale networks
+- `skills/feature-design/` — user-persona + ecosystem-impact checks before adding features
+
+Agents without skill auto-invocation can read these files directly when the task matches.
