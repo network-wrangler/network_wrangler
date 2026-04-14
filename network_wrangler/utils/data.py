@@ -255,8 +255,15 @@ def compare_df_values(
     else:
         comp_df = df1[comp_c].merge(df2[comp_c], how="inner", on=join_col, suffixes=["_a", "_b"])
 
-    # Filter columns by data type
-    numeric_cols = [col for col in comp_c if pd.api.types.is_numeric_dtype(df1[col].dtype)]
+    # Filter columns by data type. Exclude bools — is_numeric_dtype returns True
+    # for bool (it's an integer subtype), but semantically they should be compared
+    # with direct equality, and pandas' nullable BooleanDtype breaks np.isclose.
+    numeric_cols = [
+        col
+        for col in comp_c
+        if pd.api.types.is_numeric_dtype(df1[col].dtype)
+        and not pd.api.types.is_bool_dtype(df1[col].dtype)
+    ]
     ll_cols = list(set(list_like_columns(df1) + list_like_columns(df2)))
     other_cols = [col for col in comp_c if col not in numeric_cols and col not in ll_cols]
 
