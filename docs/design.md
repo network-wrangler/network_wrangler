@@ -193,7 +193,7 @@ For an interactive demonstration of what this means: `notebooks.Roadway Network 
 | `errors.py` | User-facing errors. |
 | `logger.py` | Logging utilities and the WranglerLogger class. |
 | `models`| Pydantic and pandera data models and helper functions for them. |
-| `params.py` | Package-wide constants. |
+| `params.py` | Package-wide constants. **Not user-configurable.** Use `WranglerConfig` via YAML/TOML files for user-settable parameters. |
 | `roadway` | Classes and functions pertaining to read, write, analyzing and editing roadway networks. |
 | `scenario.py`| Scenario object class and helper functions. |
 | `time.py` | Time helper functions. |

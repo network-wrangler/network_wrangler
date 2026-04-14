@@ -1,0 +1,64 @@
+# Wrangler Configuration File
+# This file allows you to configure Network Wrangler parameters without writing Python code.
+# You can use this file by passing its path to load_wrangler_config() or by referencing it
+# in a scenario configuration file.
+
+# ID Generation Parameters
+# These control how new IDs are generated for various network elements
+IDS:
+  # Method for creating shape_id for transit shapes
+  TRANSIT_SHAPE_ID_METHOD: scalar
+  # Scalar value to add to general purpose lane to create a shape_id for a transit shape
+  TRANSIT_SHAPE_ID_SCALAR: 1000000
+  
+  # Method for creating shape_id for roadway shapes
+  ROAD_SHAPE_ID_METHOD: scalar
+  # Scalar value to add to general purpose lane to create a shape_id for a roadway shape
+  ROAD_SHAPE_ID_SCALAR: 1000
+  
+  # Method for creating model_link_id for managed lane links
+  # Options: "range" or "scalar"
+  ML_LINK_ID_METHOD: scalar
+  # Range of model_link_ids to use when creating managed lane links (if using range method)
+  ML_LINK_ID_RANGE: [950000, 999999]
+  # Scalar value to add to general purpose lane to create model_link_id (if using scalar method)
+  ML_LINK_ID_SCALAR: 3000000
+  
+  # Method for creating model_node_id for managed lane nodes
+  # Options: "range" or "scalar"
+  ML_NODE_ID_METHOD: range
+  # Range of model_node_ids to use when creating managed lane nodes (if using range method)
+  ML_NODE_ID_RANGE: [950000, 999999]
+  # Scalar value to add to general purpose lane node to create model_node_id (if using scalar method)
+  ML_NODE_ID_SCALAR: 15000
+
+# Model Roadway Parameters
+# These control how the model roadway network is created
+MODEL_ROADWAY:
+  # Offset in meters for managed lanes (negative values offset to the right)
+  ML_OFFSET_METERS: -10
+  # Additional fields to copy from general purpose lanes to managed lanes
+  ADDITIONAL_COPY_FROM_GP_TO_ML: []
+  # Additional fields to copy to access and egress links
+  ADDITIONAL_COPY_TO_ACCESS_EGRESS: []
+
+# Edit Handling Parameters
+# These control how conflicts and existing values are handled during edits
+EDITS:
+  # How to handle conflicts when 'existing' value in project card doesn't match network value
+  # Options: "warn", "error", or "skip"
+  EXISTING_VALUE_CONFLICT: warn
+  # How to handle conflicts with existing scoped values
+  # Options: "conflicting", "all", or "error"
+  OVERWRITE_SCOPED: conflicting
+
+# CPU Performance Parameters
+# These are used for performance estimation and do not change network outcomes
+CPU:
+  # Estimated read speed in seconds per MB for different file formats
+  EST_PD_READ_SPEED:
+    csv: 0.03
+    parquet: 0.005
+    geojson: 0.03
+    json: 0.15
+    txt: 0.04
