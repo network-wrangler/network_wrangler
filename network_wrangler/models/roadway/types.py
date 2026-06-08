@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from datetime import datetime
-from typing import ClassVar, Optional, Union
+from typing import ClassVar
 
 from pydantic import (
     BaseModel,
@@ -51,9 +51,9 @@ class ScopedLinkValueItem(RecordModel):
 
     require_any_of: ClassVar[AnyOf] = [["category", "timespan"]]
     model_config = ConfigDict(extra="forbid")
-    category: Optional[Union[str, int]] = Field(default=DEFAULT_CATEGORY)
-    timespan: Optional[list[TimeString]] = Field(default=DEFAULT_TIMESPAN)
-    value: Union[int, float, str]
+    category: str | int | None = Field(default=DEFAULT_CATEGORY)
+    timespan: list[TimeString] | None = Field(default=DEFAULT_TIMESPAN)
+    value: int | float | str
 
     @property
     def timespan_dt(self) -> list[list[datetime]]:

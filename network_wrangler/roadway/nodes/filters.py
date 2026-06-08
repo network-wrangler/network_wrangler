@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING
 
 from pandera.typing import DataFrame
 
@@ -31,7 +31,7 @@ def filter_nodes_to_ids(
 def filter_nodes_to_link_ids(
     link_ids: list[int],
     links_df: DataFrame[RoadLinksTable],
-    nodes_df: Optional[DataFrame[RoadNodesTable]] = None,
+    nodes_df: DataFrame[RoadNodesTable] | None = None,
 ) -> DataFrame[RoadNodesTable]:
     """Filters nodes dataframe to those used by given link_ids.
 

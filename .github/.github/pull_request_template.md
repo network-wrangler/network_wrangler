@@ -15,6 +15,15 @@
 
 - [ ] Passes `pre-commit run --all-files`
 
+## AI Disclosure
+
+*Per our [AI contribution policy](../CONTRIBUTING.md#ai-assisted-contributions), please disclose if AI tools were used.*
+
+- [ ] No AI tools were used in this contribution
+- [ ] AI tools were used — describe below:
+
+<!-- e.g. "Used Claude Code for initial implementation of X; reviewed and modified before submitting." -->
+
 ## Applicable Issues
 
 *Please do not create a Pull Request without creating an issue first.*

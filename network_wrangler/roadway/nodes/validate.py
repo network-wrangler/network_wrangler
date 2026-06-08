@@ -5,7 +5,6 @@ from __future__ import annotations
 from pathlib import Path
 
 import pandas as pd
-import pyarrow as pa
 
 from ...logger import WranglerLogger
 from ...models.roadway.tables import RoadNodesTable
@@ -47,7 +46,7 @@ def validate_nodes_df(
     is_valid = True
 
     if not strict:
-        from .create import data_to_nodes_df  # noqa: PLC0415
+        from .create import data_to_nodes_df
 
         try:
             nodes_df = data_to_nodes_df(nodes_df)

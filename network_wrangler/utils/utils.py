@@ -2,7 +2,6 @@
 
 import hashlib
 import re
-from typing import Union
 
 from pydantic import validate_call
 
@@ -51,7 +50,7 @@ def topological_sort(adjacency_list, visited_list):
 def make_slug(text: str, delimiter: str = "_") -> str:
     """Makes a slug from text."""
     text = re.sub("[,.;@#?!&$']+", "", text.lower())
-    return re.sub("[\ ]+", delimiter, text)
+    return re.sub(r"[ ]+", delimiter, text)
 
 
 def delete_keys_from_dict(dictionary: dict, keys: list) -> dict:
@@ -79,14 +78,14 @@ def delete_keys_from_dict(dictionary: dict, keys: list) -> dict:
     return modified_dict
 
 
-def get_overlapping_range(ranges: list[Union[tuple[int, int], range]]) -> Union[None, range]:
+def get_overlapping_range(ranges: list[tuple[int, int] | range]) -> range | None:
     """Returns the overlapping range for a list of ranges or tuples defining ranges.
 
     Args:
-        ranges (list[Union[tuple[int], range]]): A list of ranges or tuples defining ranges.
+        ranges (list[tuple[int, int] | range]): A list of ranges or tuples defining ranges.
 
     Returns:
-        Union[None, range]: The overlapping range if found, otherwise None.
+        range | None: The overlapping range if found, otherwise None.
 
     Example:
         >>> ranges = [(1, 5), (3, 7), (6, 10)]
@@ -200,7 +199,7 @@ def combine_unique_unhashable_list(list1: list, list2: list):
     return [item for item in list1 if item not in list2] + list2
 
 
-def normalize_to_lists(mixed_list: list[Union[str, list]]) -> list[list]:
+def normalize_to_lists(mixed_list: list[str | list]) -> list[list]:
     """Turn a mixed list of scalars and lists into a list of lists."""
     normalized_list = []
     for item in mixed_list:
@@ -212,7 +211,7 @@ def normalize_to_lists(mixed_list: list[Union[str, list]]) -> list[list]:
 
 
 @validate_call
-def list_elements_subset_of_single_element(mixed_list: list[Union[str, list[str]]]) -> bool:
+def list_elements_subset_of_single_element(mixed_list: list[str | list[str]]) -> bool:
     """Find the first list in the mixed_list."""
     potential_supersets = []
     for item in mixed_list:
@@ -234,7 +233,7 @@ def list_elements_subset_of_single_element(mixed_list: list[Union[str, list[str]
 
 
 def check_one_or_one_superset_present(
-    mixed_list: list[Union[str, list[str]]], all_fields_present: list[str]
+    mixed_list: list[str | list[str]], all_fields_present: list[str]
 ) -> bool:
     """Checks that exactly one of the fields in mixed_list is in fields_present or one superset."""
     normalized_list = normalize_to_lists(mixed_list)

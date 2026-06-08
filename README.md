@@ -4,7 +4,7 @@ Network Wrangler is a Python library for managing travel model network scenarios
 
 Network Wrangler should be operating system agonistic and has been tested on Ubuntu and Mac OS.
 
-Network Wrangler does require Python 3.7+.  If you have a different version of Python installed (e.g. from ArcGIS), `conda` or a similar virtual environment manager can care of installing it for you in the installation instructions below.
+Network Wrangler does require Python 3.10+.  If you have a different version of Python installed (e.g. from ArcGIS), `conda` or a similar virtual environment manager can care of installing it for you in the installation instructions below.
 
 ## Installation
 

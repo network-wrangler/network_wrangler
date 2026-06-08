@@ -31,13 +31,13 @@ def _feed_path_ref(path: Path) -> Path:
     return path
 
 
-def load_feed_from_path(  # noqa: PLR0915
-    feed_path: Union[Path, str],
+def load_feed_from_path(
+    feed_path: Path | str,
     file_format: TransitFileTypes = "txt",
     wrangler_flavored: bool = True,
-    service_ids_filter: Optional[list[str]] = None,
+    service_ids_filter: list[str] | None = None,
     **read_kwargs,
-) -> Union[Feed, GtfsModel]:
+) -> Feed | GtfsModel:
     """Create a Feed or GtfsModel object from the path to a GTFS transit feed.
 
     Args:
@@ -62,7 +62,8 @@ def load_feed_from_path(  # noqa: PLR0915
     # Use the appropriate table names based on the model type
     model_class = Feed if wrangler_flavored else GtfsModel
     feed_possible_files = {
-        table: list(feed_path.glob(f"*{table}.{file_format}")) for table in model_class.table_names + model_class.optional_table_names
+        table: list(feed_path.glob(f"*{table}.{file_format}"))
+        for table in model_class.table_names + model_class.optional_table_names
     }
     WranglerLogger.debug(f"model_class={model_class}  feed_possible_files={feed_possible_files}")
 
@@ -76,8 +77,6 @@ def load_feed_from_path(  # noqa: PLR0915
             # missiong optional is ok
             if table_name in model_class.table_names:
                 _missing_files.append(table_name)
-
-        
 
     if _missing_files:
         WranglerLogger.debug(f"!!! Missing transit files: {_missing_files}")
@@ -94,27 +93,30 @@ def load_feed_from_path(  # noqa: PLR0915
         )
 
     feed_files = {t: f[0] for t, f in feed_possible_files.items()}
-    feed_dfs = {table: _read_table_from_file(table, file, **read_kwargs) for table, file in feed_files.items()}
-    
+    feed_dfs = {
+        table: _read_table_from_file(table, file, **read_kwargs)
+        for table, file in feed_files.items()
+    }
+
     # Create the feed object first
     feed_obj = load_feed_from_dfs(feed_dfs, wrangler_flavored=wrangler_flavored)
     WranglerLogger.debug(f"loaded {type(feed_obj)} from dfs:\n{feed_obj}")
-    
+
     # Apply service_ids filter if provided
     if service_ids_filter is not None:
         feed_obj = filter_feed_by_service_ids(feed_obj, service_ids_filter)
-    
+
     return feed_obj
 
 
 def _read_table_from_file(table: str, file: Path, **kwargs) -> pd.DataFrame:
     """Read a table from a file with support for additional kwargs.
-    
+
     Args:
         table: Name of the table being read (for error messages)
         file: Path to the file to read
         **kwargs: Additional keyword arguments to pass to the appropriate reader
-        
+
     Returns:
         pd.DataFrame: The loaded dataframe
     """
@@ -130,7 +132,7 @@ def _read_table_from_file(table: str, file: Path, **kwargs) -> pd.DataFrame:
         raise FeedReadError(msg) from e
 
 
-def load_feed_from_dfs(feed_dfs: dict, wrangler_flavored: bool = True) -> Union[Feed, GtfsModel]:
+def load_feed_from_dfs(feed_dfs: dict, wrangler_flavored: bool = True) -> Feed | GtfsModel:
     """Create a Feed or GtfsModel object from a dictionary of DataFrames representing a GTFS feed.
 
     Args:
@@ -171,7 +173,7 @@ def load_feed_from_dfs(feed_dfs: dict, wrangler_flavored: bool = True) -> Union[
 
 
 def load_transit(
-    feed: Union[Feed, GtfsModel, dict[str, pd.DataFrame], str, Path],
+    feed: Feed | GtfsModel | dict[str, pd.DataFrame] | str | Path,
     file_format: TransitFileTypes = "txt",
     config: WranglerConfig = DefaultConfig,
 ) -> TransitNetwork:
@@ -207,7 +209,7 @@ def load_transit(
     ```
 
     """
-    if isinstance(feed, (Path, str)):
+    if isinstance(feed, Path | str):
         feed = Path(feed)
         feed_obj = load_feed_from_path(feed, file_format=file_format)
         feed_obj.feed_path = feed
@@ -225,9 +227,9 @@ def load_transit(
 
 
 def write_transit(
-    transit_obj: Union[TransitNetwork, Feed, GtfsModel],
-    out_dir: Union[Path, str] = ".",
-    prefix: Optional[Union[Path, str]] = None,
+    transit_obj: TransitNetwork | Feed | GtfsModel,
+    out_dir: Path | str = ".",
+    prefix: Path | str | None = None,
     file_format: Literal["txt", "csv", "parquet"] = "txt",
     overwrite: bool = True,
 ) -> None:
@@ -248,7 +250,7 @@ def write_transit(
     if isinstance(transit_obj, TransitNetwork):
         data_source = transit_obj.feed
         source_type = "TransitNetwork"
-    elif isinstance(transit_obj, (Feed, GtfsModel)):
+    elif isinstance(transit_obj, Feed | GtfsModel):
         data_source = transit_obj
         source_type = type(transit_obj).__name__
     else:
@@ -271,9 +273,9 @@ def write_transit(
 
 
 def convert_transit_serialization(
-    input_path: Union[str, Path],
+    input_path: str | Path,
     output_format: TransitFileTypes,
-    out_dir: Union[Path, str] = ".",
+    out_dir: Path | str = ".",
     input_file_format: TransitFileTypes = "csv",
     out_prefix: str = "",
     overwrite: bool = True,
@@ -306,7 +308,7 @@ def convert_transit_serialization(
 def write_feed_geo(
     feed: Feed,
     ref_nodes_df: gpd.GeoDataFrame,
-    out_dir: Union[str, Path],
+    out_dir: str | Path,
     file_format: Literal["geojson", "shp", "parquet"] = "geojson",
     out_prefix=None,
     overwrite: bool = True,
@@ -321,7 +323,7 @@ def write_feed_geo(
         out_prefix: prefix to add to the file name
         overwrite: if True, will overwrite the files if they already exist. Defaults to True
     """
-    from .geo import shapes_to_shape_links_gdf  # noqa: PLC0415
+    from .geo import shapes_to_shape_links_gdf
 
     out_dir = Path(out_dir)
     if not out_dir.is_dir():

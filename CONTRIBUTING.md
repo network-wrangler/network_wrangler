@@ -246,6 +246,16 @@ The project is currently governed by representatives of its two major organizati
 - Metropolitan Council (MN)
 - Metropolitan Transportation Commission (California)
 
+## AI-Assisted Contributions
+
+AI-assisted contributions are welcome iff:
+
+- **You own the code**: Only submit code you understand and can explain. Do not paste AI output without reviewing it.
+- **Tests are meaningful**: Any new or AI-generated tests actually validate meaningful behavior — not just satisfy coverage metrics or placate a linter.
+- **AI use is disclosed**: In your pull request, note if and how AI tools were used (e.g., code generation, refactoring, documentation).
+
+Low-quality or poorly-understood contributions will be closed without extended discussion, regardless of how they were produced.
+
 ## Code of Conduct
 
 Contributors to the Network Wrangler Project are expected to read and follow the [CODE_OF_CONDUCT](CODE_OF_CONDUCT.md) for the project.

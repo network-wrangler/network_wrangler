@@ -23,16 +23,15 @@ segment.segment_nodes
 from __future__ import annotations
 
 import copy
-from typing import TYPE_CHECKING, Union
+from typing import TYPE_CHECKING
 
 import numpy as np
 import pandas as pd
-import pyarrow as pa
 from pandera.typing import DataFrame
 
 from ..errors import SegmentFormatError, SegmentSelectionError, SubnetCreationError
 from ..logger import WranglerLogger
-from ..models.projects.roadway_selection import SelectLinksDict, SelectNodeDict
+from ..models.projects.roadway_selection import SelectNodeDict
 from ..params import DEFAULT_SEARCH_MODES
 from .graph import shortest_path
 from .links.filters import filter_links_to_path
@@ -122,11 +121,11 @@ class Segment:
         self.selection = selection
 
         # segment members are identified by storing nodes along a route
-        self._segment_nodes: Union[list, None] = None
+        self._segment_nodes: list | None = None
 
         # Initialize calculated, read-only attr.
-        self._from_node_id: Union[int, None] = None
-        self._to_node_id: Union[int, None] = None
+        self._from_node_id: int | None = None
+        self._to_node_id: int | None = None
 
         self.subnet = self._generate_subnet(self.segment_sel_dict)
 
@@ -396,7 +395,7 @@ def identify_segment_endpoints(
             _links_df,
         )
     )
-    from .network import add_incident_link_data_to_nodes  # noqa: PLC0415
+    from .network import add_incident_link_data_to_nodes
 
     _nodes_df = add_incident_link_data_to_nodes(
         links_df=_links_df,

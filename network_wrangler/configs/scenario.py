@@ -79,16 +79,15 @@ Extended Usage:
 
 from datetime import datetime
 from pathlib import Path
-from typing import Optional, Union
 
 from projectcard.io import _resolve_rel_paths
 
 from ..models._base.types import RoadwayFileTypes, TransitFileTypes
 from .utils import ConfigItem
-from .wrangler import DefaultConfig, WranglerConfig
+from .wrangler import DefaultConfig
 
-ProjectCardFilepath = Union[Path, str]
-ProjectCardFilepaths = Union[Path, list[Path], str, list[str]]
+ProjectCardFilepath = Path | str
+ProjectCardFilepaths = Path | list[Path] | str | list[str]
 
 DEFAULT_SCENARIO_NAME: str = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
@@ -153,8 +152,8 @@ class RoadwayNetworkInputConfig(ConfigItem):
         dir: Path = DEFAULT_ROADWAY_IN_DIR,
         file_format: RoadwayFileTypes = DEFAULT_ROADWAY_IN_FORMAT,
         read_in_shapes: bool = DEFAULT_ROADWAY_SHAPE_READ,
-        boundary_geocode: Optional[str] = None,
-        boundary_file: Optional[Path] = None,
+        boundary_geocode: str | None = None,
+        boundary_file: Path | None = None,
     ):
         """Constructor for RoadwayNetworkInputConfig."""
         if dir is not None and not Path(dir).is_absolute():
@@ -184,7 +183,7 @@ class RoadwayNetworkOutputConfig(ConfigItem):
         out_dir: Path = DEFAULT_ROADWAY_OUT_DIR,
         base_path: Path = DEFAULT_BASE_DIR,
         convert_complex_link_properties_to_single_field: bool = False,
-        prefix: Optional[str] = None,
+        prefix: str | None = None,
         file_format: RoadwayFileTypes = DEFAULT_ROADWAY_OUT_FORMAT,
         true_shape: bool = False,
         write: bool = DEFAULT_ROADWAY_WRITE,
@@ -242,7 +241,7 @@ class TransitNetworkOutputConfig(ConfigItem):
         self,
         base_path: Path = DEFAULT_BASE_DIR,
         out_dir: Path = DEFAULT_TRANSIT_OUT_DIR,
-        prefix: Optional[str] = None,
+        prefix: str | None = None,
         file_format: TransitFileTypes = DEFAULT_TRANSIT_OUT_FORMAT,
         write: bool = DEFAULT_TRANSIT_WRITE,
     ):
@@ -291,21 +290,21 @@ class ScenarioInputConfig(ConfigItem):
     def __init__(
         self,
         base_path: Path = DEFAULT_BASE_DIR,
-        roadway: Optional[dict] = None,
-        transit: Optional[dict] = None,
-        applied_projects: Optional[list[str]] = None,
-        conflicts: Optional[dict] = None,
+        roadway: dict | None = None,
+        transit: dict | None = None,
+        applied_projects: list[str] | None = None,
+        conflicts: dict | None = None,
     ):
         """Constructor for ScenarioInputConfig."""
         if roadway is not None:
-            self.roadway: Optional[RoadwayNetworkInputConfig] = RoadwayNetworkInputConfig(
+            self.roadway: RoadwayNetworkInputConfig | None = RoadwayNetworkInputConfig(
                 **roadway, base_path=base_path
             )
         else:
             self.roadway = None
 
         if transit is not None:
-            self.transit: Optional[TransitNetworkInputConfig] = TransitNetworkInputConfig(
+            self.transit: TransitNetworkInputConfig | None = TransitNetworkInputConfig(
                 **transit, base_path=base_path
             )
         else:
@@ -329,9 +328,9 @@ class ScenarioOutputConfig(ConfigItem):
         self,
         path: Path = DEFAULT_OUTPUT_DIR,
         base_path: Path = DEFAULT_BASE_DIR,
-        roadway: Optional[dict] = None,
-        transit: Optional[dict] = None,
-        project_cards: Optional[dict] = None,
+        roadway: dict | None = None,
+        transit: dict | None = None,
+        project_cards: dict | None = None,
         overwrite: bool = True,
     ):
         """Constructor for ScenarioOutputConfig."""
@@ -346,7 +345,7 @@ class ScenarioOutputConfig(ConfigItem):
         self.transit = TransitNetworkOutputConfig(**transit, base_path=self.path)
 
         if project_cards is not None:
-            self.project_cards: Optional[ProjectCardOutputConfig] = ProjectCardOutputConfig(
+            self.project_cards: ProjectCardOutputConfig | None = ProjectCardOutputConfig(
                 **project_cards, base_path=self.path
             )
         else:

@@ -29,7 +29,7 @@ the models.projects.transit_selection module.
 from __future__ import annotations
 
 import copy
-from typing import TYPE_CHECKING, Union
+from typing import TYPE_CHECKING
 
 from pandera.typing import DataFrame
 
@@ -76,7 +76,7 @@ class TransitSelection:
     def __init__(
         self,
         net: TransitNetwork,
-        selection_dict: Union[dict, SelectTransitTrips],
+        selection_dict: dict | SelectTransitTrips,
     ):
         """Constructor for TransitSelection object.
 
@@ -90,7 +90,7 @@ class TransitSelection:
         # Initialize
         self._selected_trips_df = None
         self.sel_key = dict_to_hexkey(selection_dict)
-        self._stored_feed_hash = copy.deepcopy(self.net.feed.hash)
+        self._stored_feed_version = self.net.feed.modification_version
 
         WranglerLogger.debug(f"...created TransitSelection object: {selection_dict}")
 
@@ -104,10 +104,10 @@ class TransitSelection:
         return self._selection_dict
 
     @selection_dict.setter
-    def selection_dict(self, value: Union[dict, SelectTransitTrips]):
+    def selection_dict(self, value: dict | SelectTransitTrips):
         self._selection_dict = self.validate_selection_dict(value)
 
-    def validate_selection_dict(self, selection_dict: Union[dict, SelectTransitTrips]) -> dict:
+    def validate_selection_dict(self, selection_dict: dict | SelectTransitTrips) -> dict:
         """Check that selection dictionary has valid and used properties consistent with network.
 
         Checks that selection_dict is a valid TransitSelectionDict:
@@ -151,17 +151,19 @@ class TransitSelection:
     def selected_trips_df(self) -> DataFrame[WranglerTripsTable]:
         """Lazily evaluates selection for trips or returns stored value in self._selected_trips_df.
 
-        Will re-evaluate if the current network hash is different than the stored one from the
-        last selection.
+        Will re-evaluate if the current feed modification version is different than the stored
+        one from the last selection.
 
         Returns:
             DataFrame[WranglerTripsTable] of selected trips
         """
-        if (self._selected_trips_df is not None) and self._stored_feed_hash == self.net.feed_hash:
+        if (
+            self._selected_trips_df is not None
+        ) and self._stored_feed_version == self.net.feed.modification_version:
             return self._selected_trips_df
 
         self._selected_trips_df = self._select_trips()
-        self._stored_feed_hash = copy.deepcopy(self.net.feed_hash)
+        self._stored_feed_version = self.net.feed.modification_version
         return self._selected_trips_df
 
     @property
@@ -249,7 +251,7 @@ def _filter_trips_by_selection_dict(
 def _filter_trips_by_links(
     trips_df: DataFrame[WranglerTripsTable],
     shapes_df: DataFrame[WranglerShapesTable],  # noqa: ARG001
-    select_links: Union[SelectTransitLinks, None],
+    select_links: SelectTransitLinks | None,
 ) -> DataFrame[WranglerTripsTable]:
     if select_links is None:
         return trips_df

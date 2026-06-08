@@ -2,11 +2,10 @@
 
 from __future__ import annotations
 
-from typing import Annotated, ClassVar, Optional
+from typing import Annotated, ClassVar
 
 from pydantic import ConfigDict, Field
 
-from ...logger import WranglerLogger
 from ...params import DEFAULT_SEARCH_MODES
 from .._base.records import RecordModel
 from .._base.types import AnyOf, ConflictsWith, OneOf
@@ -22,8 +21,8 @@ class SelectNodeDict(RecordModel):
     require_one_of: ClassVar[OneOf] = [["osm_node_id", "model_node_id"]]
     model_config = ConfigDict(extra="allow")
 
-    osm_node_id: Optional[str] = None
-    model_node_id: Optional[int] = None
+    osm_node_id: str | None = None
+    model_node_id: int | None = None
 
     _examples: ClassVar[list[dict]] = [{"osm_node_id": "12345"}, {"model_node_id": 67890}]
 
@@ -34,10 +33,10 @@ class SelectNodesDict(RecordModel):
     require_any_of: ClassVar[AnyOf] = [["osm_node_id", "model_node_id"]]
     model_config = ConfigDict(extra="forbid")
 
-    all: Optional[bool] = False
-    osm_node_id: Annotated[Optional[list[str]], Field(None, min_length=1)]
-    model_node_id: Annotated[Optional[list[int]], Field(min_length=1)]
-    ignore_missing: Optional[bool] = True
+    all: bool | None = False
+    osm_node_id: Annotated[list[str] | None, Field(None, min_length=1)]
+    model_node_id: Annotated[list[int] | None, Field(min_length=1)]
+    ignore_missing: bool | None = True
 
     _examples: ClassVar[list[dict]] = [
         {"osm_node_id": ["12345", "67890"], "model_node_id": [12345, 67890]},
@@ -73,13 +72,13 @@ class SelectLinksDict(RecordModel):
 
     model_config = ConfigDict(extra="allow")
 
-    all: Optional[bool] = False
-    name: Annotated[Optional[list[str]], Field(None, min_length=1)]
-    ref: Annotated[Optional[list[str]], Field(None, min_length=1)]
-    osm_link_id: Annotated[Optional[list[str]], Field(None, min_length=1)]
-    model_link_id: Annotated[Optional[list[int]], Field(None, min_length=1)]
+    all: bool | None = False
+    name: Annotated[list[str] | None, Field(None, min_length=1)]
+    ref: Annotated[list[str] | None, Field(None, min_length=1)]
+    osm_link_id: Annotated[list[str] | None, Field(None, min_length=1)]
+    model_link_id: Annotated[list[int] | None, Field(None, min_length=1)]
     modes: list[str] = DEFAULT_SEARCH_MODES
-    ignore_missing: Optional[bool] = True
+    ignore_missing: bool | None = True
 
     _examples: ClassVar[list[dict]] = [
         {"name": ["Main St"], "modes": ["drive"]},
@@ -97,10 +96,10 @@ class SelectFacility(RecordModel):
     ]
     model_config = ConfigDict(extra="forbid")
 
-    links: Optional[SelectLinksDict] = None
-    nodes: Optional[SelectNodesDict] = None
-    from_: Annotated[Optional[SelectNodeDict], Field(None, alias="from")]
-    to: Optional[SelectNodeDict] = None
+    links: SelectLinksDict | None = None
+    nodes: SelectNodesDict | None = None
+    from_: Annotated[SelectNodeDict | None, Field(None, alias="from")]
+    to: SelectNodeDict | None = None
 
     _examples: ClassVar[list[dict]] = [
         {

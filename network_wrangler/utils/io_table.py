@@ -6,7 +6,6 @@ import tempfile
 import weakref
 from datetime import datetime
 from pathlib import Path
-from typing import Optional, Union
 
 import geopandas as gpd
 import pandas as pd
@@ -170,7 +169,7 @@ def _restore_geometry_columns(df: Union[pd.DataFrame, gpd.GeoDataFrame]) -> Unio
 
 
 def write_table(
-    df: Union[pd.DataFrame, gpd.GeoDataFrame],
+    df: pd.DataFrame | gpd.GeoDataFrame,
     filename: Path,
     overwrite: bool = False,
     **kwargs,
@@ -204,7 +203,9 @@ def write_table(
         # Convert Pydantic models to dicts for JSON serialization
         df = _prepare_df_for_json(df)
         if isinstance(df, gpd.GeoDataFrame):
-            data = df.to_json(drop_id=True)
+            # Reset index to avoid pandas 3.0/pyarrow compatibility issues with to_json
+            # Since drop_id=True, we don't need the original index anyway
+            data = df.reset_index(drop=True).to_json(drop_id=True)
         else:
             data = df.to_json(orient="records", index=False)
         with filename.open("w", encoding="utf-8") as file:
@@ -218,7 +219,7 @@ def write_table(
 
 
 def _estimate_read_time_of_file(
-    filepath: Union[str, Path], read_speed: dict = DefaultConfig.CPU.EST_PD_READ_SPEED
+    filepath: str | Path, read_speed: dict = DefaultConfig.CPU.EST_PD_READ_SPEED
 ) -> str:
     """Estimates read time in seconds based on a given file size and speed factor.
 
@@ -237,12 +238,12 @@ def _estimate_read_time_of_file(
 
 def read_table(
     filename: Path,
-    sub_filename: Optional[str] = None,
-    boundary_gdf: Optional[gpd.GeoDataFrame] = None,
-    boundary_geocode: Optional[str] = None,
-    boundary_file: Optional[Path] = None,
+    sub_filename: str | None = None,
+    boundary_gdf: gpd.GeoDataFrame | None = None,
+    boundary_geocode: str | None = None,
+    boundary_file: Path | None = None,
     read_speed: dict = DefaultConfig.CPU.EST_PD_READ_SPEED,
-) -> Union[pd.DataFrame, gpd.GeoDataFrame]:
+) -> pd.DataFrame | gpd.GeoDataFrame:
     """Read file and return a dataframe or geodataframe.
 
     If filename is a zip file, will unzip to a temporary directory.
@@ -323,7 +324,7 @@ def read_table(
     return df
 
 
-def _read_parquet_table(filename, mask_gdf) -> Union[gpd.GeoDataFrame, pd.DataFrame]:
+def _read_parquet_table(filename, mask_gdf) -> gpd.GeoDataFrame | pd.DataFrame:
     """Read a parquet file and filter to a bounding box if provided.
 
     Converts numpy arrays to lists.
@@ -359,11 +360,11 @@ def convert_file_serialization(
     input_file: Path,
     output_file: Path,
     overwrite: bool = True,
-    boundary_gdf: Optional[gpd.GeoDataFrame] = None,
-    boundary_geocode: Optional[str] = None,
-    boundary_file: Optional[Path] = None,
-    node_filter_s: Optional[pd.Series] = None,
-    chunk_size: Optional[int] = None,
+    boundary_gdf: gpd.GeoDataFrame | None = None,
+    boundary_geocode: str | None = None,
+    boundary_file: Path | None = None,
+    node_filter_s: pd.Series | None = None,
+    chunk_size: int | None = None,
 ):
     """Convert a file serialization format to another and optionally filter to a boundary.
 
@@ -437,7 +438,7 @@ def _estimate_bytes_per_json_object(json_path: Path) -> float:
     return total_size / len(json_objects)
 
 
-def _suggest_json_chunk_size(json_path: Path, memory_fraction: float = 0.6) -> Union[None, int]:
+def _suggest_json_chunk_size(json_path: Path, memory_fraction: float = 0.6) -> int | None:
     """Ascertain if a file should be processed in chunks and how large the chunks should be in mb.
 
     Args:
@@ -460,8 +461,8 @@ def _suggest_json_chunk_size(json_path: Path, memory_fraction: float = 0.6) -> U
 def _append_parquet_table(
     new_data: pd.DataFrame,
     file_counter=1,
-    base_filename: Optional[str] = None,
-    directory: Optional[Path] = None,
+    base_filename: str | None = None,
+    directory: Path | None = None,
 ) -> Path:
     """Append new data to a Parquet dataset directory.
 
@@ -477,8 +478,8 @@ def _append_parquet_table(
     Returns:
         Path: The path to the output directory.
     """
-    import pyarrow as pa  # noqa: PLC0415
-    import pyarrow.parquet as pq  # noqa: PLC0415
+    import pyarrow as pa
+    import pyarrow.parquet as pq
 
     if directory is None:
         temp_dir = tempfile.mkdtemp()
@@ -505,12 +506,12 @@ def _json_to_parquet_in_chunks(input_file: Path, output_file: Path, chunk_size: 
         chunk_size: Number of JSON objects to process in each chunk.
     """
     try:
-        import ijson  # noqa: PLC0415
+        import ijson
     except ModuleNotFoundError as err:
         msg = "ijson is required for chunked JSON processing."
         raise ModuleNotFoundError(msg) from err
 
-    import pyarrow.parquet as pq  # noqa: PLC0415
+    import pyarrow.parquet as pq
 
     base_filename = Path(output_file).stem
     directory = None

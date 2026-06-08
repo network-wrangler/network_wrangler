@@ -1,33 +1,70 @@
-name: Clean Docs for Deleted References
+name: Clean Documentation Versions
+
 on:
   delete:
+    # Triggers when a branch or tag is deleted
+  pull_request:
+    types: [closed]
+    # Triggers when a PR is closed (merged or unmerged)
+
+concurrency:
+  # Group by workflow and event to avoid duplicate runs for the same event
+  group: ${{ github.workflow }}-${{ github.event_name }}-${{ github.event.ref || github.event.pull_request.number || github.sha }}
+  cancel-in-progress: false
 
 jobs:
-  build:
+  delete-docs:
+    name: Delete documentation version
     runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        python-version: [3.8]
+    # Delete docs for any closed PR (merged or not) or deleted branches
+    # Closed PRs don't need docs since the branch is likely being deleted
 
     steps:
-    - uses: actions/checkout@v2
-      with:
-        fetch-depth: 0
-    - name: Document branch deleting
-      run: echo ${{ github.ref_name }}
-    - name: Set up Python ${{ matrix.python-version }}
-      uses: actions/setup-python@v2
-      with:
-        python-version: ${{ matrix.python-version }}
-    - name: Install mike
-      run: |
-        python -m pip install --upgrade pip
-        pip install mike
-    - name: Configure Git user
-      run: |
-        git config --local user.email "github-actions[bot]@users.noreply.github.com"
-        git config --local user.name "github-actions[bot]"
-    - name: Delete defunct docs versions
-      run: |
-        echo "Deleting ${{ github.event.ref_name }} version from docs"
-        mike delete --rebase --push ${{ github.event.ref_name }}
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Python with UV
+        uses: ./.github/actions/setup-python-uv
+        with:
+          python-version: "3.13"
+
+      - name: Configure Git user
+        run: |
+          git config --local user.email "github-actions[bot]@users.noreply.github.com"
+          git config --local user.name "github-actions[bot]"
+        shell: bash
+
+      - name: Install dependencies
+        run: |
+          uv pip install --system -e .[docs]
+        shell: bash
+
+      - name: Get branch name
+        id: branch
+        uses: ./.github/actions/get-branch-name
+
+      - name: Delete documentation version
+        continue-on-error: true
+        run: |
+          BRANCH_NAME="${{ steps.branch.outputs.branch-name }}"
+          echo "Event type: ${{ github.event_name }}"
+          echo "Deleting documentation version for branch: $BRANCH_NAME"
+          
+          # Skip deletion for main and develop branches
+          if [ "$BRANCH_NAME" = "main" ] || [ "$BRANCH_NAME" = "develop" ]; then
+            echo "Skipping deletion for protected branch: $BRANCH_NAME"
+            exit 0
+          fi
+          
+          # Check if version exists before trying to delete
+          echo "Checking if documentation version exists..."
+          if mike list | grep -q "^$BRANCH_NAME$"; then
+            echo "Version $BRANCH_NAME exists, attempting to delete..."
+            mike delete --rebase --push "$BRANCH_NAME"
+            echo "Successfully deleted documentation version: $BRANCH_NAME"
+          else
+            echo "Version $BRANCH_NAME does not exist in documentation, nothing to delete"
+          fi
+        shell: bash

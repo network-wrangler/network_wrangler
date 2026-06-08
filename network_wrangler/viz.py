@@ -9,10 +9,8 @@ Example usage:
 import os
 import subprocess
 from pathlib import Path
-from typing import Optional, Union
 
 import geopandas as gpd
-import pyarrow as pa
 
 from .logger import WranglerLogger
 from .roadway.network import RoadwayNetwork
@@ -24,8 +22,8 @@ class MissingMapboxTokenError(Exception):
 
 
 def net_to_mapbox(
-    roadway: Optional[Union[RoadwayNetwork, gpd.GeoDataFrame, str, Path]] = None,
-    transit: Optional[Union[TransitNetwork, gpd.GeoDataFrame]] = None,
+    roadway: RoadwayNetwork | gpd.GeoDataFrame | str | Path | None = None,
+    transit: TransitNetwork | gpd.GeoDataFrame | None = None,
     roadway_geojson_out: Path = Path("roadway_shapes.geojson"),
     transit_geojson_out: Path = Path("transit_shapes.geojson"),
     mbtiles_out: Path = Path("network.mbtiles"),

@@ -6,9 +6,9 @@ build-backend = "setuptools.build_meta"
 name = "network-wrangler"
 dynamic = ["version"]
 description = ""
-license =  {file = "LICENSE"}
+license = "Apache-2.0"
 readme = "README.md"
-requires-python = ">=3.9"
+requires-python = ">=3.10"
 authors = [
     { name = "Elizabeth Sall", email = "elizabeth@urbanlabs.io" },
     { name = "Sijia Wang", email = "Sijia.Wang@wsp.com"},
@@ -17,21 +17,24 @@ authors = [
 ]
 classifiers = [
     "Development Status :: 1 - Planning",
-    "License :: OSI Approved :: Apache Software License",
     "Natural Language :: English",
     "Operating System :: OS Independent",
     "Programming Language :: Python",
     "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
 ]
 dependencies = [
     "fiona>=1.10.1",
     "geographiclib>=2.0",
     "geojson>=3.1.0",
-    "geopandas>=1.0.1",
+    "geopandas>=1.1.2",
     "ijson>=3.3.0",
     "osmnx>=1.9.3",
     "pandas>=2.2.3",
-    "pandera[pandas,geopandas]>=0.24.0",
+    "pandera[pandas]>=0.29.0",
     "projectcard>=0.3.3",
     "psutil>=6.0.0",
     "pyarrow>=17.0.0",
@@ -50,7 +53,7 @@ viz = [
 docs = [
     "fontawesome_markdown",
     "jupyter",
-    "markdown == 3.3.1",
+    "markdown>=3.4.0,<4.0",  # 3.4.0+ supports new EntryPoints API
     "mike",
     "mkdocs",
     "mkdocs-autorefs",
@@ -80,8 +83,10 @@ tests = [
 ]
 
 
+[tool.setuptools.packages.find]
+where = ["."]
+
 [tool.setuptools]
-packages = ["network_wrangler"]
 script-files = [
     "network_wrangler/bin/clip_roadway.py",
     "network_wrangler/bin/clip_transit.py",
@@ -113,9 +118,7 @@ source = ["network_wrangler"]
 
 [tool.mypy]
 files = "network_wrangler"
-python_version = "3.9"
-namespace_packages = true
-explicit_package_bases = true
+python_version = "3.10"
 follow_imports = "skip"
 show_error_codes = true
 show_error_context = true
@@ -132,12 +135,9 @@ exclude = ["notebook/*.ipynb"]
 select = ["D"]
 ignore = [
     "RET504",  # Unnecessary assignment  before `return` statement
-    "UP007", # non pep-604 annotations.
+    "PLC0415", # `import` should be at the top-level (intentional lazy imports to avoid circular deps)
     "C416", # non pep-604 annotations.
-    "UP007", # non pep-604 annotations.
     "PLR0913", # too many args
-    "UP045", # Use `X | None` for type annotations
-    "UP006", # Use `list` instead of `List` for type annotation
 ]
 extend-select = [
   "B",           # flake8-bugbear

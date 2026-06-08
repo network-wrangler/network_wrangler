@@ -23,14 +23,15 @@ def test_invalid_field_value_set(request, small_transit_net):
     with pytest.raises(TypeError):
         feed.stops.loc[0, "wheelchair_boarding"] = 9999
 
-    # Should fail to be coerced
+    # Should fail to be coerced - add optional column with invalid string value
     _new_stop_times = copy.deepcopy(feed.stop_times)
-    _new_stop_times.loc[3, "shape_dist_traveled"] = "abc"
+    _new_stop_times["shape_dist_traveled"] = "abc"  # Invalid string for float column
     with pytest.raises(TableValidationError):
         feed.stop_times = _new_stop_times
 
-    # Should fail to be coerced
+    # Should fail to be coerced - create with object dtype to allow string value
     _new_stop_times = copy.deepcopy(feed.stop_times)
+    _new_stop_times["arrival_time"] = _new_stop_times["arrival_time"].astype(object)
     _new_stop_times.loc[4, "arrival_time"] = "123"
     with pytest.raises(TableValidationError):
         feed.stop_times = _new_stop_times
@@ -53,13 +54,15 @@ def test_valid_field_value_set(request, small_transit_net):
     net = copy.deepcopy(small_transit_net)
     feed = net.feed
 
-    # Should be coerced
+    # Should be coerced - convert column to object dtype to allow string value assignment
     _new_stop_times = copy.deepcopy(feed.stop_times)
+    _new_stop_times["stop_sequence"] = _new_stop_times["stop_sequence"].astype(object)
     _new_stop_times.loc[0, "stop_sequence"] = "1"
     feed.stop_times = _new_stop_times
     assert feed.stop_times.loc[0, "stop_sequence"] == 1
 
     _new_stop_times = copy.deepcopy(feed.stop_times)
+    _new_stop_times["arrival_time"] = _new_stop_times["arrival_time"].astype(object)
     _new_stop_times.loc[1, "arrival_time"] = "12:00:00"
     feed.stop_times = _new_stop_times
     assert feed.stop_times.loc[1, "arrival_time"] == pd.Timestamp("12:00:00")

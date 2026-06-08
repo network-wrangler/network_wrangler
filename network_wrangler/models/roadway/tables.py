@@ -14,19 +14,16 @@ Includes:
 from __future__ import annotations
 
 import datetime as dt
-from typing import Any, ClassVar, Optional
+from typing import Any, ClassVar
 
-import numpy as np
 import pandas as pd
 import pandera as pa
 from pandas import Int64Dtype as Int64
-from pandera import Field
-from pandera.api.pandas.model import DataFrameModel
+from pandera import DataFrameModel, Field
 from pandera.typing import Series
 from pandera.typing.geopandas import GeoSeries
 
-from ...logger import WranglerLogger
-from .._base.db import TableForeignKeys, TablePrimaryKeys
+from .._base.db import TablePrimaryKeys
 from .._base.tables import validate_pyd
 from .types import ScopedLinkValueList
 
@@ -53,7 +50,6 @@ class RoadLinksTable(DataFrameModel):
         name (str): Name of the link.
         rail_only (bool): If the link is only for rail. Default is False.
         bus_only (bool): If the link is only for buses. Default is False.
-        ferry_only (bool): If the link is only for ferry. Default is False.
         drive_access (bool): If the link allows driving. Default is True.
         bike_access (bool): If the link allows biking. Default is True.
         walk_access (bool): If the link allows walking. Default is True.
@@ -72,38 +68,39 @@ class RoadLinksTable(DataFrameModel):
             - -1 indicates that there is a parallel managed lane derived from this link (model network).
         shape_id (str): Identifier referencing the primary key of the shapes table. Default is None.
         lanes (int): Default number of lanes on the link. Default is 1.
-        sc_lanes (Optional[list[dict]]: List of scoped link values for the number of lanes. Default is None.
+        sc_lanes (list[dict] | None): List of scoped link values for the number of lanes. Default is None.
             Example: `[{'timespan':['12:00':'15:00'], 'value': 3},{'timespan':['15:00':'19:00'], 'value': 2}]`.
 
         price (float): Default price to use the link. Default is 0.
-        sc_price (Optional[list[dict]]): List of scoped link values for the price. Default is None.
+        sc_price (list[dict] | None): List of scoped link values for the price. Default is None.
             Example: `[{'timespan':['15:00':'19:00'],'category': 'sov', 'value': 2.5}]`.
-        ref (Optional[str]): Reference numbers for link referring to a route or exit number per the
+        ref (str | None): Reference numbers for link referring to a route or exit number per the
             [OSM definition](https://wiki.openstreetmap.org/wiki/Key:ref). Default is None.
-        access (Optional[Any]): User-defined method to note access restrictions for the link. Default is None.
-        ML_projects (Optional[str]): **Warning**: this attribute is controlled by wrangler and should not be explicitly user-edited.
+        access (Any | None): User-defined method to note access restrictions for the link. Default is None.
+        ML_projects (str | None): **Warning**: this attribute is controlled by wrangler and should not be explicitly user-edited.
             Comma-separated list of project names applied to the managed lane. Default is "".
-        ML_lanes (Optional[int]): Default number of lanes on the managed lane. Default is None.
-        ML_price (Optional[float]): Default price to use the managed lane. Default is 0.
-        ML_access (Optional[Any]): User-defined method to note access restrictions for the managed lane. Default is None.
-        ML_access_point (Optional[bool]): If the link is an access point for the managed lane. Default is False.
-        ML_egress_point (Optional[bool]): If the link is an egress point for the managed lane. Default is False.
-        sc_ML_lanes (Optional[list[dict]]): List of scoped link values for the number of lanes on the managed lane.
+        ML_lanes (int | None): Default number of lanes on the managed lane. Default is None.
+        ML_price (float | None): Default price to use the managed lane. Default is 0.
+        ML_access (Any | None): User-defined method to note access restrictions for the managed lane. Default is None.
+        ML_access_point (bool | None): If the link is an access point for the managed lane. Default is False.
+        ML_egress_point (bool | None): If the link is an egress point for the managed lane. Default is False.
+        sc_ML_lanes (list[dict] | None): List of scoped link values for the number of lanes on the managed lane.
             Default is None.
-        sc_ML_price (Optional[list[dict]]): List of scoped link values for the price of the managed lane. Default is None.
-        sc_ML_access (Optional[list[dict]]): List of scoped link values for the access restrictions of the managed lane.
+        sc_ML_price (list[dict] | None): List of scoped link values for the price of the managed lane. Default is None.
+        sc_ML_access (list[dict] | None): List of scoped link values for the access restrictions of the managed lane.
             Default is None.
-        ML_geometry (Optional[GeoSeries]): **Warning**: this attribute is controlled by wrangler and should not be explicitly user-edited.
+        ML_geometry (GeoSeries | None): **Warning**: this attribute is controlled by wrangler and should not be explicitly user-edited.
             Simple A-->B geometry of the managed lane. Default is None.
-        ML_shape_id (Optional[str]): Identifier referencing the primary key of the shapes table for the managed lane.
+        ML_shape_id (str | None): Identifier referencing the primary key of the shapes table for the managed lane.
             Default is None.
-        osm_link_id (Optional[str]): Identifier referencing the OSM link ID. Default is "".
-        GP_A (Optional[int]): **Warning**: this attribute is controlled by wrangler and should not be explicitly user-edited.
+        osm_link_id (str | None): Identifier referencing the OSM link ID. Default is "".
+        GP_A (int | None): **Warning**: this attribute is controlled by wrangler and should not be explicitly user-edited.
             Identifier referencing the primary key of the associated general purpose link start node for
             a managed lane link in a model network. Default is None.
-        GP_B (Optional[int]): **Warning**: this attribute is controlled by wrangler and should not be explicitly user-edited.
+        GP_B (int | None): **Warning**: this attribute is controlled by wrangler and should not be explicitly user-edited.
             Identifier referencing the primary key of the associated general purpose link end node for
             a managed lane link in a model network. Default is None.
+        GP_B (int | None): **Warning**: this attribute is controlled by wrangler and should not be explicitly user-edited.
 
     !!! tip "User Defined Properties"
 
@@ -139,7 +136,7 @@ class RoadLinksTable(DataFrameModel):
     | Time- and/or category-dependent value for managed lane | `sc_ML_lanes` | `sc_ML_price` |
 
 
-    !!! note "previous format for scoped properties"
+    ??? note "previous format for scoped properties"
 
         Some previous tooling was developed around a previous method for serializing scoped properties.  In order to retain compatability with this format:
 
@@ -229,14 +226,13 @@ class RoadLinksTable(DataFrameModel):
     """
 
     model_link_id: Series[int] = Field(coerce=True, unique=True)
-    model_link_id_idx: Optional[Series[int]] = Field(coerce=True, unique=True)
+    model_link_id_idx: Series[int] | None = Field(coerce=True, unique=True)
     A: Series[int] = Field(nullable=False, coerce=True)
     B: Series[int] = Field(nullable=False, coerce=True)
     geometry: GeoSeries = Field(nullable=False)
     name: Series[str] = Field(nullable=False, default="unknown")
     rail_only: Series[bool] = Field(coerce=True, nullable=False, default=False)
     bus_only: Series[bool] = Field(coerce=True, nullable=False, default=False)
-    ferry_only: Series[bool] = Field(coerce=True, nullable=False, default=False)
     drive_access: Series[bool] = Field(coerce=True, nullable=False, default=True)
     bike_access: Series[bool] = Field(coerce=True, nullable=False, default=True)
     walk_access: Series[bool] = Field(coerce=True, nullable=False, default=True)
@@ -251,54 +247,54 @@ class RoadLinksTable(DataFrameModel):
     price: Series[float] = Field(coerce=True, nullable=False, default=0)
 
     # Optional Fields
-    ref: Optional[Series[str]] = Field(coerce=True, nullable=True, default=None)
-    access: Optional[Series[Any]] = Field(coerce=True, nullable=True, default=None)
+    ref: Series[str] | None = Field(coerce=True, nullable=True, default=None)
+    access: Series[Any] | None = Field(coerce=True, nullable=True, default=None)
 
-    sc_lanes: Optional[Series[object]] = Field(coerce=True, nullable=True, default=None)
-    sc_price: Optional[Series[object]] = Field(coerce=True, nullable=True, default=None)
+    sc_lanes: Series[object] | None = Field(coerce=True, nullable=True, default=None)
+    sc_price: Series[object] | None = Field(coerce=True, nullable=True, default=None)
 
     ML_projects: Series[str] = Field(coerce=True, default="")
-    ML_lanes: Optional[Series[Int64]] = Field(coerce=True, nullable=True, default=None)
-    ML_price: Optional[Series[float]] = Field(coerce=True, nullable=True, default=0)
-    ML_access: Optional[Series[Any]] = Field(coerce=True, nullable=True, default=None)
-    ML_access_point: Optional[Series[bool]] = Field(
+    ML_lanes: Series[Int64] | None = Field(coerce=True, nullable=True, default=None)
+    ML_price: Series[float] | None = Field(coerce=True, nullable=True, default=0)
+    ML_access: Series[Any] | None = Field(coerce=True, nullable=True, default=True)
+    ML_access_point: Series[bool] | None = Field(
         coerce=True,
         default=False,
     )
-    ML_egress_point: Optional[Series[bool]] = Field(
+    ML_egress_point: Series[bool] | None = Field(
         coerce=True,
         default=False,
     )
-    sc_ML_lanes: Optional[Series[object]] = Field(
+    sc_ML_lanes: Series[object] | None = Field(
         coerce=True,
         nullable=True,
         default=None,
     )
-    sc_ML_price: Optional[Series[object]] = Field(
+    sc_ML_price: Series[object] | None = Field(
         coerce=True,
         nullable=True,
         default=None,
     )
-    sc_ML_access: Optional[Series[object]] = Field(
+    sc_ML_access: Series[object] | None = Field(
         coerce=True,
         nullable=True,
         default=None,
     )
 
-    ML_geometry: Optional[GeoSeries] = Field(nullable=True, coerce=True, default=None)
-    ML_shape_id: Optional[Series[str]] = Field(nullable=True, coerce=True, default=None)
+    ML_geometry: GeoSeries | None = Field(nullable=True, coerce=True, default=None)
+    ML_shape_id: Series[str] | None = Field(nullable=True, coerce=True, default=None)
 
-    truck_access: Optional[Series[bool]] = Field(coerce=True, nullable=True, default=True)
+    truck_access: Series[bool] | None = Field(coerce=True, nullable=True, default=True)
     osm_link_id: Series[str] = Field(coerce=True, nullable=True, default="")
     # todo this should be List[dict] but ranch output something else so had to have it be Any.
-    locationReferences: Optional[Series[Any]] = Field(
+    locationReferences: Series[Any] | None = Field(
         coerce=True,
         nullable=True,
         default="",
     )
 
-    GP_A: Optional[Series[Int64]] = Field(coerce=True, nullable=True, default=None)
-    GP_B: Optional[Series[Int64]] = Field(coerce=True, nullable=True, default=None)
+    GP_A: Series[Int64] | None = Field(coerce=True, nullable=True, default=None)
+    GP_B: Series[Int64] | None = Field(coerce=True, nullable=True, default=None)
 
     class Config:
         """Config for RoadLinksTable."""
@@ -331,20 +327,20 @@ RoadNodesAttrs = {
 
 
 class RoadNodesTable(DataFrameModel):
-    """Datamodel used to validate if nodes_df is of correct format and types.
+    """Datamodel used to validate if links_df is of correct format and types.
 
     Must have a record for each node used by the `links` table and by the transit `shapes`, `stop_times`, and `stops` tables.
 
     Attributes:
         model_node_id (int): Unique identifier for the node.
-        osm_node_id (Optional[str]): Reference to open street map node id. Used for querying. Not guaranteed to be unique.
+        osm_node_id (str | None): Reference to open street map node id. Used for querying. Not guaranteed to be unique.
         X (float): Longitude of the node in WGS84. Must be in the range of -180 to 180.
         Y (float): Latitude of the node in WGS84. Must be in the range of -90 to 90.
         geometry (GeoSeries): **Warning**: this attribute is controlled by wrangler and should not be explicitly user-edited.
     """
 
     model_node_id: Series[int] = Field(coerce=True, unique=True, nullable=False)
-    model_node_idx: Optional[Series[int]] = Field(coerce=True, unique=True, nullable=False)
+    model_node_idx: Series[int] | None = Field(coerce=True, unique=True, nullable=False)
     X: Series[float] = Field(coerce=True, nullable=False)
     Y: Series[float] = Field(coerce=True, nullable=False)
     geometry: GeoSeries
@@ -356,8 +352,8 @@ class RoadNodesTable(DataFrameModel):
         default="",
     )
     projects: Series[str] = Field(coerce=True, default="")
-    inboundReferenceIds: Optional[Series[list[str]]] = Field(coerce=True, nullable=True)
-    outboundReferenceIds: Optional[Series[list[str]]] = Field(coerce=True, nullable=True)
+    inboundReferenceIds: Series[list[str]] | None = Field(coerce=True, nullable=True)
+    outboundReferenceIds: Series[list[str]] | None = Field(coerce=True, nullable=True)
 
     class Config:
         """Config for RoadNodesTable."""
@@ -387,15 +383,15 @@ class RoadShapesTable(DataFrameModel):
         shape_id (str): Unique identifier for the shape.
         geometry (GeoSeries): **Warning**: this attribute is controlled by wrangler and should not be explicitly user-edited.
             Geometry of the shape.
-        ref_shape_id (Optional[str]): Reference to another `shape_id` that it may
+        ref_shape_id (str | None): Reference to another `shape_id` that it may
             have been created from. Default is None.
     """
 
     shape_id: Series[str] = Field(unique=True)
-    shape_id_idx: Optional[Series[int]] = Field(unique=True)
+    shape_id_idx: Series[int] | None = Field(unique=True)
 
     geometry: GeoSeries = Field()
-    ref_shape_id: Optional[Series] = Field(nullable=True)
+    ref_shape_id: Series | None = Field(nullable=True)
 
     class Config:
         """Config for RoadShapesTable."""

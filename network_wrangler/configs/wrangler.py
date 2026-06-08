@@ -267,11 +267,11 @@ class WranglerConfig(ConfigItem):
         EDITS: Parameters governing how edits are handled.
     """
 
-    IDS: IdGenerationConfig = field(default_factory=IdGenerationConfig)
-    MODEL_ROADWAY: ModelRoadwayConfig = field(default_factory=ModelRoadwayConfig)
-    TRANSIT: TransitConfig = field(default_factory=TransitConfig)
-    CPU: CpuConfig = field(default_factory=CpuConfig)
-    EDITS: EditsConfig = field(default_factory=EditsConfig)
+    IDS: IdGenerationConfig = Field(default_factory=IdGenerationConfig)
+    MODEL_ROADWAY: ModelRoadwayConfig = Field(default_factory=ModelRoadwayConfig)
+    TRANSIT: TransitConfig = Field(default_factory=TransitConfig)
+    CPU: CpuConfig = Field(default_factory=CpuConfig)
+    EDITS: EditsConfig = Field(default_factory=EditsConfig)
 
 
 DefaultConfig = WranglerConfig()

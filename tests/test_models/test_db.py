@@ -14,6 +14,12 @@ class MockTableModel_A(DataFrameModel):
     A_ID: int
     name: str
 
+    class Config:
+        coerce = True
+
+    class Config:
+        coerce = True
+
 
 class MockTableModel_B(DataFrameModel):
     B_ID: int

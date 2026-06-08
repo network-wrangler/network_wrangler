@@ -2,9 +2,6 @@
 
 from __future__ import annotations
 
-from typing import Union
-
-import pyarrow as pa
 from pandera.typing import DataFrame
 
 from ...logger import WranglerLogger
@@ -31,7 +28,7 @@ def stop_id_pattern_for_trip(
             "pickup_only": only pickup > 0
             "dropoff_only": only dropoff > 0
     """
-    from .stop_times import stop_times_for_pickup_dropoff_trip_id  # noqa: PLC0415
+    from .stop_times import stop_times_for_pickup_dropoff_trip_id
 
     trip_stops = stop_times_for_pickup_dropoff_trip_id(
         stop_times, trip_id, pickup_dropoff=pickup_dropoff
@@ -66,10 +63,10 @@ def stops_for_trip_id(
 def node_is_stop(
     stops: DataFrame[WranglerStopsTable],
     stop_times: DataFrame[WranglerStopTimesTable],
-    node_id: Union[int, list[int]],
+    node_id: int | list[int],
     trip_id: str,
     pickup_dropoff: PickupDropoffAvailability = "either",
-) -> Union[bool, list[bool]]:
+) -> bool | list[bool]:
     """Returns boolean indicating if a (or list of) node(s)) is (are) stops for a given trip_id.
 
     Args:

@@ -2,8 +2,9 @@
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from pathlib import Path
-from typing import Callable, ClassVar, Literal, Optional
+from typing import ClassVar, Literal
 
 import geopandas as gpd
 import pandas as pd
@@ -105,14 +106,15 @@ class Feed(DBModelMixin):
 
     @property
     def summary(self) -> dict:
-        """A high level summary of the GTFS model object and public attributes"""
-
+        """A high level summary of the GTFS model object and public attributes."""
         summary_dict = {}
         for table_name in self._table_models:
             if hasattr(self, table_name):
                 table = getattr(self, table_name)
                 table_type = type(table)
-                summary_dict[table_name] = f"{len(getattr(self, table_name)):,} {table_name} (type={table_type})"
+                summary_dict[table_name] = (
+                    f"{len(getattr(self, table_name)):,} {table_name} (type={table_type})"
+                )
             else:
                 summary_dict[table_name] = "not set"
 
@@ -122,7 +124,7 @@ class Feed(DBModelMixin):
         """Return a string representation of the Feed with table summaries."""
         lines = ["Feed (Wrangler GTFS):"]
 
-        for k,v in self.summary.items():
+        for k, v in self.summary.items():
             lines.append(f"  {k}: {v}")
 
         # Add note about model_node_ids if stops have them
@@ -138,7 +140,7 @@ class Feed(DBModelMixin):
         table_name: str,
         set_df: pd.DataFrame,
         id_property: str = "index",
-        properties: Optional[list[str]] = None,
+        properties: list[str] | None = None,
     ):
         """Set one or more property values based on an ID property for a given table.
 

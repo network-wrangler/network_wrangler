@@ -473,7 +473,7 @@ def test_segment_series_by_list(request):
     )
 
     calc_answer = segment_data_by_selection(item_list, s)
-    for calc, exp in zip(calc_answer, exp_answer):
+    for calc, exp in zip(calc_answer, exp_answer, strict=False):
         WranglerLogger.debug(f"\ncalc: \n{calc}")
         WranglerLogger.debug(f"\nexp: \n{exp}")
         tm.assert_series_equal(calc, exp)
@@ -488,7 +488,7 @@ def test_segment_df_by_list(request):
     exp_answer = ([1], [2, 3, 4, 3], [2, 5])
 
     calc_answer = segment_data_by_selection(item_list, s, field="mynodes")
-    for calc, exp in zip(calc_answer, exp_answer):
+    for calc, exp in zip(calc_answer, exp_answer, strict=False):
         # WranglerLogger.debug(f"\ncalc:\n{calc['mynodes']}")
         # WranglerLogger.debug(f"\nexp:\n{exp}")
         assert exp == calc["mynodes"].to_list()

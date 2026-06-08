@@ -184,7 +184,9 @@ answer_selected_links = [
 ]
 
 
-@pytest.mark.parametrize(("selection", "answer"), zip(TEST_SELECTIONS, answer_selected_links))
+@pytest.mark.parametrize(
+    ("selection", "answer"), zip(TEST_SELECTIONS, answer_selected_links, strict=False)
+)
 def test_select_roadway_features(request, selection, answer, stpaul_net):
     WranglerLogger.info(f"--Starting: {request.node.name}")
     net = stpaul_net
@@ -297,6 +299,8 @@ def test_get_modal_network(request, stpaul_net):
 
     control_links_of_selection = []
     for m in MODES_TO_NETWORK_LINK_VARIABLES[mode]:
+        if m not in net.links_df.columns:
+            continue
         control_links_of_selection.extend(net.links_df.loc[net.links_df[m], "model_link_id"])
     WranglerLogger.debug(f"CONTROL - Number of selected links: {len(control_links_of_selection)}")
 

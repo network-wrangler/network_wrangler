@@ -2,9 +2,7 @@
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Optional, Union
-
-import pandas as pd
+from typing import TYPE_CHECKING
 
 from ...logger import WranglerLogger
 from ...models.projects.roadway_changes import RoadwayDeletion
@@ -16,8 +14,8 @@ if TYPE_CHECKING:
 
 def apply_roadway_deletion(
     roadway_net: RoadwayNetwork,
-    roadway_deletion: Union[dict, RoadwayDeletion],
-    transit_net: Optional[TransitNetwork] = None,
+    roadway_deletion: dict | RoadwayDeletion,
+    transit_net: TransitNetwork | None = None,
 ) -> RoadwayNetwork:
     """Delete the roadway links or nodes defined in the project card.
 

@@ -1,5 +1,4 @@
 from enum import Enum
-from typing import Any
 
 import pandas as pd
 from pandera.extensions import register_check_method

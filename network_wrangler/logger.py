@@ -1,11 +1,9 @@
 """Logging utilities for Network Wrangler."""
 
 import logging
-import os
 import sys
 from datetime import datetime
 from pathlib import Path
-from typing import Optional
 
 WranglerLogger = logging.getLogger("WranglerLogger")
 
@@ -55,8 +53,8 @@ class SafeFileHandler(logging.FileHandler):
 
 
 def setup_logging(
-    info_log_filename: Optional[Path] = None,
-    debug_log_filename: Optional[Path] = None,
+    info_log_filename: Path | None = None,
+    debug_log_filename: Path | None = None,
     std_out_level: str = "info",
     file_mode: str = "a",
 ):

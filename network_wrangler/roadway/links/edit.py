@@ -24,7 +24,7 @@ links_df = edit_link_geometry_from_nodes(links_df, nodes_df, node_ids)
 from __future__ import annotations
 
 import copy
-from typing import Any, Literal, Optional, Union
+from typing import Any, Literal
 
 import geopandas as gpd
 import numpy as np
@@ -97,7 +97,7 @@ def _resolve_conflicting_scopes(
 
 
 def _valid_default_value_for_change(value: Any) -> bool:
-    if isinstance(value, (int, np.integer)):
+    if isinstance(value, int | np.integer):
         return True
     return bool(isinstance(value, float))
 
@@ -132,7 +132,7 @@ def _update_property_for_scope(
 
 @validate_call(config={"arbitrary_types_allowed": True}, validate_return=True)
 def _edit_scoped_link_property(
-    scoped_prop_value_list: Union[None, list[ScopedLinkValueItem]],
+    scoped_prop_value_list: None | list[ScopedLinkValueItem],
     scoped_prop_set: ScopedPropertySetList,
     default_value: Any = None,
     overwrite_scoped: Literal["conflicting", "all", "error"] = "error",
@@ -234,7 +234,7 @@ def _edit_link_property(
     link_idx: list[int],
     prop_name: str,
     prop_change: dict,
-    project_name: Optional[str] = None,
+    project_name: str | None = None,
     config: WranglerConfig = DefaultConfig,
 ) -> DataFrame[RoadLinksTable]:
     """Return edited (in place) RoadLinksTable with property changes for a list of links.
@@ -279,7 +279,12 @@ def _edit_link_property(
         links_df = _edit_ml_access_egress_points(links_df, prop_name, prop_change, link_idx)
     elif prop_change.set is not None:
         WranglerLogger.debug(f"Setting {prop_name} to {prop_change.set}")
-        links_df.loc[link_idx, prop_name] = prop_change.set
+        # Cast value to column dtype to avoid pandas dtype incompatibility warnings
+        set_value = prop_change.set
+        col_dtype = links_df[prop_name].dtype
+        if col_dtype == bool and not isinstance(set_value, bool):
+            set_value = bool(set_value)
+        links_df.loc[link_idx, prop_name] = set_value
     elif prop_change.change is not None:
         WranglerLogger.debug(f"Changing {prop_name} by {prop_change.change}")
         links_df.loc[link_idx, prop_name] += prop_change.change
@@ -354,7 +359,7 @@ def edit_link_properties(
     links_df: DataFrame[RoadLinksTable],
     link_idx: list,
     property_changes: dict[str, dict],
-    project_name: Optional[str] = None,
+    project_name: str | None = None,
     config: WranglerConfig = DefaultConfig,
 ) -> DataFrame[RoadLinksTable]:
     """Return copy of RoadLinksTable with edited link properties for a list of links.

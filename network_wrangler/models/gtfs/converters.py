@@ -7,8 +7,9 @@ import numpy as np
 import pandas as pd
 
 from ...logger import WranglerLogger
-from .._base.types import TimeString
 from ...utils.time import time_to_seconds
+from .._base.types import TimeString
+
 
 def convert_gtfs_to_wrangler_gtfs(gtfs_path: Path, wrangler_path: Path) -> None:
     """Converts a GTFS feed to a Wrangler GTFS feed.
@@ -61,9 +62,7 @@ def convert_stops_to_wrangler_stops(stops_df: pd.DataFrame) -> pd.DataFrame:
     # if stop_id is an int, convert to string
     if stops_df["stop_id"].dtype == "int64":
         stops_df["stop_id"] = stops_df["stop_id"].astype(str)
-    stop_id_GTFS = (
-        stops_df.groupby("model_node_id").stop_id.apply(lambda x: ",".join(x)).reset_index()
-    )
+    stop_id_GTFS = stops_df.groupby("model_node_id").stop_id.apply(",".join).reset_index()
     wr_stops_df["stop_id_GTFS"] = stop_id_GTFS["stop_id"]
     wr_stops_df = wr_stops_df.rename(columns={"model_node_id": "stop_id"})
     return wr_stops_df
@@ -91,12 +90,13 @@ def convert_stop_times_to_wrangler_stop_times(
     wr_stop_times_df = wr_stop_times_df.rename(columns={"model_node_id": "stop_id"})
     return wr_stop_times_df
 
+
 def create_feed_frequencies(  # noqa: PLR0915
     feed_tables: dict[str, pd.DataFrame],
     timeperiods: dict[str, tuple[TimeString, TimeString]],
-    frequency_method: Literal["uniform_headway","mean_headway","median_headway"],
+    frequency_method: Literal["uniform_headway", "mean_headway", "median_headway"],
     default_frequency_for_onetime_route: int = 180,
-    trace_shape_ids: Optional[list[str]] = None,
+    trace_shape_ids: list[str] | None = None,
 ):
     """Create frequencies table and convert GTFS-style tables to Wrangler-style Feed tables.
 
@@ -304,9 +304,7 @@ def create_feed_frequencies(  # noqa: PLR0915
         .aggregate(
             num_trip_ids=pd.NamedAgg(column="trip_id", aggfunc="nunique"),
             trip_ids=pd.NamedAgg(column="trip_id", aggfunc=list),
-            trip_depart_time=pd.NamedAgg(
-                column="trip_depart_time", aggfunc=lambda x: sorted(x)
-            ),
+            trip_depart_time=pd.NamedAgg(column="trip_depart_time", aggfunc=sorted),
             stop_pattern=pd.NamedAgg(column="stop_pattern", aggfunc="first"),
         )
         .reset_index(drop=False)
@@ -357,8 +355,12 @@ def create_feed_frequencies(  # noqa: PLR0915
         default_frequency_for_onetime_route
     )
     # if it's zero, use uniform_headway
-    WranglerLogger.debug(f"Updating zero headway_mins to uniform_headway:\n{shape_patterns_df.loc[ shape_patterns_df['headway_mins']==0]}")
-    shape_patterns_df.loc[ shape_patterns_df['headway_mins']==0, 'headway_mins'] = shape_patterns_df['uniform_headway']
+    WranglerLogger.debug(
+        f"Updating zero headway_mins to uniform_headway:\n{shape_patterns_df.loc[shape_patterns_df['headway_mins'] == 0]}"
+    )
+    shape_patterns_df.loc[shape_patterns_df["headway_mins"] == 0, "headway_mins"] = (
+        shape_patterns_df["uniform_headway"]
+    )
 
     WranglerLogger.debug(
         f"After calculating different versions of headways, shape_patterns_df:\n{shape_patterns_df}"

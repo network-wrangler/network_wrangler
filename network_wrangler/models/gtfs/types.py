@@ -1,11 +1,6 @@
 """Field types for GTFS data."""
 
 from enum import IntEnum
-from typing import Annotated
-
-from pydantic import Field, HttpUrl
-
-from .._base.types import TimeString
 
 
 class BikesAllowed(IntEnum):

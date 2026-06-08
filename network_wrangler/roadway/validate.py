@@ -1,7 +1,6 @@
 """Validates a roadway network to the wrangler data model specifications."""
 
 from pathlib import Path
-from typing import Optional
 
 from ..logger import WranglerLogger
 from ..models._base.types import RoadwayFileTypes
@@ -37,7 +36,7 @@ def validate_roadway_in_dir(
 def validate_roadway_files(
     links_file: Path,
     nodes_file: Path,
-    shapes_file: Optional[Path] = None,
+    shapes_file: Path | None = None,
     strict: bool = False,
     output_dir: Path = Path(),
 ):

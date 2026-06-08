@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import hashlib
-from typing import TYPE_CHECKING, Optional, Union
+from typing import TYPE_CHECKING
 
 import pandas as pd
 
@@ -18,8 +18,8 @@ if TYPE_CHECKING:
 
 
 def compare_networks(
-    nets: list[Union[RoadwayNetwork, ModelRoadwayNetwork]],
-    names: Optional[list[str]] = None,
+    nets: list[RoadwayNetwork | ModelRoadwayNetwork],
+    names: list[str] | None = None,
 ) -> pd.DataFrame:
     """Compare the summary of networks in a list of networks.
 
@@ -29,13 +29,13 @@ def compare_networks(
     """
     if names is None:
         names = ["net" + str(i) for i in range(1, len(nets) + 1)]
-    df = pd.DataFrame({name: net.summary for name, net in zip(names, nets)})
+    df = pd.DataFrame({name: net.summary for name, net in zip(names, nets, strict=True)})
     return df
 
 
 def compare_links(
     links: list[pd.DataFrame],
-    names: Optional[list[str]] = None,
+    names: list[str] | None = None,
 ) -> pd.DataFrame:
     """Compare the summary of links in a list of dataframes.
 
@@ -45,7 +45,9 @@ def compare_links(
     """
     if names is None:
         names = ["links" + str(i) for i in range(1, len(links) + 1)]
-    df = pd.DataFrame({name: link.of_type.summary for name, link in zip(names, links)})
+    df = pd.DataFrame(
+        {name: link.of_type.summary for name, link in zip(names, links, strict=True)}
+    )
     return df
 
 

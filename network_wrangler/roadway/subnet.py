@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import hashlib
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING
 
 import pandas as pd
 from pandera.typing import DataFrame
@@ -70,7 +70,7 @@ class Subnet:
     def __init__(
         self,
         net: RoadwayNetwork,
-        modes: Optional[list] = DEFAULT_SEARCH_MODES,
+        modes: list | None = DEFAULT_SEARCH_MODES,
         subnet_links_df: pd.DataFrame = None,
         i: int = 0,
         sp_weight_factor: float = DEFAULT_SUBNET_SP_WEIGHT_FACTOR,

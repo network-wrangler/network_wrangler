@@ -2,8 +2,7 @@
 
 from __future__ import annotations
 
-import copy
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING
 
 from ...logger import WranglerLogger
 from ..feed.routes import route_ids_for_trip_ids
@@ -18,8 +17,8 @@ if TYPE_CHECKING:
 def apply_transit_service_deletion(
     net: TransitNetwork,
     selection: TransitSelection,
-    clean_shapes: Optional[bool] = False,
-    clean_routes: Optional[bool] = False,
+    clean_shapes: bool | None = False,
+    clean_routes: bool | None = False,
 ) -> TransitNetwork:
     """Delete transit service to TransitNetwork.
 
@@ -47,8 +46,8 @@ def apply_transit_service_deletion(
 def _delete_trips_from_feed(
     feed: Feed,
     trip_ids: list,
-    clean_shapes: Optional[bool] = False,
-    clean_routes: Optional[bool] = False,
+    clean_shapes: bool | None = False,
+    clean_routes: bool | None = False,
 ) -> Feed:
     """Delete transit service from feed based on trip_ids.
 

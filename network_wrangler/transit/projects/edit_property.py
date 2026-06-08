@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import copy
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING
 
 from ...errors import ProjectCardError, TransitPropertyChangeError
 from ...logger import WranglerLogger
@@ -24,7 +24,7 @@ def apply_transit_property_change(
     net: TransitNetwork,
     selection: TransitSelection,
     property_changes: dict,
-    project_name: Optional[str] = None,
+    project_name: str | None = None,
 ) -> TransitNetwork:
     """Apply changes to transit properties.
 
@@ -68,7 +68,7 @@ def _apply_transit_property_change_to_table(
     selection: TransitSelection,
     prop_name: str,
     prop_change: dict,
-    project_name: Optional[str] = None,
+    project_name: str | None = None,
 ) -> TransitNetwork:
     table_name = _get_table_name_for_property(net, prop_name)
     WranglerLogger.debug(f"...modifying {prop_name} in {table_name}.")

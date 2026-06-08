@@ -2,7 +2,6 @@
 
 import copy
 import time
-from typing import Union
 
 import geopandas as gpd
 import pandas as pd
@@ -20,7 +19,7 @@ from ..utils import set_df_index_to_pk
 
 
 def _create_node_geometries_from_xy(
-    nodes_df: Union[pd.DataFrame, list[dict]],
+    nodes_df: pd.DataFrame | list[dict],
     in_crs: int = LAT_LON_CRS,
     net_crs: int = LAT_LON_CRS,
 ) -> gpd.GeoDataFrame:
@@ -43,9 +42,12 @@ def _create_node_geometries_from_xy(
 
     geo_start_time = time.time()
     if "geometry" in nodes_df:
-        nodes_df["geometrys"] = nodes_df["geometry"].fillna(
-            lambda x: point_from_xy(x["X"], x["Y"], xy_crs=in_crs, point_crs=net_crs),
-        )
+        mask = nodes_df["geometry"].isna()
+        if mask.any():
+            nodes_df.loc[mask, "geometry"] = nodes_df.loc[mask].apply(
+                lambda x: point_from_xy(x["X"], x["Y"], xy_crs=in_crs, point_crs=net_crs),
+                axis=1,
+            )
         WranglerLogger.debug(
             f"Filled missing geometry from X and Y in {round(time.time() - geo_start_time, 2)}."
         )
@@ -64,7 +66,7 @@ def _create_node_geometries_from_xy(
 
 @validate_call(config={"arbitrary_types_allowed": True})
 def data_to_nodes_df(
-    nodes_df: Union[pd.DataFrame, gpd.GeoDataFrame, list[dict]],
+    nodes_df: pd.DataFrame | gpd.GeoDataFrame | list[dict],
     config: WranglerConfig = DefaultConfig,  # noqa: ARG001
     in_crs: int = LAT_LON_CRS,
 ) -> DataFrame[RoadNodesTable]:

@@ -2,10 +2,8 @@
 
 import re
 from collections.abc import Iterable
-from typing import Optional, Union
 
 import pandas as pd
-import pandera as pa
 from pandera.dtypes import DataType
 from pandera.engines import pandas_engine
 
@@ -21,7 +19,7 @@ class HttpURL(pandas_engine.NpString):
         self,
         pandera_dtype: DataType,
         data_container: pd.Series,
-    ) -> Union[bool, Iterable[bool]]:
+    ) -> bool | Iterable[bool]:
         """Check if the data is a valid HTTP URL."""
         correct_type = super().check(pandera_dtype)
         if not correct_type:

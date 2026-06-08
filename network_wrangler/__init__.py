@@ -1,8 +1,16 @@
 """Network Wrangler Package."""
 
-__version__ = "1.0-beta.3"
+__version__ = "1.0-beta.4"
 
 import warnings
+
+# Configure pandas 3.0+ to use object dtype for strings instead of StringDtype.
+# This maintains compatibility with pandera until it fully supports StringDtype.
+# This must be set before any pandas operations.
+import pandas as pd
+
+if hasattr(pd.options, "future") and hasattr(pd.options.future, "infer_string"):
+    pd.options.future.infer_string = False
 
 # Suppress the specific FutureWarning from geopandas
 warnings.filterwarnings(

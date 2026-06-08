@@ -1,0 +1,54 @@
+name: 'Build and Deploy Docs'
+description: 'Build and deploy documentation using mike'
+inputs:
+  python-version:
+    description: 'Python version to use'
+    required: true
+    default: '3.13'
+  branch-name:
+    description: 'Branch name for docs version'
+    required: true
+
+runs:
+  using: 'composite'
+  steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+
+    - name: Setup Python with UV
+      uses: ./.github/actions/setup-python-uv
+      with:
+        python-version: ${{ inputs.python-version }}
+
+    - name: Configure Git user
+      run: |
+        git config --local user.email "github-actions[bot]@users.noreply.github.com"
+        git config --local user.name "github-actions[bot]"
+      shell: bash
+
+    - name: Install dependencies
+      run: |
+        uv pip install --system -e .[docs]
+      shell: bash
+
+    - name: Slugify branch name for mike
+      id: slug
+      run: |
+        SLUG=$(echo "${{ inputs.branch-name }}" | sed 's|[^a-zA-Z0-9._-]|-|g' | sed 's|-\{2,\}|-|g' | sed 's|^-||;s|-$||')
+        echo "Branch slug for mike: $SLUG"
+        echo "value=$SLUG" >> $GITHUB_OUTPUT
+      shell: bash
+
+    - name: Build and deploy docs
+      run: |
+        mike deploy --push ${{ steps.slug.outputs.value }}
+      shell: bash
+
+    - name: Update latest docs alias
+      if: inputs.branch-name == 'main'
+      run: |
+        mike alias ${{ inputs.branch-name }} latest --update-aliases --push
+      shell: bash
+

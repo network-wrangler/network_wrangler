@@ -2,12 +2,9 @@
 
 from __future__ import annotations
 
-import copy
 import hashlib
 from abc import ABC, abstractmethod
-from typing import TYPE_CHECKING, ClassVar, Literal, Union
-
-import pandas as pd
+from typing import TYPE_CHECKING, ClassVar, Literal
 
 from ..errors import SelectionError
 from ..logger import WranglerLogger
@@ -70,7 +67,7 @@ class RoadwaySelection(ABC):
     def __init__(
         self,
         net: RoadwayNetwork,
-        selection_data: Union[SelectFacility, dict],
+        selection_data: SelectFacility | dict,
     ):
         """Constructor for RoadwaySelection object.
 
@@ -129,7 +126,7 @@ class RoadwaySelection(ABC):
         return self._selection_dict
 
     @selection_dict.setter
-    def selection_dict(self, selection_input: Union[SelectFacility, dict]):
+    def selection_dict(self, selection_input: SelectFacility | dict):
         if isinstance(selection_input, SelectLinksDict):
             selection_input = SelectFacility(links=selection_input)
         elif isinstance(selection_input, SelectNodesDict):
@@ -146,7 +143,7 @@ class RoadwaySelection(ABC):
             self._selection_data = self.validate_selection(selection_input)
 
         self._selection_dict = self._selection_data.asdict
-        self._stored_net_hash = copy.deepcopy(self.net.network_hash)
+        self._stored_net_version = self.net.modification_version
 
     @property
     def node_query_fields(self) -> list[str]:
@@ -214,7 +211,7 @@ class RoadwayLinkSelection(RoadwaySelection):
     def __init__(
         self,
         net: RoadwayNetwork,
-        selection_data: Union[SelectFacility, dict],
+        selection_data: SelectFacility | dict,
     ):
         """Constructor for RoadwayLinkSelection object.
 
@@ -224,8 +221,8 @@ class RoadwayLinkSelection(RoadwaySelection):
                 `SelectFacility` model with a "links" key or SelectFacility instance.
         """
         super().__init__(net, selection_data)
-        self._selected_links_df: Union[None, DataFrame[RoadLinksTable]] = None
-        self._segment: Union[None, Segment] = None
+        self._selected_links_df: None | DataFrame[RoadLinksTable] = None
+        self._segment: None | Segment = None
         WranglerLogger.debug(f"Created LinkSelection of type: {self.selection_method}")
 
     def __nonzero__(self) -> bool:
@@ -323,7 +320,7 @@ class RoadwayLinkSelection(RoadwaySelection):
         return self.selected_links_df is not None
 
     @property
-    def segment(self) -> Union[None, Segment]:
+    def segment(self) -> None | Segment:
         """Return the segment object if selection type is segment."""
         if self._segment is None and self.selection_method == "segment":
             WranglerLogger.debug("Creating new segment")
@@ -339,11 +336,14 @@ class RoadwayLinkSelection(RoadwaySelection):
     def selected_links_df(self) -> DataFrame[RoadLinksTable]:
         """Lazily evaluates selection for links or returns stored value in self._selected_links_df.
 
-        Will re-evaluate if the current network hash is different than the stored one from the
-        last selection.
+        Will re-evaluate if the current network modification version is different than the stored
+        one from the last selection.
         """
-        if self._selected_links_df is None or self._stored_net_hash != self.net.network_hash:
-            self._stored_net_hash = copy.deepcopy(self.net.network_hash)
+        if (
+            self._selected_links_df is None
+            or self._stored_net_version != self.net.modification_version
+        ):
+            self._stored_net_version = self.net.modification_version
             self._selected_links_df = self._perform_selection()
 
         return self._selected_links_df
@@ -436,7 +436,7 @@ class RoadwayNodeSelection(RoadwaySelection):
     def __init__(
         self,
         net: RoadwayNetwork,
-        selection_data: Union[dict, SelectFacility],
+        selection_data: dict | SelectFacility,
     ):
         """Constructor for RoadwayNodeSelection object.
 
@@ -446,7 +446,7 @@ class RoadwayNodeSelection(RoadwaySelection):
                 conforming to SelectFacility format, or SelectFacility instance.
         """
         super().__init__(net, selection_data)
-        self._selected_nodes_df: Union[None, DataFrame[RoadNodesTable]] = None
+        self._selected_nodes_df: None | DataFrame[RoadNodesTable] = None
 
     def __nonzero__(self) -> bool:
         """Return True if nodes were selected."""
@@ -539,11 +539,14 @@ class RoadwayNodeSelection(RoadwaySelection):
     def selected_nodes_df(self) -> DataFrame[RoadNodesTable]:
         """Lazily evaluates selection for nodes or returns stored value in self._selected_nodes_df.
 
-        Will re-evaluate if the current network hash is different than the stored one from the
-        last selection.
+        Will re-evaluate if the current network modification version is different than the stored
+        one from the last selection.
         """
-        if self._selected_nodes_df is None or self._stored_net_hash != self.net.network_hash:
-            self._stored_net_hash = self.net.network_hash
+        if (
+            self._selected_nodes_df is None
+            or self._stored_net_version != self.net.modification_version
+        ):
+            self._stored_net_version = self.net.modification_version
             self._selected_nodes_df = self._perform_selection()
 
         return self._selected_nodes_df
@@ -599,7 +602,7 @@ class RoadwayNodeSelection(RoadwaySelection):
 
 
 def _create_selection_key(
-    selection_dict: Union[SelectLinksDict, SelectNodesDict, SelectFacility, dict],
+    selection_dict: SelectLinksDict | SelectNodesDict | SelectFacility | dict,
 ) -> str:
     """Selections are stored by a sha1 hash of the bit-encoded string of the selection dictionary.
 

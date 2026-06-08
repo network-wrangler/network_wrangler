@@ -6,12 +6,11 @@ import copy
 import math
 from enum import Enum
 from pathlib import Path
-from typing import TYPE_CHECKING, Optional, Union
+from typing import TYPE_CHECKING
 
 import geopandas as gpd
 import numpy as np
 import pandas as pd
-import pyarrow as pa
 from geographiclib.geodesic import Geodesic
 from pyproj import CRS, Proj, Transformer
 from shapely.geometry import LineString, MultiLineString, Point
@@ -106,7 +105,7 @@ def offset_point_with_distance_and_bearing(
     return [out_lon, out_lat]
 
 
-def length_of_linestring_miles(gdf: Union[gpd.GeoSeries, gpd.GeoDataFrame]) -> pd.Series:
+def length_of_linestring_miles(gdf: gpd.GeoSeries | gpd.GeoDataFrame) -> pd.Series:
     """Returns a Series with the linestring length in miles.
 
     Args:
@@ -222,7 +221,9 @@ def linestring_from_lats_lons(df, lat_fields, lon_fields) -> gpd.GeoSeries:
 
     line_geometries = gpd.GeoSeries(
         [
-            LineString([(row[lon], row[lat]) for lon, lat in zip(lon_fields, lat_fields)])
+            LineString(
+                [(row[lon], row[lat]) for lon, lat in zip(lon_fields, lat_fields, strict=True)]
+            )
             for _, row in df.iterrows()
         ]
     )
@@ -275,8 +276,8 @@ def point_from_xy(x, y, xy_crs: int = LAT_LON_CRS, point_crs: int = LAT_LON_CRS)
     if (xy_crs, point_crs) not in transformers:
         # store transformers in dictionary because they are an "expensive" operation
         transformers[(xy_crs, point_crs)] = Transformer.from_proj(
-            Proj(init="epsg:" + str(xy_crs)),
-            Proj(init="epsg:" + str(point_crs)),
+            Proj(f"EPSG:{xy_crs}"),
+            Proj(f"EPSG:{point_crs}"),
             always_xy=True,  # required b/c Proj v6+ uses lon/lat instead of x/y
         )
 
@@ -355,8 +356,8 @@ def get_point_geometry_from_linestring(polyline_geometry, pos: int = 0):
 def location_ref_from_point(
     geometry: Point,
     sequence: int = 1,
-    bearing: Optional[float] = None,
-    distance_to_next_ref: Optional[float] = None,
+    bearing: float | None = None,
+    distance_to_next_ref: float | None = None,
 ) -> LocationReference:
     """Generates a shared street point location reference.
 
@@ -402,9 +403,9 @@ def location_refs_from_linestring(geometry: LineString) -> list[LocationReferenc
 
 
 def get_bounding_polygon(
-    boundary_geocode: Optional[Union[str, dict]] = None,
-    boundary_file: Optional[Union[str, Path]] = None,
-    boundary_gdf: Optional[gpd.GeoDataFrame] = None,
+    boundary_geocode: str | dict | None = None,
+    boundary_file: str | Path | None = None,
+    boundary_gdf: gpd.GeoDataFrame | None = None,
     crs: int = LAT_LON_CRS,  # WGS84
 ) -> gpd.GeoSeries:
     """Get the bounding polygon for a given boundary.
@@ -416,9 +417,9 @@ def get_bounding_polygon(
     geometry is returned as a GeoSeries.
 
     Args:
-        boundary_geocode (Union[str, dict], optional): A geocode string or dictionary
+        boundary_geocode (str | dict, optional): A geocode string or dictionary
             representing the boundary. Defaults to None.
-        boundary_file (Union[str, Path], optional): A path to the boundary file. Only used if
+        boundary_file (str | Path, optional): A path to the boundary file. Only used if
             boundary_geocode is None. Defaults to None.
         boundary_gdf (gpd.GeoDataFrame, optional): A GeoDataFrame representing the boundary.
             Only used if boundary_geocode and boundary_file are None. Defaults to None.
@@ -427,7 +428,7 @@ def get_bounding_polygon(
     Returns:
         gpd.GeoSeries: The polygon geometry representing the bounding polygon.
     """
-    import osmnx as ox  # noqa: PLC0415
+    import osmnx as ox
 
     nargs = sum(x is not None for x in [boundary_gdf, boundary_geocode, boundary_file])
     if nargs == 0:
@@ -477,7 +478,7 @@ def _harmonize_crs(df: pd.DataFrame, crs: int = LAT_LON_CRS) -> pd.DataFrame:
     return df
 
 
-def _id_utm_crs(gdf: Union[gpd.GeoSeries, gpd.GeoDataFrame]) -> int:
+def _id_utm_crs(gdf: gpd.GeoSeries | gpd.GeoDataFrame) -> int:
     """Returns the UTM CRS ESPG for the given GeoDataFrame.
 
     Args:
@@ -513,8 +514,8 @@ def offset_geometry_meters(geo_s: gpd.GeoSeries, offset_distance_meters: float) 
 
 def to_points_gdf(
     table: pd.DataFrame,
-    ref_nodes_df: Optional[gpd.GeoDataFrame] = None,
-    ref_road_net: Optional[RoadwayNetwork] = None,
+    ref_nodes_df: gpd.GeoDataFrame | None = None,
+    ref_road_net: RoadwayNetwork | None = None,
 ) -> gpd.GeoDataFrame:
     """Convert a table to a GeoDataFrame.
 

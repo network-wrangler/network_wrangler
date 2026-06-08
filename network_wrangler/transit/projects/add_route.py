@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import copy
 from datetime import datetime
-from typing import TYPE_CHECKING, Optional, Union
+from typing import TYPE_CHECKING
 
 import pandas as pd
 from pandera.typing import DataFrame as paDataFrame
@@ -21,7 +21,6 @@ from ...models.gtfs.tables import (
 )
 from ...utils.data import concat_with_attr
 from ...utils.ids import create_str_int_combo_ids
-from ...utils.models import fill_df_with_defaults_from_model
 from ...utils.time import str_to_time_list
 
 if TYPE_CHECKING:
@@ -33,7 +32,7 @@ if TYPE_CHECKING:
 def apply_transit_route_addition(
     net: TransitNetwork,
     transit_route_addition: dict,
-    reference_road_net: Optional[RoadwayNetwork] = None,
+    reference_road_net: RoadwayNetwork | None = None,
 ) -> TransitNetwork:
     """Add transit route to TransitNetwork.
 
@@ -99,7 +98,7 @@ def _add_route_to_feed(
         WranglerLogger.debug(f"Adding {len(route['trips'])} trips for route {route['route_id']}.")
 
         shape_ids = create_str_int_combo_ids(len(route["trips"]), shapes_df["shape_id"])
-        for trip, shape_id in zip(route["trips"], shape_ids):
+        for trip, shape_id in zip(route["trips"], shape_ids, strict=True):
             add_shape_df = _create_new_shape(trip["routing"], shape_id, road_net)
             shapes_df = concat_with_attr([shapes_df, add_shape_df], ignore_index=True, sort=False)
 
@@ -164,7 +163,7 @@ def _create_new_trips(
 
 
 def _create_new_shape(
-    routing: list[Union[dict, int]], shape_id: str, road_net: RoadwayNetwork
+    routing: list[dict | int], shape_id: str, road_net: RoadwayNetwork
 ) -> paDataFrame[WranglerShapesTable]:
     """Create new shape for a trip.
 
@@ -178,7 +177,7 @@ def _create_new_shape(
         int(next(iter(item.keys()))) if isinstance(item, dict) else int(item) for item in routing
     ]
     coords = [road_net.node_coords(n) for n in shape_model_node_id_list]
-    lon, lat = zip(*coords)
+    lon, lat = zip(*coords, strict=True)
     add_shapes_df = pd.DataFrame(
         {
             "shape_model_node_id": shape_model_node_id_list,
@@ -191,7 +190,7 @@ def _create_new_shape(
     return add_shapes_df
 
 
-def _get_stops_from_routing(routing: list[Union[dict, int]]) -> list[dict]:
+def _get_stops_from_routing(routing: list[dict | int]) -> list[dict]:
     """Converts a routing list to stop_id_list, drop_off_type, and pickup_type.
 
     Default for board and alight is True unless specified to be False.
@@ -230,7 +229,7 @@ def _get_stops_from_routing(routing: list[Union[dict, int]]) -> list[dict]:
 
 
 def _create_new_stop_times(
-    trip_routing: list[Union[dict, int]], trip_id: str
+    trip_routing: list[dict | int], trip_id: str
 ) -> paDataFrame[WranglerStopTimesTable]:
     """Create new stop times for a trip.
 
@@ -274,7 +273,7 @@ def _create_new_stops(
     add_stops_df = pd.DataFrame(columns=["stop_id", "stop_lat", "stop_lon"])
     if add_stop_ids.size:
         coords = [road_net.node_coords(n) for n in add_stop_ids]
-        lon, lat = zip(*coords)
+        lon, lat = zip(*coords, strict=True)
         add_stops_df = pd.DataFrame({"stop_id": add_stop_ids, "stop_lat": lat, "stop_lon": lon})
     return add_stops_df
 

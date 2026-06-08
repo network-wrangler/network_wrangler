@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Union
+from typing import TYPE_CHECKING
 
 import pandas as pd
 
@@ -114,7 +114,7 @@ def filter_links_transit_only(
 
 
 def filter_links_to_modes(
-    links_df: DataFrame[RoadLinksTable], modes: Union[str, list[str]]
+    links_df: DataFrame[RoadLinksTable], modes: str | list[str]
 ) -> DataFrame[RoadLinksTable]:
     """Filters links dataframe to only include links that are accessible by the modes in the list.
 
@@ -130,6 +130,7 @@ def filter_links_to_modes(
     if isinstance(modes, str):
         modes = [modes]
     _mode_link_props = list({m for m in modes for m in MODES_TO_NETWORK_LINK_VARIABLES[m]})
+    _mode_link_props = [p for p in _mode_link_props if p in links_df.columns]
     return links_df.loc[links_df[_mode_link_props].any(axis=1)]
 
 
@@ -162,7 +163,7 @@ def filter_links_to_ids(
 
 
 def filter_links_not_in_ids(
-    links_df: DataFrame[RoadLinksTable], link_ids: Union[list[int], pd.Series]
+    links_df: DataFrame[RoadLinksTable], link_ids: list[int] | pd.Series
 ) -> DataFrame[RoadLinksTable]:
     """Filters links dataframe to NOT have link_ids."""
     return links_df.loc[~links_df["model_link_id"].isin(link_ids)]
