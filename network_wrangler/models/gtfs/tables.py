@@ -282,7 +282,7 @@ class TripsTable(DataFrameModel):
 
     Attributes:
         trip_id (str): Primary key. Required to be unique.
-        shape_id (str): Foreign key to `shape_id` in the shapes table.
+        shape_id (str | None): Foreign key to `shape_id` in the shapes table. Optional per GTFS spec.
         direction_id (DirectionID): The direction id. Required. Values can be:
             - 0: Outbound
             - 1: Inbound
@@ -302,7 +302,7 @@ class TripsTable(DataFrameModel):
     """
 
     trip_id: Series[str] = Field(nullable=False, unique=True, coerce=True)
-    shape_id: Series[str] = Field(nullable=False, coerce=True)
+    shape_id: Series[str] = Field(nullable=True, coerce=True)
     direction_id: Series[Category] = Field(
         dtype_kwargs={"categories": DirectionID}, coerce=True, nullable=False, default=0
     )

@@ -552,9 +552,8 @@ def match_bus_stops_to_roadway_nodes(  # noqa: PLR0912, PLR0915
         # Log excluded stops (poor score but serve station routes)
         excluded_station_stops = bus_stops_gdf[
             (bus_stops_gdf["close_match"] == True)
-            & (bus_stops_gdf["combined_score"] > 0.9)(  # noqa: PLR2004 &
-                bus_stops_gdf["serves_station_routes"] == True
-            )
+            & (bus_stops_gdf["combined_score"] > 0.9)  # noqa: PLR2004
+            & (bus_stops_gdf["serves_station_routes"] == True)
         ]
         if len(excluded_station_stops) > 0:
             WranglerLogger.info(
@@ -1799,6 +1798,10 @@ def add_additional_data_to_stops(
         how="left",
     )
     WranglerLogger.debug(f"stop_agencies.head():\n{stop_agencies.head()}")
+
+    # Convert route_type from Categorical to int to avoid unhashable type error during agg
+    if hasattr(stop_agencies["route_type"], "cat"):
+        stop_agencies["route_type"] = stop_agencies["route_type"].astype(int)
 
     # Group by stop to get all agencies and routes serving each stop
     # Now including route_dir_ids as list of (route_id, direction_id) tuples

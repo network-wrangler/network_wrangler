@@ -6,6 +6,7 @@ import tempfile
 import weakref
 from datetime import datetime
 from pathlib import Path
+from typing import Union
 
 import geopandas as gpd
 import pandas as pd
