@@ -937,7 +937,7 @@ def add_unmatched_bus_stops_to_network(  # noqa: PLR0915
     return new_nodes_gdf
 
 
-def create_connector_links_for_poor_match_stops(
+def create_connector_links_for_poor_match_stops(  # noqa: PLR0915
     roadway_net: RoadwayNetwork,
     unmatched_stops_gdf: gpd.GeoDataFrame,
     local_crs: str,

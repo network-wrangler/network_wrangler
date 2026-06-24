@@ -24,6 +24,7 @@ class SafeFileHandler(logging.FileHandler):
     """
 
     def __init__(self, *args, **kwargs):
+        """Initialize SafeFileHandler with flush error tracking counters."""
         super().__init__(*args, **kwargs)
         self._flush_error_count = 0
         self._last_reported_error_count = 0
@@ -43,12 +44,11 @@ class SafeFileHandler(logging.FileHandler):
 
             # Log every 1000th error to avoid spam while still alerting users
             if self._flush_error_count % 1000 == 0:
-                # Use print to avoid recursive logging issues
-                print(
+                # Use sys.stderr.write to avoid recursive logging issues
+                sys.stderr.write(
                     f"WARNING: {self._flush_error_count} log flush errors encountered "
                     f"(Windows file handle issue). Logging continues but some debug "
-                    f"messages may be delayed or lost. Error: {e}",
-                    file=sys.stderr
+                    f"messages may be delayed or lost. Error: {e}\n"
                 )
 
 

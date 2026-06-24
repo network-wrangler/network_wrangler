@@ -29,6 +29,7 @@ if TYPE_CHECKING:
 
 class CardinalDirection(str, Enum):
     """Cardinal directions."""
+
     N = "N"
     E = "E"
     S = "S"
@@ -37,6 +38,7 @@ class CardinalDirection(str, Enum):
 
 class IntercardinalDirection(str, Enum):
     """Cardinal and intercardinal directions."""
+
     N = "N"
     NE = "NE"
     E = "E"
@@ -45,6 +47,7 @@ class IntercardinalDirection(str, Enum):
     SW = "SW"
     W = "W"
     NW = "NW"
+
 
 # key:value (from espg, to espg): pyproj transform object
 transformers = {}
@@ -505,9 +508,7 @@ def offset_geometry_meters(geo_s: gpd.GeoSeries, offset_distance_meters: float) 
     offset_geo = geo_s.apply(lambda x: x.offset_curve(offset_distance_meters))
     # offset_curve can produce MultiLineString for links with sharp bends/kinks;
     # merge them back into LineString so downstream code can access .coords
-    offset_geo = offset_geo.apply(
-        lambda g: linemerge(g) if isinstance(g, MultiLineString) else g
-    )
+    offset_geo = offset_geo.apply(lambda g: linemerge(g) if isinstance(g, MultiLineString) else g)
     offset_geo = gpd.GeoSeries(offset_geo)
     return offset_geo.to_crs(og_crs)
 
@@ -640,7 +641,7 @@ def get_link_bearing_degrees(geometry) -> float:
 
     # Get first and last coordinates
     coords = list(geometry.coords)
-    if len(coords) < 2:
+    if len(coords) < 2:  # noqa: PLR2004
         return np.nan
 
     lon1, lat1 = coords[0]
@@ -671,28 +672,32 @@ def bearing_to_cardinal_direction(bearing: float, cardinal_only: bool = False) -
 
     if cardinal_only:
         # 4 directions (N, E, S, W)
-        directions = [CardinalDirection.N, CardinalDirection.E,
-                      CardinalDirection.S, CardinalDirection.W]
+        directions = [
+            CardinalDirection.N,
+            CardinalDirection.E,
+            CardinalDirection.S,
+            CardinalDirection.W,
+        ]
         # Each sector is 90 degrees, offset by 45 degrees
         sector = int(((bearing + 45) % 360) / 90)
         return directions[sector].value
-    else:
-        # 8 directions (N, NE, E, SE, S, SW, W, NW)
-        directions = [
-            IntercardinalDirection.N, IntercardinalDirection.NE,
-            IntercardinalDirection.E, IntercardinalDirection.SE,
-            IntercardinalDirection.S, IntercardinalDirection.SW,
-            IntercardinalDirection.W, IntercardinalDirection.NW
-        ]
-        # Each sector is 45 degrees, offset by 22.5 degrees
-        sector = int(((bearing + 22.5) % 360) / 45)
-        return directions[sector].value
+    # 8 directions (N, NE, E, SE, S, SW, W, NW)
+    directions = [
+        IntercardinalDirection.N,
+        IntercardinalDirection.NE,
+        IntercardinalDirection.E,
+        IntercardinalDirection.SE,
+        IntercardinalDirection.S,
+        IntercardinalDirection.SW,
+        IntercardinalDirection.W,
+        IntercardinalDirection.NW,
+    ]
+    # Each sector is 45 degrees, offset by 22.5 degrees
+    sector = int(((bearing + 22.5) % 360) / 45)
+    return directions[sector].value
 
 
-def add_direction_to_links(
-    links_df: pd.DataFrame,
-    cardinal_only: bool = False
-) -> pd.DataFrame:
+def add_direction_to_links(links_df: pd.DataFrame, cardinal_only: bool = False) -> pd.DataFrame:
     """Add cardinal direction column to links based on their geometry.
 
     Calculates the bearing/azimuth of each link from start to end point and assigns
@@ -717,10 +722,10 @@ def add_direction_to_links(
     result_df = links_df.copy()
 
     # Calculate bearings for all links
-    bearings = result_df['geometry'].apply(get_link_bearing_degrees)
+    bearings = result_df["geometry"].apply(get_link_bearing_degrees)
 
     # Convert bearings to directions
-    result_df['direction'] = bearings.apply(
+    result_df["direction"] = bearings.apply(
         lambda b: bearing_to_cardinal_direction(b, cardinal_only=cardinal_only)
     )
 

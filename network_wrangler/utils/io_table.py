@@ -48,7 +48,7 @@ def _convert_pydantic_to_dict(val):
 
     if isinstance(val, BaseModel):
         return val.model_dump()
-    elif isinstance(val, list):
+    if isinstance(val, list):
         return [_convert_pydantic_to_dict(item) for item in val]
     return val
 
@@ -63,14 +63,16 @@ def _convert_geometry_to_geojson(val):
     return val
 
 
-def _prepare_df_for_json(df: Union[pd.DataFrame, gpd.GeoDataFrame]) -> Union[pd.DataFrame, gpd.GeoDataFrame]:
+def _prepare_df_for_json(
+    df: pd.DataFrame | gpd.GeoDataFrame,
+) -> pd.DataFrame | gpd.GeoDataFrame:
     """Prepare a dataframe for JSON serialization by converting Pydantic models and geometries to dicts."""
     from pydantic import BaseModel
     from shapely.geometry.base import BaseGeometry
 
     df = df.copy()
     for col in df.columns:
-        if col == 'geometry':
+        if col == "geometry":
             continue
 
         # Check first non-null value to determine column type
@@ -89,9 +91,11 @@ def _prepare_df_for_json(df: Union[pd.DataFrame, gpd.GeoDataFrame]) -> Union[pd.
 
         # Check if column contains Pydantic models or list of models
         needs_pydantic_conversion = False
-        if isinstance(sample_val, BaseModel):
-            needs_pydantic_conversion = True
-        elif isinstance(sample_val, list) and len(sample_val) > 0 and isinstance(sample_val[0], BaseModel):
+        if isinstance(sample_val, BaseModel) or (
+            isinstance(sample_val, list)
+            and len(sample_val) > 0
+            and isinstance(sample_val[0], BaseModel)
+        ):
             needs_pydantic_conversion = True
 
         if needs_pydantic_conversion:
@@ -113,7 +117,7 @@ def _convert_dict_to_scoped_pydantic(val):
 
     if isinstance(val, dict):
         return ScopedLinkValueItem(**val)
-    elif isinstance(val, list):
+    if isinstance(val, list):
         return [_convert_dict_to_scoped_pydantic(item) for item in val]
     return val
 
@@ -122,15 +126,17 @@ def _convert_geojson_to_geometry(val):
     """Convert GeoJSON dict back to Shapely geometry."""
     from shapely.geometry import shape
 
-    if isinstance(val, dict) and 'type' in val and 'coordinates' in val:
+    if isinstance(val, dict) and "type" in val and "coordinates" in val:
         return shape(val)
     return val
 
 
-def _restore_scoped_pydantic_models(df: Union[pd.DataFrame, gpd.GeoDataFrame]) -> Union[pd.DataFrame, gpd.GeoDataFrame]:
+def _restore_scoped_pydantic_models(
+    df: pd.DataFrame | gpd.GeoDataFrame,
+) -> pd.DataFrame | gpd.GeoDataFrame:
     """Restore Pydantic models from dicts for sc_* columns after reading from JSON."""
     # Only process columns that start with 'sc_' (scoped columns)
-    scoped_cols = [col for col in df.columns if col.startswith('sc_')]
+    scoped_cols = [col for col in df.columns if col.startswith("sc_")]
 
     for col in scoped_cols:
         # Check if column has dict, list, or JSON string values that need conversion
@@ -143,7 +149,7 @@ def _restore_scoped_pydantic_models(df: Union[pd.DataFrame, gpd.GeoDataFrame]) -
                 needs_conversion = True
                 break
             # Also check for JSON strings (common when reading from GeoJSON)
-            if isinstance(val, str) and val.startswith('[') and val.endswith(']'):
+            if isinstance(val, str) and val.startswith("[") and val.endswith("]"):
                 needs_conversion = True
                 break
         if needs_conversion:
@@ -151,10 +157,12 @@ def _restore_scoped_pydantic_models(df: Union[pd.DataFrame, gpd.GeoDataFrame]) -
     return df
 
 
-def _restore_geometry_columns(df: Union[pd.DataFrame, gpd.GeoDataFrame]) -> Union[pd.DataFrame, gpd.GeoDataFrame]:
+def _restore_geometry_columns(
+    df: pd.DataFrame | gpd.GeoDataFrame,
+) -> pd.DataFrame | gpd.GeoDataFrame:
     """Restore Shapely geometries from GeoJSON dicts for geometry columns (e.g., ML_geometry)."""
     # Look for columns that end with '_geometry' (excluding main 'geometry' column)
-    geometry_cols = [col for col in df.columns if col.endswith('_geometry') and col != 'geometry']
+    geometry_cols = [col for col in df.columns if col.endswith("_geometry") and col != "geometry"]
 
     for col in geometry_cols:
         # Check if column has GeoJSON dict values that need conversion
@@ -163,7 +171,7 @@ def _restore_geometry_columns(df: Union[pd.DataFrame, gpd.GeoDataFrame]) -> Unio
             sample_val = val
             break
 
-        if sample_val is not None and isinstance(sample_val, dict) and 'type' in sample_val:
+        if sample_val is not None and isinstance(sample_val, dict) and "type" in sample_val:
             df[col] = df[col].apply(_convert_geojson_to_geometry)
 
     return df
@@ -237,7 +245,7 @@ def _estimate_read_time_of_file(
     return "unknown"
 
 
-def read_table(
+def read_table(  # noqa: PLR0912
     filename: Path,
     sub_filename: str | None = None,
     boundary_gdf: gpd.GeoDataFrame | None = None,
