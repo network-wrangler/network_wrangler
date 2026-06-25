@@ -144,6 +144,7 @@ def data_to_links_df(
     # Flag any MultiLineString ML_geometry values — these likely indicate a data issue
     # (e.g. two-way link with managed lane geometry containing both directions)
     from shapely.geometry import MultiLineString
+
     ml_multi = links_df[links_df["ML_geometry"].apply(lambda g: isinstance(g, MultiLineString))]
     if len(ml_multi) > 0:
         WranglerLogger.warning(

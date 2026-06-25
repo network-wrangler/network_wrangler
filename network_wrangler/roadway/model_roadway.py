@@ -45,7 +45,7 @@ COPY_FROM_GP_TO_ML: list[str] = [
     "walk_access",
     "bus_only",
     "rail_only",
-    "ferry_only"
+    "ferry_only",
 ]
 
 """
@@ -166,7 +166,7 @@ class ModelRoadwayNetwork:
         my_str += f"\nnodes_df:\n{self.nodes_df}"
         my_str += f"\nnodes_df:\n{self.nodes_df.dtypes}"
         my_str += f"\nml_link_id_lookup:\n{self.ml_link_id_lookup}"
-        my_str += f"\nml_node_id_lookup:\n{self.ml_node_id_lookup }"
+        my_str += f"\nml_node_id_lookup:\n{self.ml_node_id_lookup}"
         return my_str
 
     @property
@@ -262,19 +262,19 @@ def _generate_ml_link_id_lookup_from_range(links_df, link_id_range: tuple[int]):
 
 def _generate_ml_node_id_from_range(nodes_df, links_df, node_id_range: tuple[int]):
     """Generate a lookup dictionary mapping GP node IDs to new ML node IDs from a range.
-    
+
     Creates new managed lane node IDs by selecting available IDs from the specified range
     that don't conflict with existing node IDs in the network. The lookup maps original
     general purpose (GP) node IDs used in managed lane links to their new ML node IDs.
-    
+
     Args:
         nodes_df: DataFrame of existing network nodes
         links_df: DataFrame of network links
         node_id_range: Tuple of (start, end) defining the range from which to select new node IDs
-        
+
     Returns:
         dict[int, int]: Lookup dictionary mapping GP node IDs to new ML node IDs
-        
+
     Raises:
         ValueError: If insufficient unique node IDs are available in the specified range
     """
@@ -300,19 +300,19 @@ def _generate_ml_link_id_lookup_from_scalar(links_df: DataFrame[RoadLinksTable],
 
 def _generate_ml_node_id_lookup_from_scalar(nodes_df, links_df, scalar: int):
     """Generate a lookup dictionary mapping GP node IDs to new ML node IDs using a scalar offset.
-    
+
     Creates new managed lane node IDs by adding a fixed scalar value to original general
     purpose (GP) node IDs. The lookup maps original GP node IDs used in managed lane links
     to their new ML node IDs (original ID + scalar).
-    
+
     Args:
         nodes_df: DataFrame of existing network nodes
-        links_df: DataFrame of network links  
+        links_df: DataFrame of network links
         scalar: Integer value to add to GP node IDs to generate ML node IDs
-        
+
     Returns:
         dict[int, int]: Lookup dictionary mapping GP node IDs to new ML node IDs
-        
+
     Raises:
         ValueError: If any generated ML node IDs (GP ID + scalar) already exist in the network
     """
@@ -354,8 +354,10 @@ def model_links_nodes_from_net(
         copy_from_gp_to_ml=copy_cols_gp_ml,
     )
     _m_nodes_df = _create_ml_nodes_from_links(
-        _m_links_df, ml_node_id_lookup, net.nodes_df, 
-        net.config.MODEL_ROADWAY.ADDITIONAL_COPY_FROM_GP_NODE_TO_ML
+        _m_links_df,
+        ml_node_id_lookup,
+        net.nodes_df,
+        net.config.MODEL_ROADWAY.ADDITIONAL_COPY_FROM_GP_NODE_TO_ML,
     )
     m_nodes_df = concat_with_attr([net.nodes_df, _m_nodes_df])
 
@@ -381,37 +383,37 @@ def _separate_ml_links(
     copy_from_gp_to_ml: list[str] = COPY_FROM_GP_TO_ML,
 ) -> gpd.GeoDataFrame:
     """Separate managed lane links from general purpose links.
-    
+
     Creates three categories of links:
     1. Links with no parallel managed lanes (unchanged)
     2. General purpose links that have parallel managed lanes (ML properties removed)
     3. Separate managed lane links (with new link/node IDs and offset geometry)
-    
+
     Node ID Mapping:
         The node_id_lookup dictionary ensures consistent node mapping across all links.
         If a GP node appears in multiple links, it will always map to the SAME ML node ID.
         For example, if GP node 100 appears in links A and B, it will map to the same
         ML node (e.g., 950100) in both the ML versions of links A and B.
-    
+
     Geometry Offset and Node Coordinates:
         The offset_meters parameter controls the perpendicular offset distance of ML link
         geometries from their GP counterparts. The offset is applied perpendicular to the
         link direction (typically negative values offset to the left).
-        
+
         IMPORTANT: ML node coordinates ARE DIFFERENT from their GP counterparts. After the
         link geometry is offset, the ML nodes are created by extracting coordinates from the
         endpoints of the offset link geometry. This means if GP node 100 is at (X, Y), the
         corresponding ML node 950100 will be at (X+dx, Y+dy) where dx/dy represent the
         perpendicular offset. All links sharing that GP node will share the same offset ML
         node coordinates, ensuring network connectivity is maintained.
-    
+
     Args:
         links_df: DataFrame of all network links
         link_id_lookup: Mapping from GP link IDs to new ML link IDs
         node_id_lookup: Mapping from GP node IDs to new ML node IDs (ensures consistency)
         offset_meters: Perpendicular offset distance for ML geometry. Defaults to -10 meters.
         copy_from_gp_to_ml: List of property names to copy from GP links to ML links
-        
+
     Returns:
         GeoDataFrame containing all three categories of links combined
     """
@@ -541,7 +543,9 @@ def _create_dummy_connector_links(
 
     access_df["B"] = access_df["A"].map(ml_node_id_lookup)
     access_df["GP_model_link_id"] = access_df["model_link_id"]
-    access_df["model_link_id"] = ACCESS_LINK_OFFSET + access_df["GP_model_link_id"].map(ml_link_id_lookup)
+    access_df["model_link_id"] = ACCESS_LINK_OFFSET + access_df["GP_model_link_id"].map(
+        ml_link_id_lookup
+    )
     access_df["name"] = "Access Dummy " + access_df["name"]
     access_df["roadway"] = "ml_access_point"
     access_df["model_link_id_idx"] = access_df["model_link_id"]
@@ -550,7 +554,9 @@ def _create_dummy_connector_links(
     # egress link should go from B_ML to B_GP
     egress_df["A"] = egress_df["B"].map(ml_node_id_lookup)
     egress_df["GP_model_link_id"] = egress_df["model_link_id"]
-    egress_df["model_link_id"] = EGRESS_LINK_OFFSET + egress_df["GP_model_link_id"].map(ml_link_id_lookup)
+    egress_df["model_link_id"] = EGRESS_LINK_OFFSET + egress_df["GP_model_link_id"].map(
+        ml_link_id_lookup
+    )
     egress_df["name"] = "Egress Dummy " + egress_df["name"]
     egress_df["roadway"] = "ml_egress_point"
     egress_df["model_link_id_idx"] = egress_df["model_link_id"]
@@ -558,7 +564,7 @@ def _create_dummy_connector_links(
 
     # combine to one dataframe
     access_egress_df = concat_with_attr([access_df, egress_df], axis=0)
-    
+
     # Deduplicate access/egress links that have the same A-B node pair
     # This happens when multiple GP links share the same A or B node
     duplicates = access_egress_df[access_egress_df.duplicated(subset=["A", "B"], keep=False)]
@@ -568,7 +574,9 @@ def _create_dummy_connector_links(
             f"Found {len(duplicates)} duplicate access/egress links for {num_unique} unique A-B pairs. "
             f"Keeping first occurrence of each A-B pair."
         )
-        WranglerLogger.debug(f"Duplicate A-B pairs:\n{duplicates[['A', 'B', 'name', 'GP_model_link_id']].sort_values(['A', 'B'])}")
+        WranglerLogger.debug(
+            f"Duplicate A-B pairs:\n{duplicates[['A', 'B', 'name', 'GP_model_link_id']].sort_values(['A', 'B'])}"
+        )
         access_egress_df = access_egress_df.drop_duplicates(subset=["A", "B"], keep="first")
         WranglerLogger.debug(f"After deduplication: {len(access_egress_df)} access/egress links")
 
@@ -594,7 +602,7 @@ def _create_ml_nodes_from_links(
     copy_from_gp_node_to_ml: list[str],
 ) -> DataFrame[RoadNodesTable]:
     """Creates managed lane nodes from geometry already generated by links.
-    
+
     Args:
         ml_links_df: Managed lane links dataframe.
         ml_node_id_lookup: Lookup from general purpose node ids to managed lane node ids.
@@ -606,9 +614,9 @@ def _create_ml_nodes_from_links(
     ml_nodes_df = a_nodes_df.combine_first(b_nodes_df)
 
     # ml_node_id_lookup maps GP to ML node, we want the reverse
-    reverse_ml_node_id_lookup = {value: key for key,value in ml_node_id_lookup.items()}
+    reverse_ml_node_id_lookup = {value: key for key, value in ml_node_id_lookup.items()}
     ml_nodes_df["GP_model_node_id"] = ml_nodes_df["model_node_id"].map(reverse_ml_node_id_lookup)
-    
+
     # Copy additional node attributes from GP nodes to ML nodes
     if copy_from_gp_node_to_ml:
         gp_node_attrs_indexed = gp_nodes_df.set_index("model_node_id")
@@ -622,7 +630,7 @@ def _create_ml_nodes_from_links(
                     f"Attribute '{attr}' in ADDITIONAL_COPY_FROM_GP_NODE_TO_ML not found "
                     f"in GP nodes. Skipping."
                 )
-    
+
     WranglerLogger.debug(f"ml_node_id_lookup:{ml_node_id_lookup}")
     WranglerLogger.debug(f"_create_ml_nodes_from_links() returning:\n{ml_nodes_df}")
     return ml_nodes_df
