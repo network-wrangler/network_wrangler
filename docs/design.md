@@ -30,6 +30,127 @@ NetworkWrangler deals with four primary atomic parts:
 
 **4.[`ProjectCard`](https://network-wrangler.github.io/projectcard/main/api/#projectcard.projectcard.ProjectCard)** objects store information (including  metadata) about changes to the network.  Network Wrangler uses the [`projectcard`](https://network-wrangler.github.io/projectcard) package to read project cards from .yaml-like files and validate them.
 
+## Creating Networks
+
+### From Open Street Map (OSM) and GTFS
+
+The [`notebook/Create Network from OSM.ipynb`](https://github.com/network-wrangler/network_wrangler/blob/main/notebook/Create%20Network%20from%20OSM.ipynb) notebook provides an interactive walkthrough of building a network step by step. The [`mtc_wrangler`](https://github.com/BayAreaMetro/mtc_wrangler/) script [`create_baseyear_network/create_mtc_network_from_OSM.py`](https://github.com/BayAreaMetro/mtc_wrangler/blob/main/create_baseyear_network/create_mtc_network_from_OSM.py) shows a complete production pipeline, summarized below.
+
+**Step 1: Download OSM road network**
+
+Use [`osmnx`](https://osmnx.readthedocs.io) to fetch the raw road graph for your geography. Enable caching to avoid repeated downloads during development:
+
+```python
+import osmnx
+osmnx.settings.use_cache = True
+g = osmnx.graph_from_place('San Francisco, California, USA', network_type='all')
+# or for a bounding box:
+# g = osmnx.graph_from_bbox(bbox, network_type='all')
+```
+
+**Step 2: Simplify topology**
+
+Project to a local CRS and consolidate nearby intersections to remove unnecessary intermediate nodes while preserving connectivity:
+
+```python
+g = osmnx.projection.project_graph(g, to_crs=local_crs)
+g = osmnx.simplification.consolidate_intersections(
+    g, tolerance=30, rebuild_graph=True, dead_ends=True, reconnect_edges=True
+)
+nodes_gdf, links_gdf = osmnx.graph_to_gdfs(g)
+```
+
+**Step 3: Create a RoadwayNetwork**
+
+Rename and augment columns to meet the wrangler schema (adding `A`, `B`, `model_link_id`, `drive_access`, `walk_access`, etc.), then load into a [`RoadwayNetwork`](api.md#network_wrangler.roadway.network.RoadwayNetwork) using [`load_roadway_from_dataframes()`](api_roadway.md#network_wrangler.roadway.io.load_roadway_from_dataframes):
+
+```python
+import network_wrangler as nw
+
+road_net = nw.load_roadway_from_dataframes(
+    links_df=links_gdf,
+    nodes_df=nodes_gdf,
+    shapes_df=links_gdf,
+)
+```
+
+Before adding centroids, apply any additional enrichment to the network: setting facility types, managed lane fields, controlled-access highway flags, bridge toll link attributes, and per-link `{mode}_centroid_fit` values (see [`FitForCentroidConnection`](api_roadway.md#network_wrangler.roadway.centroids.FitForCentroidConnection)).
+
+**Step 4: Add zone centroids and connectors**
+
+Add zone centroid nodes and create connector links using [`add_centroid_nodes()`](api_roadway.md#network_wrangler.roadway.centroids.add_centroid_nodes) and [`add_centroid_connectors()`](api_roadway.md#network_wrangler.roadway.centroids.add_centroid_connectors).
+
+```python
+from network_wrangler.roadway.centroids import add_centroid_nodes, add_centroid_connectors
+
+# TAZ connectors
+add_centroid_nodes(road_net, taz_zones_gdf, zone_id="TAZ_NODE")
+add_centroid_connectors(
+    road_net, taz_zones_gdf, zone_id="TAZ_NODE", mode="drive",
+    local_crs=local_crs,
+    zone_buffer_distance=20,    # units of local_crs — search radius beyond zone boundary
+    num_centroid_connectors=4,  # max connectors per zone
+    max_mode_graph_degrees=4,   # exclude high-degree nodes (e.g. motorway ramps)
+)
+```
+
+The connector selection algorithm first picks the node with the best fitness and shortest distance, then selects each additional connector to maximize angular separation from already-selected ones, ensuring good spatial distribution around the centroid.
+
+**Step 5: Prepare GTFS transit data**
+
+Load the GTFS feed and filter it to the target service date and geography using [`load_feed_from_path()`](api_transit.md#network_wrangler.transit.feed.io.load_feed_from_path):
+
+```python
+from network_wrangler.transit.feed.io import load_feed_from_path
+
+gtfs_feed = load_feed_from_path(
+    input_gtfs_path,
+    service_ids_filter=service_ids,  # pre-filter to a specific operating day
+)
+```
+
+Additional cleanup — dropping irrelevant agencies, filtering stops to the study area boundary, removing duplicate consecutive stops — should be applied before the next step.
+
+**Step 6: Create TransitNetwork**
+
+Conflate transit stops to roadway nodes and create access links, converting the GTFS-flavored feed to a wrangler-flavored [`TransitNetwork`](api.md#network_wrangler.transit.network.TransitNetwork):
+
+```python
+from network_wrangler.transit.feed.io import create_feed_from_gtfs_model
+
+feed = create_feed_from_gtfs_model(
+    gtfs_feed, road_net,
+    local_crs=local_crs,
+    timeperiods=time_periods,
+    frequency_method='median_headway',
+    add_stations_and_links=True,
+)
+transit_net = nw.load_transit(feed)
+```
+
+**Write to files**
+
+```python
+road_net.write(out_dir=output_dir, prefix="my_network", file_format="geojson")
+nw.write_transit(transit_net, output_dir, prefix="my_transit")
+```
+
+### From Overture
+
+The `notebook/Create Network from Overture.ipynb` notebook explores using [Overture Maps](https://overturemaps.org/) data as an alternative roadway source. Data is downloaded with the [Overture Maps Python CLI](https://docs.overturemaps.org/getting-data/overturemaps-py/):
+
+```bash
+pip install overturemaps
+overturemaps download --bbox=<west,south,east,north> -f geoparquet --type=segment   -o segments.parquet
+overturemaps download --bbox=<west,south,east,north> -f geoparquet --type=connector -o connectors.parquet
+```
+
+Overture `segment` features map to wrangler links and `connector` features map to nodes. Most attribute mappings are straightforward (name, roadway class, access modes). Overture uses GERS hex IDs which must be converted to integers for use as `model_link_id`, `A`, and `B`. Speed limits and other scoped values are stored as nested JSON in parquet and require parsing before use.
+
+!!! warning "Overture data not yet suitable for production use"
+
+    The `lanes` attribute is absent from the Overture dataset, making it impossible to determine reliably which links should be one-way vs. two-way or to correctly set link directionality. The notebook is therefore an exploratory reference rather than a complete workflow.
+
 ## Applying Projects
 
 The basic functionality of NetworkWrangler is to apply a set of projects to a scenario.
