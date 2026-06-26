@@ -142,7 +142,7 @@ def add_centroid_connectors(  # noqa: PLR0912, PLR0915
     num_centroid_connectors: int,
     max_mode_graph_degrees: int,
     default_link_attribute_dict: dict[str, any] | None = None,
-):
+) -> gpd.GeoDataFrame:
     """Creates centroid connector links between zone centroids and roadway network nodes.
 
     This function identifies suitable roadway nodes for each zone and creates connector links
@@ -151,20 +151,20 @@ def add_centroid_connectors(  # noqa: PLR0912, PLR0915
 
     Selection Algorithm:
         1. **Node Evaluation**: For each node in the modal graph, calculates:
-           - Outgoing degree (number of outbound links)
-           - Fitness for centroid connection (worst fitness of connected links)
+            - Outgoing degree (number of outbound links)
+            - Fitness for centroid connection (worst fitness of connected links)
 
         2. **Spatial Filtering**: Identifies nodes within each zone boundary and filters out:
-           - Nodes with `{mode}_centroid_fit` = DO_NOT_USE
-           - Nodes outside zone boundaries
-           - Nodes with outgoing degree > max_mode_graph_degrees
+            - Nodes with `{mode}_centroid_fit` = DO_NOT_USE
+            - Nodes outside zone boundaries
+            - Nodes with outgoing degree > max_mode_graph_degrees
 
         3. **Connector Selection** (per zone):
-           - First connector: Node with best fitness and closest to centroid
-           - Additional connectors: For each subsequent connector (up to num_centroid_connectors):
-             * Among nodes with the best available fitness level
-             * Select the one with maximum angular separation from existing connectors
-             * This ensures spatial distribution while prioritizing network suitability
+            - First connector: Node with best fitness and closest to centroid
+            - Additional connectors: For each subsequent connector (up to num_centroid_connectors):
+                * Among nodes with the best available fitness level
+                * Select the one with maximum angular separation from existing connectors
+                * This ensures spatial distribution while prioritizing network suitability
 
         4. **Link Creation**: Creates bidirectional links between zone centroid and selected nodes
 
@@ -200,9 +200,9 @@ def add_centroid_connectors(  # noqa: PLR0912, PLR0915
             Defaults to None.
 
     Returns:
-        A geopandas.GeoDataFrame that's a copy of zones_gdf but with an additional column, `num_connectors`.
-        The road_net is updated in place with new centroid connector links, and the
-        nodes table has an additional column: `{zone_id}_num_connectors`.
+        A copy of zones_gdf with an additional column, `num_connectors`. The road_net is
+            updated in place with new centroid connector links, and the nodes table has an
+            additional column: `{zone_id}_num_connectors`.
 
     """
     WranglerLogger.info(f"Adding centroid connectors for zone:{zone_id} and mode:{mode}")
