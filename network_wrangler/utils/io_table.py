@@ -205,6 +205,8 @@ def write_table(
     if "shp" in filename.suffix:
         df.to_file(filename, index=False, **kwargs)
     elif "parquet" in filename.suffix:
+        # Convert Pydantic models to dicts before parquet serialization
+        df = _prepare_df_for_json(df)
         df.to_parquet(filename, index=False, **kwargs)
     elif "csv" in filename.suffix or "txt" in filename.suffix:
         df.to_csv(filename, index=False, date_format="%H:%M:%S", **kwargs)
@@ -220,6 +222,8 @@ def write_table(
         with filename.open("w", encoding="utf-8") as file:
             file.write(data)
     elif "json" in filename.suffix:
+        # Convert Pydantic models to dicts before JSON serialization
+        df = _prepare_df_for_json(df)
         with filename.open("w") as f:
             f.write(df.to_json(orient="records"))
     else:
@@ -325,8 +329,8 @@ def read_table(  # noqa: PLR0912
         msg = f"Filetype {filename.suffix} not implemented."
         raise NotImplementedError(msg)
 
-    # Restore Pydantic models and geometry columns after reading from JSON/GeoJSON
-    if any(x in filename.suffix for x in ["geojson", "json"]):
+    # Restore Pydantic models and geometry columns after reading from JSON/GeoJSON/parquet
+    if any(x in filename.suffix for x in ["geojson", "json", "parquet"]):
         df = _restore_scoped_pydantic_models(df)
         df = _restore_geometry_columns(df)
 

@@ -24,7 +24,7 @@ from ...utils.geo import (
     linestring_from_nodes,
     offset_geometry_meters,
 )
-from ...utils.models import validate_call_pyd, validate_df_to_model
+from ...utils.models import order_fields_from_data_model, validate_call_pyd, validate_df_to_model
 from ..utils import create_unique_shape_id, set_df_index_to_pk
 
 
@@ -153,6 +153,7 @@ def data_to_links_df(
         )
 
     links_df = validate_df_to_model(links_df, RoadLinksTable)
+    links_df = order_fields_from_data_model(links_df, RoadLinksTable)
 
     if len(links_df) < SMALL_RECS:
         WranglerLogger.debug(
