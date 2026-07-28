@@ -47,6 +47,11 @@
     "aliases": []
   },
   {
+    "version": "chore-remove-stray-root-dirs",
+    "title": "chore-remove-stray-root-dirs",
+    "aliases": []
+  },
+  {
     "version": "chore-bump-dependencies",
     "title": "chore-bump-dependencies",
     "aliases": []
