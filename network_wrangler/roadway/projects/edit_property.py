@@ -21,7 +21,7 @@ if TYPE_CHECKING:
 def _node_geo_change_from_property_changes(
     property_changes: dict[str, RoadPropertyChange],
     node_idx: list[int],
-) -> None | NodeGeometryChangeTable:
+) -> NodeGeometryChangeTable | None:
     """Return NodeGeometryChangeTable if property_changes includes gometry change else None."""
     geo_change_present = any(f in property_changes for f in ["X", "Y"])
     if not geo_change_present:

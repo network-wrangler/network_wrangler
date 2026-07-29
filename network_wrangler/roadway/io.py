@@ -194,7 +194,7 @@ def load_roadway_from_dataframes(
 
 def id_roadway_file_paths_in_dir(
     dir: Path | str, file_format: RoadwayFileTypes = "geojson"
-) -> tuple[Path, Path, None | Path]:
+) -> tuple[Path, Path, Path | None]:
     """Identifies the paths to the links, nodes, and shapes files in a directory."""
     network_path = Path(dir)
     if not network_path.is_dir():
