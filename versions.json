@@ -47,6 +47,11 @@
     "aliases": []
   },
   {
+    "version": "dependabot-pip-environments-pip-pyarrow-23.0.1",
+    "title": "dependabot-pip-environments-pip-pyarrow-23.0.1",
+    "aliases": []
+  },
+  {
     "version": "chore-remove-stray-root-dirs",
     "title": "chore-remove-stray-root-dirs",
     "aliases": []
