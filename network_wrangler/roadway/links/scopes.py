@@ -340,7 +340,7 @@ def _filter_exploded_df_to_scope(
 def prop_for_scope(
     links_df: pd.DataFrame,
     prop_name: str,
-    timespan: None | list[TimeString] = DEFAULT_TIMESPAN,
+    timespan: list[TimeString] | None = DEFAULT_TIMESPAN,
     category: str | int | None = DEFAULT_CATEGORY,
     strict_timespan_match: bool = False,
     min_overlap_minutes: int = 60,

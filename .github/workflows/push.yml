@@ -18,8 +18,9 @@ jobs:
           python-version: "3.13"
 
       - name: Install ruff
+        # Keep pinned in sync with .pre-commit-config.yaml and pullrequest.yml.
         run: |
-          uv pip install --system ruff
+          uv pip install --system ruff==0.16.0
         shell: bash
 
       - name: Check formatting
