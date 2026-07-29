@@ -5464,7 +5464,7 @@ Defaults to LAT_LON_CRS. Will convert everything to LAT_LON_CRSif it doesn’t m
 <code>nodes_df</code>
 </td>
 <td>
-<code>None | <a class="autorefs autorefs-external" href="https://pandera.readthedocs.io/en/stable/reference/generated/pandera.typing.DataFrame.html#pandera.typing.DataFrame" title="pandera.typing.DataFrame">DataFrame</a>[<a class="autorefs autorefs-internal" href="#network_wrangler.models.roadway.tables.RoadNodesTable" title="network_wrangler.models.roadway.tables.RoadNodesTable">RoadNodesTable</a>]</code>
+<code><a class="autorefs autorefs-external" href="https://pandera.readthedocs.io/en/stable/reference/generated/pandera.typing.DataFrame.html#pandera.typing.DataFrame" title="pandera.typing.DataFrame">DataFrame</a>[<a class="autorefs autorefs-internal" href="#network_wrangler.models.roadway.tables.RoadNodesTable" title="network_wrangler.models.roadway.tables.RoadNodesTable">RoadNodesTable</a>] | None</code>
 </td>
 <td>
 <div class="doc-md-description">
@@ -5556,7 +5556,7 @@ present. Defaults to None.</p>
 </span><span id="__span-0-71"><a id="__codelineno-0-71" name="__codelineno-0-71"></a><span class="k">def</span><span class="w"> </span><span class="nf">data_to_links_df</span><span class="p">(</span>
 </span><span id="__span-0-72"><a id="__codelineno-0-72" name="__codelineno-0-72"></a>    <span class="n">links_df</span><span class="p">:</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span> <span class="o">|</span> <span class="nb">list</span><span class="p">[</span><span class="nb">dict</span><span class="p">],</span>
 </span><span id="__span-0-73"><a id="__codelineno-0-73" name="__codelineno-0-73"></a>    <span class="n">in_crs</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="n">LAT_LON_CRS</span><span class="p">,</span>
-</span><span id="__span-0-74"><a id="__codelineno-0-74" name="__codelineno-0-74"></a>    <span class="n">nodes_df</span><span class="p">:</span> <span class="kc">None</span> <span class="o">|</span> <span class="n">DataFrame</span><span class="p">[</span><span class="n">RoadNodesTable</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+</span><span id="__span-0-74"><a id="__codelineno-0-74" name="__codelineno-0-74"></a>    <span class="n">nodes_df</span><span class="p">:</span> <span class="n">DataFrame</span><span class="p">[</span><span class="n">RoadNodesTable</span><span class="p">]</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
 </span><span id="__span-0-75"><a id="__codelineno-0-75" name="__codelineno-0-75"></a><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">DataFrame</span><span class="p">[</span><span class="n">RoadLinksTable</span><span class="p">]:</span>
 </span><span id="__span-0-76"><a id="__codelineno-0-76" name="__codelineno-0-76"></a><span class="w">    </span><span class="sd">"""Create a links dataframe from list of link properties + link geometries or associated nodes.</span>
 </span><span id="__span-0-77"><a id="__codelineno-0-77" name="__codelineno-0-77"></a>
@@ -7155,7 +7155,7 @@ exploded dataframes for scoped properties and filtering them based on scope.</p>
 <code>timespan</code>
 </td>
 <td>
-<code>None | <a class="autorefs autorefs-external" href="https://docs.python.org/3/library/stdtypes.html#list">list</a>[<span title="network_wrangler.models._base.types.TimeString">TimeString</span>]</code>
+<code><a class="autorefs autorefs-external" href="https://docs.python.org/3/library/stdtypes.html#list">list</a>[<span title="network_wrangler.models._base.types.TimeString">TimeString</span>] | None</code>
 </td>
 <td>
 <div class="doc-md-description">
@@ -7330,7 +7330,7 @@ values are found. Defaults to True.</p>
 </span><span id="__span-0-340"><a id="__codelineno-0-340" name="__codelineno-0-340"></a><span class="k">def</span><span class="w"> </span><span class="nf">prop_for_scope</span><span class="p">(</span>
 </span><span id="__span-0-341"><a id="__codelineno-0-341" name="__codelineno-0-341"></a>    <span class="n">links_df</span><span class="p">:</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">,</span>
 </span><span id="__span-0-342"><a id="__codelineno-0-342" name="__codelineno-0-342"></a>    <span class="n">prop_name</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
-</span><span id="__span-0-343"><a id="__codelineno-0-343" name="__codelineno-0-343"></a>    <span class="n">timespan</span><span class="p">:</span> <span class="kc">None</span> <span class="o">|</span> <span class="nb">list</span><span class="p">[</span><span class="n">TimeString</span><span class="p">]</span> <span class="o">=</span> <span class="n">DEFAULT_TIMESPAN</span><span class="p">,</span>
+</span><span id="__span-0-343"><a id="__codelineno-0-343" name="__codelineno-0-343"></a>    <span class="n">timespan</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="n">TimeString</span><span class="p">]</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="n">DEFAULT_TIMESPAN</span><span class="p">,</span>
 </span><span id="__span-0-344"><a id="__codelineno-0-344" name="__codelineno-0-344"></a>    <span class="n">category</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="nb">int</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="n">DEFAULT_CATEGORY</span><span class="p">,</span>
 </span><span id="__span-0-345"><a id="__codelineno-0-345" name="__codelineno-0-345"></a>    <span class="n">strict_timespan_match</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
 </span><span id="__span-0-346"><a id="__codelineno-0-346" name="__codelineno-0-346"></a>    <span class="n">min_overlap_minutes</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">60</span><span class="p">,</span>
@@ -13913,7 +13913,7 @@ Defaults to False unless boundary_gdf, boundary_geocode, or boundary_file are pr
 <span class="normal"><a href="#__codelineno-0-225">225</a></span>
 <span class="normal"><a href="#__codelineno-0-226">226</a></span></pre></div></td><td class="code"><div><pre><span></span><code><span id="__span-0-195"><a id="__codelineno-0-195" name="__codelineno-0-195"></a><span class="k">def</span><span class="w"> </span><span class="nf">id_roadway_file_paths_in_dir</span><span class="p">(</span>
 </span><span id="__span-0-196"><a id="__codelineno-0-196" name="__codelineno-0-196"></a>    <span class="nb">dir</span><span class="p">:</span> <span class="n">Path</span> <span class="o">|</span> <span class="nb">str</span><span class="p">,</span> <span class="n">file_format</span><span class="p">:</span> <span class="n">RoadwayFileTypes</span> <span class="o">=</span> <span class="s2">"geojson"</span>
-</span><span id="__span-0-197"><a id="__codelineno-0-197" name="__codelineno-0-197"></a><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">tuple</span><span class="p">[</span><span class="n">Path</span><span class="p">,</span> <span class="n">Path</span><span class="p">,</span> <span class="kc">None</span> <span class="o">|</span> <span class="n">Path</span><span class="p">]:</span>
+</span><span id="__span-0-197"><a id="__codelineno-0-197" name="__codelineno-0-197"></a><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">tuple</span><span class="p">[</span><span class="n">Path</span><span class="p">,</span> <span class="n">Path</span><span class="p">,</span> <span class="n">Path</span> <span class="o">|</span> <span class="kc">None</span><span class="p">]:</span>
 </span><span id="__span-0-198"><a id="__codelineno-0-198" name="__codelineno-0-198"></a><span class="w">    </span><span class="sd">"""Identifies the paths to the links, nodes, and shapes files in a directory."""</span>
 </span><span id="__span-0-199"><a id="__codelineno-0-199" name="__codelineno-0-199"></a>    <span class="n">network_path</span> <span class="o">=</span> <span class="n">Path</span><span class="p">(</span><span class="nb">dir</span><span class="p">)</span>
 </span><span id="__span-0-200"><a id="__codelineno-0-200" name="__codelineno-0-200"></a>    <span class="k">if</span> <span class="ow">not</span> <span class="n">network_path</span><span class="o">.</span><span class="n">is_dir</span><span class="p">():</span>
