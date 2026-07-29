@@ -52,6 +52,11 @@
     "aliases": []
   },
   {
+    "version": "chore-bump-ruff-0.16",
+    "title": "chore-bump-ruff-0.16",
+    "aliases": []
+  },
+  {
     "version": "chore-bump-dependencies",
     "title": "chore-bump-dependencies",
     "aliases": []
