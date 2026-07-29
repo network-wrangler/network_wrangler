@@ -71,7 +71,7 @@ def _fill_missing_distance_from_geometry(df: gpd.GeoDataFrame) -> gpd.GeoDataFra
 def data_to_links_df(
     links_df: pd.DataFrame | list[dict],
     in_crs: int = LAT_LON_CRS,
-    nodes_df: None | DataFrame[RoadNodesTable] = None,
+    nodes_df: DataFrame[RoadNodesTable] | None = None,
 ) -> DataFrame[RoadLinksTable]:
     """Create a links dataframe from list of link properties + link geometries or associated nodes.
 

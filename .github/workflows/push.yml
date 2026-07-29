@@ -20,7 +20,7 @@ jobs:
       - name: Install ruff
         # Keep pinned in sync with .pre-commit-config.yaml and pullrequest.yml.
         run: |
-          uv pip install --system ruff==0.15.8
+          uv pip install --system ruff==0.16.0
         shell: bash
 
       - name: Check formatting

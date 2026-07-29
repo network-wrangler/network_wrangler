@@ -132,7 +132,7 @@ def _update_property_for_scope(
 
 @validate_call(config={"arbitrary_types_allowed": True}, validate_return=True)
 def _edit_scoped_link_property(
-    scoped_prop_value_list: None | list[ScopedLinkValueItem],
+    scoped_prop_value_list: list[ScopedLinkValueItem] | None,
     scoped_prop_set: ScopedPropertySetList,
     default_value: Any = None,
     overwrite_scoped: Literal["conflicting", "all", "error"] = "error",
