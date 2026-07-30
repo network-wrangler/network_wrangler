@@ -135,7 +135,7 @@ class TransitNetwork:
             raise TransitRoadwayConsistencyError(msg)
 
     @property
-    def road_net(self) -> None | RoadwayNetwork:
+    def road_net(self) -> RoadwayNetwork | None:
         """Roadway network associated with the transit network."""
         return self._road_net
 
