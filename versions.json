@@ -52,6 +52,11 @@
     "aliases": []
   },
   {
+    "version": "dependabot-uv-jupyter-server-2.20.0",
+    "title": "dependabot-uv-jupyter-server-2.20.0",
+    "aliases": []
+  },
+  {
     "version": "dependabot-uv-bleach-6.4.0",
     "title": "dependabot-uv-bleach-6.4.0",
     "aliases": []
