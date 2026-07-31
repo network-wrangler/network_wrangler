@@ -243,7 +243,7 @@ class RoadPropertyChange(RecordModel):
     existing: Any | None = None
     change: int | float | None = None
     set: Any | None = None
-    scoped: None | ScopedPropertySetList = None
+    scoped: ScopedPropertySetList | None = None
     overwrite_scoped: Literal["conflicting", "all", "error"] | None = None
     existing_value_conflict: Literal["error", "warn", "skip"] | None = None
 

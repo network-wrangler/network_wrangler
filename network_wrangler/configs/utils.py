@@ -87,7 +87,7 @@ def find_configs_in_dir(dir: Path | list[Path], config_type) -> list[Path]:
     return []
 
 
-def _config_data_from_files(path: Path | list[Path] | None = None) -> None | dict:
+def _config_data_from_files(path: Path | list[Path] | None = None) -> dict | None:
     """Load and combine configuration data from file(s).
 
     Args:
