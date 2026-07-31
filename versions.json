@@ -47,6 +47,11 @@
     "aliases": []
   },
   {
+    "version": "dependabot-uv-tornado-6.5.7",
+    "title": "dependabot-uv-tornado-6.5.7",
+    "aliases": []
+  },
+  {
     "version": "dependabot-pip-environments-pip-pyarrow-23.0.1",
     "title": "dependabot-pip-environments-pip-pyarrow-23.0.1",
     "aliases": []
