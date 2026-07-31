@@ -52,6 +52,11 @@
     "aliases": []
   },
   {
+    "version": "dependabot-uv-bleach-6.4.0",
+    "title": "dependabot-uv-bleach-6.4.0",
+    "aliases": []
+  },
+  {
     "version": "dependabot-pip-environments-pip-pyarrow-23.0.1",
     "title": "dependabot-pip-environments-pip-pyarrow-23.0.1",
     "aliases": []
