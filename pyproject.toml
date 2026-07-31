@@ -37,7 +37,7 @@ dependencies = [
     "pandera[pandas]>=0.29.0",
     "projectcard>=0.3.3",
     "psutil>=6.0.0",
-    "pyarrow>=17.0.0",
+    "pyarrow>=23.0.1",
     "pydantic>=2.9.2",
     "pyogrio>=0.9.0",
     "pyyaml>=6.0.2",
@@ -138,6 +138,7 @@ ignore = [
     "PLC0415", # `import` should be at the top-level (intentional lazy imports to avoid circular deps)
     "C416", # non pep-604 annotations.
     "PLR0913", # too many args
+    "PLR0917", # too many positional args - same rationale as PLR0913; many public APIs take numerous optional keyword-defaulted params.
 ]
 extend-select = [
   "B",           # flake8-bugbear
