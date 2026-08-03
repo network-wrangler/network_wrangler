@@ -330,9 +330,6 @@ def add_centroid_connectors(  # noqa: PLR0912, PLR0915
         mode_node_df.loc[first_idx, "connector_num"] = 1
         zone_data.loc[first_idx, "connector_num"] = 1
 
-        if zone_num == 650:  # noqa: PLR2004
-            WranglerLogger.debug(f"A {zone_id} {zone_num}:\n{zone_data}")
-
         # 2-n: select additional connectors, choosing the one with maximum angular separation
         # from existing connectors, prioritizing by lowest {mode}_centroid_fit first
         for connector_num in range(2, num_centroid_connectors + 1):
@@ -356,11 +353,6 @@ def add_centroid_connectors(  # noqa: PLR0912, PLR0915
             best_fit = candidates[f"{mode}_centroid_fit"].min()
             best_fit_candidates = candidates[candidates[f"{mode}_centroid_fit"] == best_fit]
 
-            if zone_num == 650:  # noqa: PLR2004
-                WranglerLogger.debug(
-                    f"B {zone_id} {zone_num} {connector_num=}:\n{best_fit_candidates}"
-                )
-
             # Among candidates with the best fit, choose the one with maximum angular separation
             if len(best_fit_candidates) > 0:
                 selected_idx = best_fit_candidates["min_angle_sep"].idxmax()
@@ -369,9 +361,6 @@ def add_centroid_connectors(  # noqa: PLR0912, PLR0915
                 zone_data.loc[selected_idx, "connector_num"] = connector_num
             else:
                 break  # No more candidates
-
-        if zone_num == 650:  # noqa: PLR2004
-            WranglerLogger.debug(f"B {zone_id} {zone_num}:\n{zone_data}")
 
     # Filter to only selected connectors
     mode_node_df = mode_node_df[mode_node_df["connector_num"] > 0]
