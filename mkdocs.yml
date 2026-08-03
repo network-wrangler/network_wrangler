@@ -69,7 +69,8 @@ plugins:
             show_root_full_path: true
             show_root_members_full_path: true
             show_bases: true
-            show_inheritance_diagram: true
+            show_inheritance_diagram: false
+            show_attributes: false
             separate_signature: true
             signature_crossrefs: true
   - search

@@ -180,6 +180,8 @@ class RoadwayNetwork(BaseModel):
         my_str = f"RoadwayNetwork(nodes={len(self.nodes_df)}, links={len(self.links_df)})"
         my_str += f"\nnodes_df (type={type(self.nodes_df)}):\n{self.nodes_df}"
         my_str += f"\nlinks_df (type={type(self.links_df)}):\n{self.links_df}"
+        my_str += f"\nshapes_df (type={type(self.shapes_df)}):\n{self.shapes_df}"
+        my_str += f"\ncrs={self.shapes_df.crs}"
         return my_str
 
     @field_validator("config")
@@ -582,7 +584,7 @@ class RoadwayNetwork(BaseModel):
         add_shapes_df: pd.DataFrame,
         in_crs: int = LAT_LON_CRS,
     ):
-        """Validate combined shapes_df with RoadShapesTable efore adding to self.shapes_df.
+        """Validate combined shapes_df with RoadShapesTable before adding to self.shapes_df.
 
         Args:
             add_shapes_df: Dataframe of additional shapes to add.
@@ -1018,6 +1020,43 @@ class RoadwayNetwork(BaseModel):
         is_connected = nx.is_strongly_connected(self.get_modal_graph(mode))
 
         return is_connected
+
+    def write(
+        self,
+        out_dir: Union[Path, str] = ".",
+        convert_complex_link_properties_to_single_field: bool = False,
+        prefix: str = "",
+        file_format: str = "geojson",
+        overwrite: bool = True,
+        true_shape: bool = False,
+    ) -> None:
+        """Writes a network in the roadway network standard.
+
+        Calls [network_wrangler.roadway.io.write_roadway()][] but this is useful as a class
+        method so that subclasses can implement it (to force validation, for example).
+
+        Args:
+            out_dir: the path were the output will be saved. Defaults to ".".
+            prefix: the name prefix of the roadway files that will be generated.
+            file_format: the format of the output files. Defaults to "geojson".
+            convert_complex_link_properties_to_single_field: if True, will convert complex link
+                properties to a single column consistent with v0 format.  This format is NOT valid
+                with parquet and many other softwares. Defaults to False.
+            overwrite: if True, will overwrite the files if they already exist. Defaults to True.
+            true_shape: if True, will write the true shape of the links as found from shapes.
+                Defaults to False.
+        """
+        from .io import write_roadway
+
+        write_roadway(
+            self,
+            out_dir=out_dir,
+            convert_complex_link_properties_to_single_field=convert_complex_link_properties_to_single_field,
+            prefix=prefix,
+            file_format=file_format,
+            overwrite=overwrite,
+            true_shape=true_shape,
+        )
 
 
 def add_incident_link_data_to_nodes(

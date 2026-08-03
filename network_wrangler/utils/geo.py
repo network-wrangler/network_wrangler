@@ -4,15 +4,18 @@ from __future__ import annotations
 
 import copy
 import math
+from enum import Enum
 from pathlib import Path
 from typing import TYPE_CHECKING
 
 import geopandas as gpd
+import numpy as np
 import pandas as pd
+import shapely
 from geographiclib.geodesic import Geodesic
-from pyproj import CRS, Proj, Transformer
-from shapely.geometry import LineString, Point
-from shapely.ops import transform
+from pyproj import CRS, Geod, Proj, Transformer
+from shapely.geometry import LineString, MultiLineString, Point
+from shapely.ops import linemerge, transform
 
 from ..errors import MissingNodesError
 from ..logger import WranglerLogger
@@ -23,6 +26,33 @@ from .data import update_df_by_col_value
 
 if TYPE_CHECKING:
     from ..roadway.network import RoadwayNetwork
+
+
+class CardinalDirection(str, Enum):
+    """Cardinal directions."""
+
+    N = "N"
+    E = "E"
+    S = "S"
+    W = "W"
+
+
+class IntercardinalDirection(str, Enum):
+    """Cardinal and intercardinal directions."""
+
+    N = "N"
+    NE = "NE"
+    E = "E"
+    SE = "SE"
+    S = "S"
+    SW = "SW"
+    W = "W"
+    NW = "NW"
+
+
+_CARDINAL_LABELS = np.array([d.value for d in CardinalDirection])
+_INTERCARDINAL_LABELS = np.array([d.value for d in IntercardinalDirection])
+
 
 # key:value (from espg, to espg): pyproj transform object
 transformers = {}
@@ -481,6 +511,9 @@ def offset_geometry_meters(geo_s: gpd.GeoSeries, offset_distance_meters: float) 
     meters_crs = _id_utm_crs(geo_s)
     geo_s = geo_s.to_crs(meters_crs)
     offset_geo = geo_s.apply(lambda x: x.offset_curve(offset_distance_meters))
+    # offset_curve can produce MultiLineString for links with sharp bends/kinks;
+    # merge them back into LineString so downstream code can access .coords
+    offset_geo = offset_geo.apply(lambda g: linemerge(g) if isinstance(g, MultiLineString) else g)
     offset_geo = gpd.GeoSeries(offset_geo)
     return offset_geo.to_crs(og_crs)
 
@@ -597,3 +630,101 @@ def update_point_geometry(
         fail_if_missing=False,
     )
     return updated_df
+
+
+def get_link_bearings_degrees(geometry: gpd.GeoSeries) -> pd.Series:
+    """Calculate the bearing in degrees from the start to the end of each line geometry.
+
+    Vectorized over a GeoSeries of LineStrings.
+
+    Args:
+        geometry: GeoSeries of shapely LineString geometries in lat/long (WGS84).
+
+    Returns:
+        Series of bearings in degrees (0-360, where 0=North), aligned to ``geometry``'s
+        index. Values are NaN where the geometry is missing, empty, or has fewer than
+        two coordinates.
+    """
+    geoms = np.asarray(geometry.values, dtype=object)
+    valid = shapely.get_num_coordinates(geoms) >= 2  # noqa: PLR2004
+
+    start = shapely.get_point(geoms, 0)
+    end = shapely.get_point(geoms, -1)
+    lon1, lat1 = shapely.get_x(start), shapely.get_y(start)
+    lon2, lat2 = shapely.get_x(end), shapely.get_y(end)
+
+    bearings = np.full(len(geoms), np.nan)
+    if valid.any():
+        # forward azimuth (deg, -180..180) via WGS84 geodesic, vectorized
+        az, _back_az, _dist = Geod(ellps="WGS84").inv(
+            lon1[valid], lat1[valid], lon2[valid], lat2[valid]
+        )
+        bearings[valid] = (az + 360.0) % 360.0
+
+    return pd.Series(bearings, index=geometry.index)
+
+
+def bearings_to_cardinal_directions(
+    bearings: pd.Series, cardinal_only: bool = False
+) -> pd.Series:
+    """Convert a Series of bearings in degrees to cardinal/intercardinal directions.
+
+    Vectorized over a Series of bearings.
+
+    Args:
+        bearings: Series of bearings in degrees (0-360, where 0=North). NaN allowed.
+        cardinal_only: If True, use only N/E/S/W (4 sectors). If False (default),
+            include the intercardinal directions NE/SE/SW/NW (8 sectors).
+
+    Returns:
+        Series of direction strings aligned to ``bearings``'s index, with None where
+        the bearing is NaN.
+    """
+    labels = _CARDINAL_LABELS if cardinal_only else _INTERCARDINAL_LABELS
+    n_sectors = len(labels)
+    sector_deg = 360.0 / n_sectors
+
+    values = np.asarray(bearings, dtype=float)
+    nan_mask = np.isnan(values)
+    # offset by half a sector so each label is centered on its compass point
+    sector = ((np.where(nan_mask, 0.0, values) + sector_deg / 2.0) % 360.0) // sector_deg
+    sector = sector.astype(int) % n_sectors
+
+    directions = labels[sector].astype(object)
+    directions[nan_mask] = None
+
+    index = bearings.index if isinstance(bearings, pd.Series) else None
+    return pd.Series(directions, index=index)
+
+
+def add_direction_to_links(links_df: pd.DataFrame, cardinal_only: bool = False) -> pd.DataFrame:
+    """Add cardinal direction column to links based on their geometry.
+
+    Calculates the bearing/azimuth of each link from start to end point and assigns
+    cardinal directions.
+
+    Args:
+        links_df: DataFrame of road links with geometry column
+        cardinal_only: If True, returns only cardinal directions (N/E/S/W).
+                      If False (default), includes intercardinal (NE/SE/SW/NW).
+
+    Returns:
+        DataFrame with added 'direction' column
+
+    Example:
+        >>> links_df = add_direction_to_links(links_df)
+        >>> # Link going northeast would have direction='NE'
+        >>>
+        >>> links_df = add_direction_to_links(links_df, cardinal_only=True)
+        >>> # Same link would have direction='N' or 'E' depending on angle
+    """
+    # Make a copy to avoid modifying the original
+    result_df = links_df.copy()
+
+    # Calculate bearings for all links, then convert to cardinal directions (vectorized)
+    bearings = get_link_bearings_degrees(result_df["geometry"])
+    result_df["direction"] = bearings_to_cardinal_directions(
+        bearings, cardinal_only=cardinal_only
+    )
+
+    return result_df

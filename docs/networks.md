@@ -55,50 +55,21 @@ Network Wrangler is packaged with two examples located in the `/examples` direct
 
 A  valid `geojson`, `shp`, or `parquet` file.
 
-::: network_wrangler.models.roadway.tables.RoadNodesTable
-    options:
-        members: []
-        heading_level: 3
-        show_bases: false
-    handlers:
-      python:
-        options:
-          show_root_toc_entry: false
+See [`RoadNodesTable`][network_wrangler.models.roadway.tables.RoadNodesTable] for schema details.
 
 ### Road Links
 
 A  valid `geojson`, `shp`, `parquet`, or `json` file.
 
-::: network_wrangler.models.roadway.tables.RoadLinksTable
-    options:
-        members: []
-        heading_level: 3
-        show_bases: false
-    handlers:
-      python:
-        options:
-          show_root_toc_entry: false
+See [`RoadLinksTable`][network_wrangler.models.roadway.tables.RoadLinksTable] for schema details.
 
 ### Road Shapes
 
 A  valid `geojson`, `shp`, or `parquet` file with `LineString` geometry features and the folowing `properties`.
 
-::: network_wrangler.models.roadway.tables.RoadShapesTable
-    options:
-        members: []
-        heading_level: 3
-        show_bases: false
-    handlers:
-        python:
-            options:
-            show_root_toc_entry: false
+See [`RoadShapesTable`][network_wrangler.models.roadway.tables.RoadShapesTable] for schema details.
 
 ## Transit Network Format
-
-::: network_wrangler.models.gtfs.tables
-    options:
-        show_bases: false
-        members: []
 
 Transit Networks must use the the [GTFS](https://www.gtfs.org) Schedule format with the following additional constraints:
 
@@ -108,87 +79,31 @@ Transit Networks must use the the [GTFS](https://www.gtfs.org) Schedule format w
 
 ### Stops
 
-::: network_wrangler.models.gtfs.tables.WranglerStopsTable
-    options:
-        heading_level: 3
-        show_bases: false
-        members: []
-    handlers:
-        python:
-            options:
-                show_root_toc_entry: false
+See [`WranglerStopsTable`][network_wrangler.models.gtfs.tables.WranglerStopsTable] for schema details.
 
 ### Routes
 
-::: network_wrangler.models.gtfs.tables.RoutesTable
-    options:
-        heading_level: 3
-        show_bases: false
-        members: []
-    handlers:
-        python:
-            options:
-                show_root_toc_entry: false
+See [`RoutesTable`][network_wrangler.models.gtfs.tables.RoutesTable] for schema details.
 
 ### Trips
 
-::: network_wrangler.models.gtfs.tables.WranglerTripsTable
-    options:
-        members: []
-        heading_level: 3
-        show_bases: false
-    handlers:
-        python:
-            options:
-                show_root_toc_entry: false
+See [`WranglerTripsTable`][network_wrangler.models.gtfs.tables.WranglerTripsTable] for schema details.
 
 ### Stop_times
 
-::: network_wrangler.models.gtfs.tables.WranglerStopTimesTable
-    options:
-        members: []
-        heading_level: 3
-        show_bases: false
-    handlers:
-        python:
-            options:
-                show_root_toc_entry: false
+See [`WranglerStopTimesTable`][network_wrangler.models.gtfs.tables.WranglerStopTimesTable] for schema details.
 
 ### Shapes
 
-::: network_wrangler.models.gtfs.tables.WranglerShapesTable
-    options:
-        members: []
-        heading_level: 3
-        show_bases: false
-    handlers:
-        python:
-            options:
-                show_root_toc_entry: false
+See [`WranglerShapesTable`][network_wrangler.models.gtfs.tables.WranglerShapesTable] for schema details.
 
 ### Frequencies
 
-::: network_wrangler.models.gtfs.tables.WranglerFrequenciesTable
-    options:
-        members: []
-        heading_level: 3
-        show_bases: false
-    handlers:
-        python:
-            options:
-                show_root_toc_entry: false
+See [`WranglerFrequenciesTable`][network_wrangler.models.gtfs.tables.WranglerFrequenciesTable] for schema details.
 
 ### Agencies
 
-::: network_wrangler.models.gtfs.tables.AgenciesTable
-    options:
-        heading_level: 3
-        show_bases: false
-        members: []
-    handlers:
-        python:
-            options:
-                show_root_toc_entry: false
+See [`AgenciesTable`][network_wrangler.models.gtfs.tables.AgenciesTable] for schema details.
 
 ### Transit Validation
 
@@ -242,7 +157,8 @@ All properties preceded by `ML_` will be copied, without that prefix, to the man
 The following are controlled by parameters which can be set using WranglerConfig:
 
 Geometry of managed lanes will be defined as a shape offset by the parameter `ML_OFFSET_METERS`.
-Properties defined in the parameter `ADDITIONAL_COPY_FROM_GP_TO_ML` are also copied from the parent link.
+Link properties defined in the parameter `ADDITIONAL_COPY_FROM_GP_LINK_TO_ML` are also copied from the parent link.
+Node properties defined in the parameter `ADDITIONAL_COPY_FROM_GP_NODE_TO_ML` are copied from the general purpose nodes to the managed lane nodes.
 
 New `model_node_id` s and `model_link_ids` are generated based either on ranges or using a scalar from the GP link based on: `ML_LINK_ID_METHOD`, `ML_NODE_ID_METHOD`, `ML_LINK_ID_RANGE`, `ML_NODE_ID_RANGE`, `ML_LINK_ID_SCALAR`, `ML_NODE_ID_SCALAR`
 

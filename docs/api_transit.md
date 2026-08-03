@@ -6,6 +6,12 @@
     options:
         heading_level: 3
         filters: ["!Config"]
+::: network_wrangler.models.gtfs.types
+    options:
+        heading_level: 3
+        members: true
+        show_attributes: true
+        show_if_no_docstring: true
 ::: network_wrangler.models.gtfs.gtfs
     options:
         heading_level: 3

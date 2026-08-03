@@ -125,7 +125,8 @@ my_scenario.write(
         TRANSIT_SHAPE_ID_METHOD: scalar
         TRANSIT_SHAPE_ID_SCALAR: 1000000
     MODEL_ROADWAY:
-        ADDITIONAL_COPY_FROM_GP_TO_ML: []
+        ADDITIONAL_COPY_FROM_GP_LINK_TO_ML: []
+        ADDITIONAL_COPY_FROM_GP_NODE_TO_ML: []
         ADDITIONAL_COPY_TO_ACCESS_EGRESS: []
         ML_OFFSET_METERS: -10
     conflicts: {}
@@ -376,7 +377,7 @@ class Scenario:
     def __str__(self):
         """String representation of the Scenario object."""
         s = [f"{key}: {value}" for key, value in self.__dict__.items()]
-        return "\n".join(s)
+        return f"scenario name=[{self.name}]\n" + "\n".join(s)
 
     def _add_dependencies(self, project_name, dependencies: dict) -> None:
         """Add dependencies from a project card to relevant scenario variables.
@@ -471,7 +472,7 @@ class Scenario:
         """Checks all requirements are satisified to apply this specific set of projects.
 
         Including:
-        1. has an associaed project card
+        1. has an associated project card
         2. is in scenario's planned projects
         3. pre-requisites satisfied
         4. co-requisies satisfied by applied or co-applied projects
@@ -896,9 +897,12 @@ def load_scenario(
         scenario_data: Scenario data as a dict or path to scenario data file
         name: Optional name for the scenario. Defaults to current datetime.
     """
+    scenario_name = name
     if not isinstance(scenario_data, dict):
         WranglerLogger.debug(f"Loading Scenario from file: {scenario_data}")
         scenario_data = load_dict(scenario_data)
+        # use version in file if it exists
+        scenario_name = scenario_data.get("name", scenario_name)
     else:
         WranglerLogger.debug("Loading Scenario from dict.")
 
@@ -912,7 +916,7 @@ def load_scenario(
         base_scenario_data, config=scenario_data["config"]
     )
     my_scenario = create_scenario(
-        base_scenario=base_scenario, name=name, config=scenario_data["config"]
+        base_scenario=base_scenario, name=scenario_name, config=scenario_data["config"]
     )
     return my_scenario
 

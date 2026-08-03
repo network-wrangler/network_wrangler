@@ -140,6 +140,27 @@ def _create_nodes_from_link(
     )
     nodes_df["X"] = nodes_df.geometry.x
     nodes_df["Y"] = nodes_df.geometry.y
+
+    # Handle duplicate model_node_id values by averaging coordinates
+    # This occurs when the same node appears in multiple GP links
+    duplicate_nodes = nodes_df[nodes_df.duplicated(subset=["model_node_id"], keep=False)]
+    if len(duplicate_nodes) > 0:
+        WranglerLogger.debug(
+            f"Found {len(duplicate_nodes)} duplicate node entries for {duplicate_nodes['model_node_id'].nunique()} unique node IDs"
+        )
+        WranglerLogger.debug(f"Duplicate nodes:\n{duplicate_nodes[['model_node_id', 'X', 'Y']]}")
+
+        # Group by model_node_id and average the coordinates
+        nodes_df = nodes_df.groupby("model_node_id", as_index=False).agg(
+            {"X": "mean", "Y": "mean"}
+        )
+
+        # Recreate geometry from averaged coordinates
+        nodes_df["geometry"] = nodes_df.apply(
+            lambda row: point_from_xy(row["X"], row["Y"]), axis=1
+        )
+        nodes_df = gpd.GeoDataFrame(nodes_df, crs=LAT_LON_CRS)
+
     nodes_df["model_node_id_idx"] = nodes_df["model_node_id"]
     nodes_df.set_index("model_node_id_idx", inplace=True)
     nodes_df = validate_df_to_model(nodes_df, RoadNodesTable)

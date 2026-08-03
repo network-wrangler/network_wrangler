@@ -207,6 +207,7 @@ For an interactive demonstration of what this means: `notebooks.Roadway Network 
 | [`nodes`](api_roadway.md#network_wrangler.roadway.nodes) | Module for managing roadway nodes. |
 | [`projects`](api_roadway.md#network_wrangler.roadway.projects) | Module with functions to apply various types of roadway projects. |
 | [`shapes`](api_roadway.md#network_wrangler.roadway.shapes) | Module for managing roadway shapes. |
+| [`centroids`](api_roadway.md#network_wrangler.roadway.centroids) | Module for creating centroids and centroid connectors. |
 | [`clip.py`](api_roadway.md#network_wrangler.roadway.clip) | Functions to clip a RoadwayNetwork object to a boundary. |
 | [`graph.py`](api_roadway.md#network_wrangler.roadway.graph) | Functions to convert RoadwayNetwork to osmnx graph and perform graph operations. |
 | [`io.py`](api_roadway.md#network_wrangler.roadway.io) | Functions for reading and writing roadway networks. |

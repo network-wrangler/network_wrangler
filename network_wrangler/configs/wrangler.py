@@ -51,7 +51,8 @@ If not provided, Wrangler will use reasonable defaults.
         OVERWRITE_SCOPED: conflicting
     MODEL_ROADWAY:
         ML_OFFSET_METERS: int = -10
-        ADDITIONAL_COPY_FROM_GP_TO_ML: []
+        ADDITIONAL_COPY_FROM_GP_LINK_TO_ML: []
+        ADDITIONAL_COPY_FROM_GP_NODE_TO_ML: []
         ADDITIONAL_COPY_TO_ACCESS_EGRESS: []
     CPU:
         EST_PD_READ_SPEED:
@@ -101,6 +102,7 @@ Extended usage:
 
 """
 
+from dataclasses import field
 from typing import Literal
 
 from pydantic import Field
@@ -178,13 +180,16 @@ class ModelRoadwayConfig(ConfigItem):
 
     Attributes:
         ML_OFFSET_METERS: Offset in meters for managed lanes.
-        ADDITIONAL_COPY_FROM_GP_TO_ML: Additional fields to copy from general purpose to managed
-            lanes.
+        ADDITIONAL_COPY_FROM_GP_LINK_TO_ML: Additional link fields to copy from general purpose
+            to managed lanes.
+        ADDITIONAL_COPY_FROM_GP_NODE_TO_ML: Additional node fields to copy from general purpose
+            to managed lane nodes.
         ADDITIONAL_COPY_TO_ACCESS_EGRESS: Additional fields to copy to access and egress links.
     """
 
     ML_OFFSET_METERS: int = -10
-    ADDITIONAL_COPY_FROM_GP_TO_ML: list[str] = Field(default_factory=list)
+    ADDITIONAL_COPY_FROM_GP_LINK_TO_ML: list[str] = Field(default_factory=list)
+    ADDITIONAL_COPY_FROM_GP_NODE_TO_ML: list[str] = Field(default_factory=list)
     ADDITIONAL_COPY_TO_ACCESS_EGRESS: list[str] = Field(default_factory=list)
 
 

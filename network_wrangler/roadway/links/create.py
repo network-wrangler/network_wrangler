@@ -1,11 +1,13 @@
 """Functions for creating RoadLinksTables."""
 
 import copy
+import json
 import time
 
 import geopandas as gpd
 import pandas as pd
 from pandera.typing import DataFrame
+from shapely.geometry import shape as shapely_shape
 
 from ...errors import LinkCreationError
 from ...logger import WranglerLogger
@@ -22,8 +24,19 @@ from ...utils.geo import (
     linestring_from_nodes,
     offset_geometry_meters,
 )
-from ...utils.models import validate_call_pyd, validate_df_to_model
+from ...utils.models import order_fields_from_data_model, validate_call_pyd, validate_df_to_model
 from ..utils import create_unique_shape_id, set_df_index_to_pk
+
+
+def _coerce_to_shapely(x):
+    """Coerce a value to a Shapely geometry, handling JSON strings, dicts, None, and NaN."""
+    if x is None or (isinstance(x, float) and pd.isna(x)):
+        return None
+    if isinstance(x, str):
+        x = json.loads(x)
+    if isinstance(x, dict):
+        return shapely_shape(x)
+    return x  # already a Shapely geometry
 
 
 def shape_id_from_link_geometry(
@@ -109,7 +122,38 @@ def data_to_links_df(
     links_df.attrs.update(RoadLinksAttrs)
     links_df = set_df_index_to_pk(links_df)
     links_df.gdf_name = links_df.attrs["name"]
+
+    # Ensure ML_geometry is a proper GeoSeries before validation.
+    # pandera >= 0.26 rejects a plain object column of None as not geometry dtype,
+    # even with nullable=True and coerce=True. Pre-casting to GeoSeries avoids this.
+    # Values loaded from GeoJSON files may be dicts or JSON strings; convert to Shapely first.
+    if "ML_geometry" not in links_df.columns:
+        links_df["ML_geometry"] = None
+
+    # Log ML_geometry types before coercion
+    ml_types_before = links_df["ML_geometry"].apply(type).value_counts()
+    WranglerLogger.debug(f"ML_geometry types before coercion:\n{ml_types_before}")
+
+    links_df["ML_geometry"] = links_df["ML_geometry"].apply(_coerce_to_shapely)
+    links_df["ML_geometry"] = gpd.GeoSeries(links_df["ML_geometry"])
+
+    # Log ML_geometry types after coercion
+    ml_types_after = links_df["ML_geometry"].apply(type).value_counts()
+    WranglerLogger.debug(f"ML_geometry types after coercion:\n{ml_types_after}")
+
+    # Flag any MultiLineString ML_geometry values — these likely indicate a data issue
+    # (e.g. two-way link with managed lane geometry containing both directions)
+    from shapely.geometry import MultiLineString
+
+    ml_multi = links_df[links_df["ML_geometry"].apply(lambda g: isinstance(g, MultiLineString))]
+    if len(ml_multi) > 0:
+        WranglerLogger.warning(
+            f"Found {len(ml_multi)} links with MultiLineString ML_geometry "
+            f"(likely two-way managed lane data issue):\n{ml_multi}"
+        )
+
     links_df = validate_df_to_model(links_df, RoadLinksTable)
+    links_df = order_fields_from_data_model(links_df, RoadLinksTable)
 
     if len(links_df) < SMALL_RECS:
         WranglerLogger.debug(

@@ -30,7 +30,7 @@ DEFAULT_GRAPH_WEIGHT_FACTOR = 1
 
 def _drop_complex_df_columns(df: DataFrame) -> DataFrame:
     """Returns dataframe without columns with lists, tuples or dictionaries types."""
-    _cols_to_exclude = ["geometry"]
+    _cols_to_exclude = ["geometry", "ML_geometry"]
     _cols_to_search = [c for c in df.columns if c not in _cols_to_exclude]
     _drop_types = (list, dict, tuple)
 
