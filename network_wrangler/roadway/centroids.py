@@ -287,7 +287,7 @@ def add_centroid_connectors(  # noqa: PLR0912, PLR0915
     )
 
     # Filter to nodes within the given zones
-    mode_node_df = mode_node_df.loc[mode_node_df[zone_id].isna() == False]
+    mode_node_df = mode_node_df.loc[mode_node_df[zone_id].notna()]
     mode_node_df[zone_id] = mode_node_df[zone_id].astype(int)
     # and mode_graph_degress <= max_mode_graph_degress
     mode_node_df = mode_node_df.loc[
