@@ -117,10 +117,7 @@ def add_centroid_nodes(
     )
 
     # set default node attributes
-    if default_node_attribute_dict is None:
-        default_node_attribute_dict = {}
-    for colname, default_value in default_node_attribute_dict.items():
-        centroid_nodes_gdf[colname] = default_value
+    centroid_nodes_gdf = centroid_nodes_gdf.assign(**(default_node_attribute_dict or {}))
 
     # assume the model_node_id
     len_road_net_nodes = len(road_net.nodes_df)
