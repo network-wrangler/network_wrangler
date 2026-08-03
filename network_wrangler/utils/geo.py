@@ -11,8 +11,9 @@ from typing import TYPE_CHECKING
 import geopandas as gpd
 import numpy as np
 import pandas as pd
+import shapely
 from geographiclib.geodesic import Geodesic
-from pyproj import CRS, Proj, Transformer
+from pyproj import CRS, Geod, Proj, Transformer
 from shapely.geometry import LineString, MultiLineString, Point
 from shapely.ops import linemerge, transform
 
@@ -47,6 +48,10 @@ class IntercardinalDirection(str, Enum):
     SW = "SW"
     W = "W"
     NW = "NW"
+
+
+_CARDINAL_LABELS = np.array([d.value for d in CardinalDirection])
+_INTERCARDINAL_LABELS = np.array([d.value for d in IntercardinalDirection])
 
 
 # key:value (from espg, to espg): pyproj transform object
@@ -627,74 +632,69 @@ def update_point_geometry(
     return updated_df
 
 
-def get_link_bearing_degrees(geometry) -> float:
-    """Calculate bearing in degrees from start to end of a line geometry.
+def get_link_bearings_degrees(geometry: gpd.GeoSeries) -> pd.Series:
+    """Calculate the bearing in degrees from the start to the end of each line geometry.
+
+    Vectorized over a GeoSeries of LineStrings.
 
     Args:
-        geometry: Shapely LineString or MultiLineString geometry
+        geometry: GeoSeries of shapely LineString geometries in lat/long (WGS84).
 
     Returns:
-        Bearing in degrees (0-360, where 0=North), or NaN if invalid geometry
+        Series of bearings in degrees (0-360, where 0=North), aligned to ``geometry``'s
+        index. Values are NaN where the geometry is missing, empty, or has fewer than
+        two coordinates.
     """
-    if geometry is None or geometry.is_empty:
-        return np.nan
+    geoms = np.asarray(geometry.values, dtype=object)
+    valid = shapely.get_num_coordinates(geoms) >= 2  # noqa: PLR2004
 
-    # Get first and last coordinates
-    coords = list(geometry.coords)
-    if len(coords) < 2:  # noqa: PLR2004
-        return np.nan
+    start = shapely.get_point(geoms, 0)
+    end = shapely.get_point(geoms, -1)
+    lon1, lat1 = shapely.get_x(start), shapely.get_y(start)
+    lon2, lat2 = shapely.get_x(end), shapely.get_y(end)
 
-    lon1, lat1 = coords[0]
-    lon2, lat2 = coords[-1]
+    bearings = np.full(len(geoms), np.nan)
+    if valid.any():
+        # forward azimuth (deg, -180..180) via WGS84 geodesic, vectorized
+        az, _back_az, _dist = Geod(ellps="WGS84").inv(
+            lon1[valid], lat1[valid], lon2[valid], lat2[valid]
+        )
+        bearings[valid] = (az + 360.0) % 360.0
 
-    # Use the existing get_bearing function (returns radians)
-    bearing_rad = get_bearing(lat1, lon1, lat2, lon2)
-
-    # Convert to degrees and normalize to 0-360
-    bearing_deg = math.degrees(bearing_rad)
-    bearing_deg = (bearing_deg + 360) % 360
-
-    return bearing_deg
+    return pd.Series(bearings, index=geometry.index)
 
 
-def bearing_to_cardinal_direction(bearing: float, cardinal_only: bool = False) -> Optional[str]:
-    """Convert bearing in degrees to cardinal or intercardinal direction.
+def bearings_to_cardinal_directions(
+    bearings: pd.Series, cardinal_only: bool = False
+) -> pd.Series:
+    """Convert a Series of bearings in degrees to cardinal/intercardinal directions.
+
+    Vectorized over a Series of bearings.
 
     Args:
-        bearing: Bearing in degrees (0-360, where 0=North)
-        cardinal_only: If True, returns only N/E/S/W. If False, includes NE/SE/SW/NW
+        bearings: Series of bearings in degrees (0-360, where 0=North). NaN allowed.
+        cardinal_only: If True, use only N/E/S/W (4 sectors). If False (default),
+            include the intercardinal directions NE/SE/SW/NW (8 sectors).
 
     Returns:
-        Direction string or None if bearing is NaN
+        Series of direction strings aligned to ``bearings``'s index, with None where
+        the bearing is NaN.
     """
-    if np.isnan(bearing):
-        return None
+    labels = _CARDINAL_LABELS if cardinal_only else _INTERCARDINAL_LABELS
+    n_sectors = len(labels)
+    sector_deg = 360.0 / n_sectors
 
-    if cardinal_only:
-        # 4 directions (N, E, S, W)
-        directions = [
-            CardinalDirection.N,
-            CardinalDirection.E,
-            CardinalDirection.S,
-            CardinalDirection.W,
-        ]
-        # Each sector is 90 degrees, offset by 45 degrees
-        sector = int(((bearing + 45) % 360) / 90)
-        return directions[sector].value
-    # 8 directions (N, NE, E, SE, S, SW, W, NW)
-    directions = [
-        IntercardinalDirection.N,
-        IntercardinalDirection.NE,
-        IntercardinalDirection.E,
-        IntercardinalDirection.SE,
-        IntercardinalDirection.S,
-        IntercardinalDirection.SW,
-        IntercardinalDirection.W,
-        IntercardinalDirection.NW,
-    ]
-    # Each sector is 45 degrees, offset by 22.5 degrees
-    sector = int(((bearing + 22.5) % 360) / 45)
-    return directions[sector].value
+    values = np.asarray(bearings, dtype=float)
+    nan_mask = np.isnan(values)
+    # offset by half a sector so each label is centered on its compass point
+    sector = ((np.where(nan_mask, 0.0, values) + sector_deg / 2.0) % 360.0) // sector_deg
+    sector = sector.astype(int) % n_sectors
+
+    directions = labels[sector].astype(object)
+    directions[nan_mask] = None
+
+    index = bearings.index if isinstance(bearings, pd.Series) else None
+    return pd.Series(directions, index=index)
 
 
 def add_direction_to_links(links_df: pd.DataFrame, cardinal_only: bool = False) -> pd.DataFrame:
@@ -721,12 +721,10 @@ def add_direction_to_links(links_df: pd.DataFrame, cardinal_only: bool = False) 
     # Make a copy to avoid modifying the original
     result_df = links_df.copy()
 
-    # Calculate bearings for all links
-    bearings = result_df["geometry"].apply(get_link_bearing_degrees)
-
-    # Convert bearings to directions
-    result_df["direction"] = bearings.apply(
-        lambda b: bearing_to_cardinal_direction(b, cardinal_only=cardinal_only)
+    # Calculate bearings for all links, then convert to cardinal directions (vectorized)
+    bearings = get_link_bearings_degrees(result_df["geometry"])
+    result_df["direction"] = bearings_to_cardinal_directions(
+        bearings, cardinal_only=cardinal_only
     )
 
     return result_df
