@@ -221,8 +221,8 @@ class RoadwayLinkSelection(RoadwaySelection):
                 `SelectFacility` model with a "links" key or SelectFacility instance.
         """
         super().__init__(net, selection_data)
-        self._selected_links_df: None | DataFrame[RoadLinksTable] = None
-        self._segment: None | Segment = None
+        self._selected_links_df: DataFrame[RoadLinksTable] | None = None
+        self._segment: Segment | None = None
         WranglerLogger.debug(f"Created LinkSelection of type: {self.selection_method}")
 
     def __nonzero__(self) -> bool:
@@ -320,7 +320,7 @@ class RoadwayLinkSelection(RoadwaySelection):
         return self.selected_links_df is not None
 
     @property
-    def segment(self) -> None | Segment:
+    def segment(self) -> Segment | None:
         """Return the segment object if selection type is segment."""
         if self._segment is None and self.selection_method == "segment":
             WranglerLogger.debug("Creating new segment")
@@ -446,7 +446,7 @@ class RoadwayNodeSelection(RoadwaySelection):
                 conforming to SelectFacility format, or SelectFacility instance.
         """
         super().__init__(net, selection_data)
-        self._selected_nodes_df: None | DataFrame[RoadNodesTable] = None
+        self._selected_nodes_df: DataFrame[RoadNodesTable] | None = None
 
     def __nonzero__(self) -> bool:
         """Return True if nodes were selected."""
