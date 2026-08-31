@@ -4,11 +4,11 @@ Network Wrangler is a Python library for managing travel model network scenarios
 
 Network Wrangler should be operating system agonistic and has been tested on Ubuntu and Mac OS.
 
-Network Wrangler does require Python 3.10+.  If you have a different version of Python installed (e.g. from ArcGIS), `conda` or a similar virtual environment manager can care of installing it for you in the installation instructions below.
+Network Wrangler does require Python 3.10+.  If you have a different version of Python installed (e.g. from ArcGIS), `conda`, `uv`, or a similar virtual environment manager can take care of installing it for you in the installation instructions below.
 
 ## Installation
 
-Requirements for basic network_wranglerare functionality as well as enhanced *development/testing*, *visualization* and *documentation* functionalities are stored in `requirements*.txt` and `pyproject.toml` but are automatically installed when using `pip`.
+Requirements for basic network wrangler functionality as well as enhanced *development/testing*, *visualization* and *documentation* functionality are stored in `requirements*.txt` and `pyproject.toml` but are automatically installed when using `pip` or `uv`.
 
 Ready to install network wrangler?
 
@@ -18,10 +18,22 @@ Ready to install network wrangler?
 pip install network-wrangler
 ```
 
+Using [`uv`](https://docs.astral.sh/uv/) in an activated virtual environment:
+
+```bash
+uv pip install network-wrangler
+```
+
 ### From GitHub
 
 ```bash
 pip install git+https://github.com/network-wrangler/network_wrangler.git@main#egg=network_wrangler
+```
+
+Using `uv`:
+
+```bash
+uv pip install "network-wrangler @ git+https://github.com/network-wrangler/network_wrangler.git@main"
 ```
 
 If you wanted to install from a specific tag/version number or branch, replace `@main` with `@<branchname>`  or `@tag`
@@ -44,6 +56,21 @@ Then you should be able to install Network Wrangler in "develop" mode.
 ```bash
 cd network_wrangler
 pip install -e .
+```
+
+Using `uv`, create and activate a virtual environment before installing the editable clone:
+
+```bash
+cd network_wrangler
+uv venv --python 3.11
+source .venv/bin/activate
+uv pip install -e .
+```
+
+For development, install the optional dependency groups from `pyproject.toml`:
+
+```bash
+uv pip install -e ".[tests,docs,viz]"
 ```
 
 ## Quickstart
