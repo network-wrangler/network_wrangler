@@ -342,43 +342,50 @@ def test_benchmark_shape_aware_path_by_stop_spacing(benchmark, grid40, stop_spac
     )
 
 
-def test_candidate_path_count_dominates_cost(grid40):
-    """Cost per stop pair is close to linear in MAX_SHAPE_CANDIDATE_PATHS.
+def test_enumeration_stops_at_first_path_over_tolerance(grid40, monkeypatch):
+    """Candidate enumeration stops as soon as one path exceeds the distance tolerance.
 
-    Every candidate path is enumerated by Yen's algorithm whether or not it ends up within
-    the distance tolerance, so the configured cap sets the price of each stop pair.
+    Yen's algorithm yields paths in nondecreasing length order, so the first candidate over
+    `shortest * SHAPE_DISTANCE_TOLERANCE` means every later one is too. On a straight run
+    only the shortest path is within tolerance, so exactly two paths should be generated
+    rather than the full `MAX_SHAPE_CANDIDATE_PATHS`.
     """
     roadway_net, graph, node_ids = grid40
     node_a, node_b, shape_points = _straight_run(node_ids, 20, 5, 25)
 
-    original_k = DefaultConfig.TRANSIT.MAX_SHAPE_CANDIDATE_PATHS
-    timings = {}
-    try:
-        for k in [1, 5, 20]:
-            DefaultConfig.TRANSIT.MAX_SHAPE_CANDIDATE_PATHS = k
-            start = time.perf_counter()
-            find_shape_aware_shortest_path(
-                graph,
-                node_a,
-                node_b,
-                shape_points,
-                roadway_net,
-                DefaultConfig.TRANSIT.SHAPE_DISTANCE_TOLERANCE,
-            )
-            timings[k] = 1000 * (time.perf_counter() - start)
-    finally:
-        DefaultConfig.TRANSIT.MAX_SHAPE_CANDIDATE_PATHS = original_k
+    real_shortest_simple_paths = nx.shortest_simple_paths
+    generated = []
 
-    WranglerLogger.info(f"ms per shape-aware path call by candidate cap: {timings}")
-    assert timings[20] > timings[1] * 3, f"expected candidate cap to dominate cost, got {timings}"
+    def counting_shortest_simple_paths(*args, **kwargs):
+        for path in real_shortest_simple_paths(*args, **kwargs):
+            generated.append(path)
+            yield path
+
+    monkeypatch.setattr(nx, "shortest_simple_paths", counting_shortest_simple_paths)
+    find_shape_aware_shortest_path(
+        graph,
+        node_a,
+        node_b,
+        shape_points,
+        roadway_net,
+        DefaultConfig.TRANSIT.SHAPE_DISTANCE_TOLERANCE,
+    )
+
+    WranglerLogger.info(
+        f"candidate paths generated={len(generated)} "
+        f"(cap {DefaultConfig.TRANSIT.MAX_SHAPE_CANDIDATE_PATHS})"
+    )
+    assert DefaultConfig.TRANSIT.MAX_SHAPE_CANDIDATE_PATHS > 2
+    assert len(generated) == 2
 
 
 def test_paths_enumerated_far_exceed_paths_used(grid40):
-    """Most enumerated candidate paths are discarded by the tolerance filter.
+    """Most candidate paths up to the cap fall outside the distance tolerance.
 
     Yen's algorithm yields paths in nondecreasing length order, so once a candidate exceeds
-    `shortest * SHAPE_DISTANCE_TOLERANCE` every later candidate does too. Enumeration could
-    stop there. This test records how much of the enumeration is currently wasted.
+    `shortest * SHAPE_DISTANCE_TOLERANCE` every later candidate does too. This enumerates up
+    to the cap independently of the library to record how much work the early stop in
+    `find_shape_aware_shortest_path()` avoids.
     """
     _, graph, node_ids = grid40
     node_a, node_b, _ = _straight_run(node_ids, 20, 5, 25)
@@ -634,7 +641,7 @@ def _reference_path_deviation(path_nodes, original_shape_points, roadway_net) ->
             node_row = roadway_net.nodes_df[roadway_net.nodes_df["model_node_id"] == node_id]
             if not node_row.empty:
                 path_coords.append((node_row.iloc[0]["X"], node_row.iloc[0]["Y"]))
-        if len(path_coords) < 2:  # noqa: PLR2004
+        if len(path_coords) < 2:
             return float("inf")
         path_line = sg.LineString(path_coords)
         total_deviation = 0.0
@@ -647,7 +654,7 @@ def _reference_path_deviation(path_nodes, original_shape_points, roadway_net) ->
 
 
 def _reference_shape_aware_path(
-    G_bus,  # noqa: N803
+    G_bus,
     start_node,
     end_node,
     original_shape_points,
@@ -722,7 +729,11 @@ def _equivalence_cases(node_ids):
         n_pts = 4 * (dr + dc)
         t = np.linspace(0, 1, n_pts)
         noisy = list(
-            zip(10 + dr * t + rng.normal(0, 0.3, n_pts), 10 + dc * t + rng.normal(0, 0.3, n_pts))
+            zip(
+                10 + dr * t + rng.normal(0, 0.3, n_pts),
+                10 + dc * t + rng.normal(0, 0.3, n_pts),
+                strict=True,
+            )
         )
         cases.append((f"noisy-diagonal-{dr}x{dc}", a, b, _shape_points(noisy)))
     # a shape that detours one block off the straight line, so a longer path can win
@@ -746,11 +757,19 @@ def test_shape_aware_path_matches_reference(grid40):
     mismatches = []
     for label, node_a, node_b, shape_points in _equivalence_cases(node_ids):
         expected = _reference_shape_aware_path(
-            graph, node_a, node_b, shape_points, roadway_net,
+            graph,
+            node_a,
+            node_b,
+            shape_points,
+            roadway_net,
             DefaultConfig.TRANSIT.SHAPE_DISTANCE_TOLERANCE,
         )
         actual = find_shape_aware_shortest_path(
-            graph, node_a, node_b, shape_points, roadway_net,
+            graph,
+            node_a,
+            node_b,
+            shape_points,
+            roadway_net,
             DefaultConfig.TRANSIT.SHAPE_DISTANCE_TOLERANCE,
         )
         if list(actual) != list(expected):
@@ -772,7 +791,7 @@ def _routed_shapes(route_fn_inputs, monkeypatch=None, use_reference=False) -> pd
     roadway_net, pairs_gdf, feed_tables = route_fn_inputs
     feed_tables = {name: table.copy() for name, table in feed_tables.items()}
     if use_reference:
-        import network_wrangler.utils.transit as transit_module  # noqa: PLC0415
+        import network_wrangler.utils.transit as transit_module
 
         monkeypatch.setattr(
             transit_module, "find_shape_aware_shortest_path", _reference_shape_aware_path

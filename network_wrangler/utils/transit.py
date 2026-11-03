@@ -1345,6 +1345,9 @@ def route_shapes_between_stops(  # noqa: PLR0912, PLR0915
         f"Converted MultiDiGraph ({G_bus_multi.number_of_edges()} edges) to DiGraph ({G_bus.number_of_edges()} edges)"
     )
 
+    # node coordinates for scoring candidate paths against shapes, built once per run
+    node_coords = _node_coords_lookup(roadway_net)
+
     # collect node sequences for these shapes
     bus_node_sequence = []
     # also collect failed stop sequences
@@ -1433,6 +1436,7 @@ def route_shapes_between_stops(  # noqa: PLR0912, PLR0915
                     roadway_net,
                     DefaultConfig.TRANSIT.SHAPE_DISTANCE_TOLERANCE,
                     trace_shape_ids is not None and current_shape_id in trace_shape_ids,
+                    node_coords=node_coords,
                 )
             else:
                 # Standard shortest path
@@ -3882,8 +3886,31 @@ def get_original_shape_points_between_stops(  # noqa: PLR0912
         return pd.DataFrame()
 
 
+def _node_coords_lookup(roadway_net: RoadwayNetwork) -> dict:
+    """Map model_node_id to (X, Y) for every roadway node.
+
+    Built once per routing run so path scoring does not filter `nodes_df` for every node of
+    every candidate path. Where a node id appears more than once, the first row wins,
+    matching the original per-node `iloc[0]` lookup.
+
+    Args:
+        roadway_net: RoadwayNetwork whose `nodes_df` has model_node_id, X and Y columns.
+
+    Returns:
+        Dict of model_node_id to (X, Y).
+    """
+    nodes = roadway_net.nodes_df[["model_node_id", "X", "Y"]].drop_duplicates(
+        subset="model_node_id", keep="first"
+    )
+    return dict(zip(nodes["model_node_id"], zip(nodes["X"], nodes["Y"], strict=True), strict=True))
+
+
 def calculate_path_deviation_from_shape(
-    path_nodes: list, original_shape_points: pd.DataFrame, roadway_net, trace: bool = False
+    path_nodes: list,
+    original_shape_points: pd.DataFrame,
+    roadway_net,
+    trace: bool = False,
+    node_coords: dict | None = None,
 ) -> float:
     """Calculate total deviation of a path from original shape points.
 
@@ -3895,6 +3922,9 @@ def calculate_path_deviation_from_shape(
         original_shape_points: DataFrame of original GTFS shape points
         roadway_net: RoadwayNetwork to get node coordinates
         trace: If True, enable trace logging for debugging
+        node_coords: Optional model_node_id to (X, Y) lookup from `_node_coords_lookup()`.
+            Pass it when scoring many paths against the same network; if omitted it is
+            built from `roadway_net`.
 
     Returns:
         Total deviation distance (sum of distances from shape points to path line)
@@ -3903,33 +3933,28 @@ def calculate_path_deviation_from_shape(
         return float("inf")
 
     try:
-        from shapely.geometry import LineString, Point
+        import shapely
+        from shapely.geometry import LineString
 
-        # Create LineString from path nodes
-        path_coords = []
-        for node_id in path_nodes:
-            node_row = roadway_net.nodes_df[roadway_net.nodes_df["model_node_id"] == node_id]
-            if not node_row.empty:
-                path_coords.append((node_row.iloc[0]["X"], node_row.iloc[0]["Y"]))
+        if node_coords is None:
+            node_coords = _node_coords_lookup(roadway_net)
+
+        # Create LineString from path nodes; nodes missing from the network are skipped
+        path_coords = [node_coords[node_id] for node_id in path_nodes if node_id in node_coords]
 
         if len(path_coords) < 2:  # noqa: PLR2004
             return float("inf")
 
         path_line = LineString(path_coords)
 
-        # Calculate total deviation - for each shape point, find distance to path line
-        total_deviation = 0.0
         if trace:
             WranglerLogger.debug(
                 f"Calculating path deviation for line with {len(path_nodes)} nodes against {len(original_shape_points)} shape points"
             )
             # Get link names for first and last nodes for debugging
-            first_node_row = roadway_net.nodes_df[
-                roadway_net.nodes_df["model_node_id"] == path_nodes[0]
-            ]
-            last_node_row = roadway_net.nodes_df[
-                roadway_net.nodes_df["model_node_id"] == path_nodes[-1]
-            ]
+            nodes_df = roadway_net.nodes_df
+            first_node_row = nodes_df[nodes_df["model_node_id"] == path_nodes[0]]
+            last_node_row = nodes_df[nodes_df["model_node_id"] == path_nodes[-1]]
             first_link_names = (
                 first_node_row.iloc[0].get("link_names", [])
                 if not first_node_row.empty and "link_names" in first_node_row.columns
@@ -3944,18 +3969,21 @@ def calculate_path_deviation_from_shape(
                 f"  Path from node {path_nodes[0]} ({first_link_names}) to node {path_nodes[-1]} ({last_link_names})"
             )
 
-        for idx, shape_row in original_shape_points.iterrows():
-            shape_point = Point(shape_row["shape_pt_lon"], shape_row["shape_pt_lat"])
-            # Distance from point to nearest point on line
-            dist = shape_point.distance(path_line)
-            total_deviation += dist
-
-            if (
-                trace and idx % max(1, len(original_shape_points) // 5) == 0
-            ):  # Log every ~20% of points
-                WranglerLogger.debug(f"  Shape point {idx} distance to path: {dist:.6f}")
+        # Distance from every shape point to the nearest point on the path, in one call
+        shape_pts = shapely.points(
+            original_shape_points["shape_pt_lon"].to_numpy(dtype=float),
+            original_shape_points["shape_pt_lat"].to_numpy(dtype=float),
+        )
+        distances = shapely.distance(shape_pts, path_line)
+        # cumsum adds in order, so the total is bit-for-bit the same as a sequential loop;
+        # np.sum's pairwise summation could round differently and flip near-ties.
+        total_deviation = float(np.cumsum(distances)[-1])
 
         if trace:
+            log_every = max(1, len(original_shape_points) // 5)  # Log every ~20% of points
+            for idx, dist in zip(original_shape_points.index, distances, strict=True):
+                if idx % log_every == 0:
+                    WranglerLogger.debug(f"  Shape point {idx} distance to path: {dist:.6f}")
             WranglerLogger.debug(
                 f"Total path deviation: {total_deviation:.6f} (avg per point: {total_deviation / len(original_shape_points):.6f})"
             )
@@ -3975,6 +4003,7 @@ def find_shape_aware_shortest_path(  # noqa: PLR0912
     roadway_net: RoadwayNetwork,
     tolerance: float = 1.10,
     trace: bool = False,
+    node_coords: dict | None = None,
 ) -> list:
     """Find shortest path that considers original shape points.
 
@@ -3982,6 +4011,12 @@ def find_shape_aware_shortest_path(  # noqa: PLR0912
     1. Find shortest distance
     2. Get all paths within tolerance of shortest distance
     3. Among those, select path with minimum deviation from original shape
+
+    Candidate paths come from `nx.shortest_simple_paths()` (Yen's algorithm), which yields
+    them in nondecreasing length order. Enumeration therefore stops at the first candidate
+    longer than `tolerance` times the shortest distance: every later candidate would be
+    longer still and rejected, so the selected path is unchanged and the cost of
+    generating up to `MAX_SHAPE_CANDIDATE_PATHS` paths is only paid when they are needed.
 
     Args:
         G_bus: NetworkX DiGraph of bus network
@@ -3991,6 +4026,9 @@ def find_shape_aware_shortest_path(  # noqa: PLR0912
         roadway_net: RoadwayNetwork to get node coordinates
         tolerance: Maximum ratio of path distance to shortest distance (default 1.10 = 110%)
         trace: Whether to log trace information
+        node_coords: Optional model_node_id to (X, Y) lookup from `_node_coords_lookup()`.
+            Pass it when routing many stop pairs on the same network; if omitted it is
+            built once per call.
 
     Returns:
         List of node IDs representing the best path
@@ -4000,58 +4038,66 @@ def find_shape_aware_shortest_path(  # noqa: PLR0912
         shortest_dist = nx.shortest_path_length(G_bus, start_node, end_node, weight="distance")
         max_allowed_dist = shortest_dist * tolerance
 
-        # Get multiple shortest paths to evaluate
+        if node_coords is None:
+            node_coords = _node_coords_lookup(roadway_net)
+
         from itertools import islice
 
-        candidate_paths = list(
-            islice(
-                nx.shortest_simple_paths(G_bus, start_node, end_node, weight="distance"),
-                DefaultConfig.TRANSIT.MAX_SHAPE_CANDIDATE_PATHS,
-            )
+        candidate_iter = islice(
+            nx.shortest_simple_paths(G_bus, start_node, end_node, weight="distance"),
+            DefaultConfig.TRANSIT.MAX_SHAPE_CANDIDATE_PATHS,
         )
 
+        first_path = None
         best_path = None
         best_deviation = float("inf")
+        paths_enumerated = 0
         paths_within_tolerance = 0
 
         # Store path info for debug output
         debug_paths = []
 
-        for path in candidate_paths:
+        for path in candidate_iter:
+            paths_enumerated += 1
+            if first_path is None:
+                first_path = path
+
             # Calculate path distance
             path_dist = 0
             for i in range(len(path) - 1):
                 edge_data = G_bus[path[i]][path[i + 1]]
                 path_dist += edge_data.get("distance", 0)
 
-            # Check if within tolerance
-            if path_dist <= max_allowed_dist:
-                paths_within_tolerance += 1
+            # Paths arrive shortest first, so once one is over tolerance all the rest are too
+            if path_dist > max_allowed_dist:
+                break
 
-                # Calculate shape deviation for this path
-                deviation = calculate_path_deviation_from_shape(
-                    path, original_shape_points, roadway_net, trace=trace
+            paths_within_tolerance += 1
+
+            # Calculate shape deviation for this path
+            deviation = calculate_path_deviation_from_shape(
+                path, original_shape_points, roadway_net, trace=trace, node_coords=node_coords
+            )
+
+            # Store for debug output
+            if trace:
+                debug_paths.append(
+                    {
+                        "path": path,
+                        "distance": path_dist,
+                        "deviation": deviation,
+                        "is_best": False,  # Will update later
+                    }
                 )
 
-                # Store for debug output
+            # Select path with minimum deviation
+            if deviation < best_deviation:
+                best_deviation = deviation
+                best_path = path
                 if trace:
-                    debug_paths.append(
-                        {
-                            "path": path,
-                            "distance": path_dist,
-                            "deviation": deviation,
-                            "is_best": False,  # Will update later
-                        }
+                    WranglerLogger.debug(
+                        f"  New best path with deviation {deviation:.6f}, distance {path_dist:.3f}"
                     )
-
-                # Select path with minimum deviation
-                if deviation < best_deviation:
-                    best_deviation = deviation
-                    best_path = path
-                    if trace:
-                        WranglerLogger.debug(
-                            f"  New best path with deviation {deviation:.6f}, distance {path_dist:.3f}"
-                        )
 
         # Mark the best path
         if trace and debug_paths and best_path:
@@ -4062,7 +4108,8 @@ def find_shape_aware_shortest_path(  # noqa: PLR0912
 
         if trace:
             WranglerLogger.debug(
-                f"Shape-aware routing: {paths_within_tolerance} paths within {tolerance:.1%} tolerance"
+                f"Shape-aware routing: {paths_within_tolerance} of {paths_enumerated} "
+                f"enumerated paths within {tolerance:.1%} tolerance"
             )
             if not original_shape_points.empty:
                 WranglerLogger.debug(
@@ -4071,7 +4118,7 @@ def find_shape_aware_shortest_path(  # noqa: PLR0912
             if best_path:
                 WranglerLogger.debug(f"Selected path with deviation {best_deviation:.6f}")
 
-        return best_path if best_path else candidate_paths[0]  # Fallback to shortest
+        return best_path if best_path else first_path  # Fallback to shortest
 
     except Exception as e:
         if trace:
