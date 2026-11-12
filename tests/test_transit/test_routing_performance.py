@@ -904,6 +904,29 @@ def test_shape_aware_path_with_candidate_cache_matches_reference(grid40, monkeyp
     assert expected["L-north-east-4x4"] != expected["L-east-north-4x4"]
 
 
+def test_shape_aware_path_with_zero_candidate_cap_returns_shortest_path(grid40, monkeypatch):
+    """With `MAX_SHAPE_CANDIDATE_PATHS` of 0 the plain shortest path is returned.
+
+    No candidates are enumerated, so there is nothing to score. The original algorithm fell
+    back to `nx.shortest_path()` in that case and this must too, with and without a cache,
+    rather than returning None.
+    """
+    roadway_net, graph, node_ids = grid40
+    monkeypatch.setattr(DefaultConfig.TRANSIT, "MAX_SHAPE_CANDIDATE_PATHS", 0)
+    tolerance = DefaultConfig.TRANSIT.SHAPE_DISTANCE_TOLERANCE
+    candidate_cache: dict = {}
+    for label, node_a, node_b, shape_points in _equivalence_cases(node_ids):
+        expected = _reference_shape_aware_path(
+            graph, node_a, node_b, shape_points, roadway_net, tolerance
+        )
+        assert expected == nx.shortest_path(graph, node_a, node_b, weight="distance")
+        for cache in [None, candidate_cache, candidate_cache]:
+            actual = find_shape_aware_shortest_path(
+                graph, node_a, node_b, shape_points, roadway_net, tolerance, candidate_cache=cache
+            )
+            assert actual == expected, f"{label}: expected {expected}, got {actual}"
+
+
 def test_path_deviation_matches_reference(grid40):
     """`calculate_path_deviation_from_shape()` returns the same score as the original."""
     roadway_net, graph, node_ids = grid40

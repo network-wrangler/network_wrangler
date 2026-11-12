@@ -4226,7 +4226,12 @@ def find_shape_aware_shortest_path(  # noqa: PLR0912
             if best_path:
                 WranglerLogger.debug(f"Selected path with deviation {best_deviation:.6f}")
 
-        return best_path if best_path else first_path  # Fallback to shortest
+        if best_path:
+            return best_path
+        if first_path is not None:
+            return first_path  # Fallback to shortest
+        # nothing was enumerated (MAX_SHAPE_CANDIDATE_PATHS of 0): standard shortest path
+        return nx.shortest_path(G_bus, start_node, end_node, weight="distance")
 
     except Exception as e:
         if trace:
