@@ -1,0 +1,977 @@
+"""Performance tests for routing transit shapes onto the roadway network.
+
+Covers [`route_shapes_between_stops()`][network_wrangler.utils.transit.route_shapes_between_stops]
+and the two functions it calls per stop pair:
+[`find_shape_aware_shortest_path()`][network_wrangler.utils.transit.find_shape_aware_shortest_path]
+and
+[`calculate_path_deviation_from_shape()`][network_wrangler.utils.transit.calculate_path_deviation_from_shape].
+
+Synthetic grid networks are used so that cost can be measured against one variable at a time
+(network size, stop spacing, candidate-path count, shapes-table size). The St Paul example is
+used as a realistic end-to-end case.
+
+!!! note "Why the grid fixtures"
+    The cost of this algorithm is driven by inter-stop path *length* and by the number of
+    candidate paths enumerated per stop pair -- not by the size of the roadway network. A grid
+    lets each of those be varied independently, which a real feed does not.
+
+!!! example "Running these benchmarks"
+    ```bash
+    pytest --benchmark-only tests/test_transit/test_routing_performance.py
+    ```
+
+!!! example "Comparing against another branch"
+    ```bash
+    pytest --benchmark-only tests/test_transit/test_routing_performance.py --benchmark-save=mine
+    git checkout <other-branch>
+    pytest --benchmark-only tests/test_transit/test_routing_performance.py --benchmark-save=theirs
+    pytest-benchmark compare mine theirs
+    ```
+"""
+
+from __future__ import annotations
+
+import time
+
+import geopandas as gpd
+import networkx as nx
+import numpy as np
+import pandas as pd
+import pytest
+import shapely.geometry as sg
+
+from network_wrangler.configs import DefaultConfig
+from network_wrangler.logger import WranglerLogger
+from network_wrangler.models.gtfs.types import RouteType
+from network_wrangler.roadway import load_roadway_from_dataframes, load_roadway_from_dir
+from network_wrangler.utils.transit import (
+    _shape_points_index,
+    calculate_path_deviation_from_shape,
+    find_shape_aware_shortest_path,
+    get_original_shape_points_between_stops,
+    route_shapes_between_stops,
+)
+
+# Grid origin and node spacing. 0.002 degrees is roughly 200m, a plausible roadway node spacing.
+GRID_LAT0 = 44.95
+GRID_LON0 = -93.10
+GRID_DEG = 0.002
+
+LOCAL_CRS = "EPSG:26915"
+CRS_UNITS = "meters"
+
+
+def _grid_dataframes(n: int) -> tuple[pd.DataFrame, gpd.GeoDataFrame]:
+    """Build links and nodes for an `n` x `n` grid, 4-connected and bidirectional.
+
+    Args:
+        n: number of nodes per side.
+
+    Returns:
+        Tuple of (links_df, nodes_gdf).
+    """
+    node_ids = np.arange(1, n * n + 1).reshape(n, n)
+    rows, cols = np.meshgrid(np.arange(n), np.arange(n), indexing="ij")
+
+    nodes_df = pd.DataFrame(
+        {
+            "model_node_id": node_ids.ravel(),
+            "X": GRID_LON0 + cols.ravel() * GRID_DEG,
+            "Y": GRID_LAT0 + rows.ravel() * GRID_DEG,
+        }
+    )
+    nodes_gdf = gpd.GeoDataFrame(
+        nodes_df,
+        geometry=gpd.points_from_xy(nodes_df["X"], nodes_df["Y"]),
+        crs="EPSG:4326",
+    )
+
+    horizontal = np.stack([node_ids[:, :-1].ravel(), node_ids[:, 1:].ravel()], axis=1)
+    vertical = np.stack([node_ids[:-1, :].ravel(), node_ids[1:, :].ravel()], axis=1)
+    one_way = np.concatenate([horizontal, vertical])
+    both_ways = np.concatenate([one_way, one_way[:, ::-1]])
+
+    links_df = pd.DataFrame(
+        {
+            "model_link_id": np.arange(1, len(both_ways) + 1),
+            "A": both_ways[:, 0],
+            "B": both_ways[:, 1],
+            "name": "grid",
+            "roadway": "residential",
+            "lanes": 2,
+            "drive_access": True,
+            "bus_only": False,
+            "rail_only": False,
+            "walk_access": True,
+            "bike_access": True,
+        }
+    )
+    return links_df, nodes_gdf
+
+
+def grid_roadway_net(n: int):
+    """Return a RoadwayNetwork for an `n` x `n` grid, fully bus-accessible.
+
+    Args:
+        n: number of nodes per side.
+    """
+    links_df, nodes_gdf = _grid_dataframes(n)
+    return load_roadway_from_dataframes(links_df, nodes_gdf)
+
+
+def grid_bus_feed(
+    n: int, n_routes: int, stop_spacing: int = 4
+) -> tuple[gpd.GeoDataFrame, dict[str, pd.DataFrame]]:
+    """Build bus stop-pair links and feed tables for routes across an `n` x `n` grid.
+
+    Each route runs west to east along an evenly spaced row. Every node in the row becomes an
+    original shape point; every `stop_spacing`-th node becomes a stop. This mirrors the real
+    case where GTFS shape points are denser than stops.
+
+    Args:
+        n: number of grid nodes per side.
+        n_routes: number of routes (rows) to create.
+        stop_spacing: place a stop every this many grid nodes along the row.
+
+    Returns:
+        Tuple of (bus_stop_links_gdf, feed_tables) ready for `route_shapes_between_stops()`.
+    """
+    node_ids = np.arange(1, n * n + 1).reshape(n, n)
+    route_rows = np.linspace(0, n - 1, n_routes).astype(int)
+
+    stop_records: list[dict] = []
+    shape_records: list[dict] = []
+    pair_records: list[dict] = []
+
+    for route_idx, row in enumerate(route_rows):
+        shape_id = f"shp{route_idx}"
+        route_id = f"rt{route_idx}"
+        trip_id = f"trp{route_idx}"
+
+        stop_cols = list(range(0, n, stop_spacing))
+        if stop_cols[-1] != n - 1:
+            stop_cols.append(n - 1)
+        col_to_stop_seq = {col: i + 1 for i, col in enumerate(stop_cols)}
+
+        for pt_seq, col in enumerate(range(n), start=1):
+            shape_records.append(
+                {
+                    "shape_id": shape_id,
+                    "shape_pt_sequence": pt_seq,
+                    "shape_pt_lat": GRID_LAT0 + row * GRID_DEG,
+                    "shape_pt_lon": GRID_LON0 + col * GRID_DEG,
+                    "shape_model_node_id": int(node_ids[row, col]),
+                    "stop_sequence": col_to_stop_seq.get(col, np.nan),
+                    "route_type": int(RouteType.BUS),
+                    "route_id": route_id,
+                    "trip_id": trip_id,
+                    "direction_id": 0,
+                    "agency_id": "A1",
+                    "agency_name": "Grid Transit",
+                    "route_short_name": f"R{route_idx}",
+                }
+            )
+
+        for i, col in enumerate(stop_cols):
+            stop_records.append(
+                {
+                    "stop_id": f"s{route_idx}_{i}",
+                    "stop_name": f"Stop {route_idx}-{i}",
+                    "model_node_id": int(node_ids[row, col]),
+                    "is_bus_stop": True,
+                    "stop_lat": GRID_LAT0 + row * GRID_DEG,
+                    "stop_lon": GRID_LON0 + col * GRID_DEG,
+                }
+            )
+
+        for i in range(len(stop_cols) - 1):
+            from_col, to_col = stop_cols[i], stop_cols[i + 1]
+            pair_records.append(
+                {
+                    "shape_id": shape_id,
+                    "stop_sequence": i + 1,
+                    "stop_id": f"s{route_idx}_{i}",
+                    "stop_name": f"Stop {route_idx}-{i}",
+                    "next_stop_id": f"s{route_idx}_{i + 1}",
+                    "next_stop_name": f"Stop {route_idx}-{i + 1}",
+                    "A": int(node_ids[row, from_col]),
+                    "B": int(node_ids[row, to_col]),
+                    "route_id": route_id,
+                    "route_type": int(RouteType.BUS),
+                    "trip_id": trip_id,
+                    "direction_id": 0,
+                    "geometry": sg.LineString(
+                        [
+                            (GRID_LON0 + from_col * GRID_DEG, GRID_LAT0 + row * GRID_DEG),
+                            (GRID_LON0 + to_col * GRID_DEG, GRID_LAT0 + row * GRID_DEG),
+                        ]
+                    ),
+                }
+            )
+
+    shapes_df = pd.DataFrame(shape_records)
+    shapes_gdf = gpd.GeoDataFrame(
+        shapes_df,
+        geometry=gpd.points_from_xy(shapes_df["shape_pt_lon"], shapes_df["shape_pt_lat"]),
+        crs="EPSG:4326",
+    )
+    pairs_gdf = gpd.GeoDataFrame(pair_records, geometry="geometry", crs="EPSG:4326")
+    return pairs_gdf, {"stops": pd.DataFrame(stop_records), "shapes": shapes_gdf}
+
+
+def bus_digraph(roadway_net) -> nx.DiGraph:
+    """Collapse the bus MultiDiGraph to a DiGraph the way `route_shapes_between_stops()` does.
+
+    Args:
+        roadway_net: a RoadwayNetwork.
+    """
+    multi = roadway_net.get_modal_graph("bus")
+    graph = nx.DiGraph()
+    for u, v, data in multi.edges(data=True):
+        distance = data.get("distance", 0)
+        if graph.has_edge(u, v):
+            graph[u][v]["distance"] = min(graph[u][v]["distance"], distance)
+        else:
+            graph.add_edge(u, v, distance=distance)
+    return graph
+
+
+def route_grid(n: int, n_routes: int, stop_spacing: int = 4) -> None:
+    """Route a whole synthetic grid feed, start to finish.
+
+    Args:
+        n: grid nodes per side.
+        n_routes: number of bus routes.
+        stop_spacing: grid nodes between stops.
+    """
+    roadway_net = grid_roadway_net(n)
+    pairs_gdf, feed_tables = grid_bus_feed(n, n_routes, stop_spacing)
+    route_shapes_between_stops(
+        pairs_gdf,
+        feed_tables,
+        roadway_net,
+        local_crs=LOCAL_CRS,
+        crs_units=CRS_UNITS,
+        errors="ignore",
+    )
+
+
+# -------------------------------------------------------------------------------------------
+# End-to-end
+# -------------------------------------------------------------------------------------------
+
+
+@pytest.mark.parametrize(("n", "n_routes"), [(20, 5), (40, 8)])
+def test_benchmark_route_shapes_grid(benchmark, n, n_routes):
+    """Benchmark end-to-end shape routing on a synthetic grid."""
+    benchmark.pedantic(route_grid, args=(n, n_routes), rounds=2, iterations=1)
+
+
+def test_routing_cost_is_driven_by_stop_spacing_not_network_size():
+    """Per-stop-pair cost should track inter-stop distance, not total network size.
+
+    This is the shape of the performance problem: enumerating candidate paths costs more as
+    the path between two stops gets longer, while growing the network around a fixed set of
+    short hops costs almost nothing. A regression that makes per-pair cost grow with network
+    size would show up here.
+    """
+    per_pair_by_size = {}
+    for n, n_routes in [(20, 5), (40, 8)]:
+        roadway_net = grid_roadway_net(n)
+        pairs_gdf, feed_tables = grid_bus_feed(n, n_routes, stop_spacing=4)
+        start = time.perf_counter()
+        route_shapes_between_stops(
+            pairs_gdf,
+            feed_tables,
+            roadway_net,
+            local_crs=LOCAL_CRS,
+            crs_units=CRS_UNITS,
+            errors="ignore",
+        )
+        elapsed = time.perf_counter() - start
+        per_pair_by_size[n] = 1000 * elapsed / len(pairs_gdf)
+
+    WranglerLogger.info(f"ms per stop pair by grid size: {per_pair_by_size}")
+    small, large = per_pair_by_size[20], per_pair_by_size[40]
+    # 4x the nodes should not cost appreciably more per stop pair.
+    assert large < small * 3, (
+        f"per-stop-pair cost grew with network size: {small:.1f}ms at 20x20 "
+        f"vs {large:.1f}ms at 40x40"
+    )
+
+
+# -------------------------------------------------------------------------------------------
+# Candidate path enumeration -- the dominant per-stop-pair cost
+# -------------------------------------------------------------------------------------------
+
+
+@pytest.fixture(scope="module")
+def grid40():
+    """A 40x40 grid network plus its bus DiGraph and node id lookup."""
+    roadway_net = grid_roadway_net(40)
+    return roadway_net, bus_digraph(roadway_net), np.arange(1, 1601).reshape(40, 40)
+
+
+def _straight_run(node_ids, row: int, from_col: int, n_cols: int):
+    """Return (A, B, shape_points) for a straight west-east run along one grid row."""
+    shape_points = pd.DataFrame(
+        {
+            "shape_pt_lon": GRID_LON0 + np.arange(from_col, from_col + n_cols + 1) * GRID_DEG,
+            "shape_pt_lat": np.full(n_cols + 1, GRID_LAT0 + row * GRID_DEG),
+        }
+    )
+    return (
+        int(node_ids[row, from_col]),
+        int(node_ids[row, from_col + n_cols]),
+        shape_points,
+    )
+
+
+@pytest.mark.parametrize("stop_spacing", [5, 15, 25])
+def test_benchmark_shape_aware_path_by_stop_spacing(benchmark, grid40, stop_spacing):
+    """Benchmark one shape-aware path call as the gap between stops grows."""
+    roadway_net, graph, node_ids = grid40
+    node_a, node_b, shape_points = _straight_run(node_ids, 20, 5, stop_spacing)
+    benchmark(
+        find_shape_aware_shortest_path,
+        graph,
+        node_a,
+        node_b,
+        shape_points,
+        roadway_net,
+        DefaultConfig.TRANSIT.SHAPE_DISTANCE_TOLERANCE,
+    )
+
+
+def test_enumeration_stops_at_first_path_over_tolerance(grid40, monkeypatch):
+    """Candidate enumeration stops as soon as one path exceeds the distance tolerance.
+
+    Yen's algorithm yields paths in nondecreasing length order, so the first candidate over
+    `shortest * SHAPE_DISTANCE_TOLERANCE` means every later one is too. On a straight run
+    only the shortest path is within tolerance, so exactly two paths should be generated
+    rather than the full `MAX_SHAPE_CANDIDATE_PATHS`.
+    """
+    roadway_net, graph, node_ids = grid40
+    node_a, node_b, shape_points = _straight_run(node_ids, 20, 5, 25)
+
+    real_shortest_simple_paths = nx.shortest_simple_paths
+    generated = []
+
+    def counting_shortest_simple_paths(*args, **kwargs):
+        for path in real_shortest_simple_paths(*args, **kwargs):
+            generated.append(path)
+            yield path
+
+    monkeypatch.setattr(nx, "shortest_simple_paths", counting_shortest_simple_paths)
+    find_shape_aware_shortest_path(
+        graph,
+        node_a,
+        node_b,
+        shape_points,
+        roadway_net,
+        DefaultConfig.TRANSIT.SHAPE_DISTANCE_TOLERANCE,
+    )
+
+    WranglerLogger.info(
+        f"candidate paths generated={len(generated)} "
+        f"(cap {DefaultConfig.TRANSIT.MAX_SHAPE_CANDIDATE_PATHS})"
+    )
+    assert DefaultConfig.TRANSIT.MAX_SHAPE_CANDIDATE_PATHS > 2
+    assert len(generated) == 2
+
+
+def test_paths_enumerated_far_exceed_paths_used(grid40):
+    """Most candidate paths up to the cap fall outside the distance tolerance.
+
+    Yen's algorithm yields paths in nondecreasing length order, so once a candidate exceeds
+    `shortest * SHAPE_DISTANCE_TOLERANCE` every later candidate does too. This enumerates up
+    to the cap independently of the library to record how much work the early stop in
+    `find_shape_aware_shortest_path()` avoids.
+    """
+    _, graph, node_ids = grid40
+    node_a, node_b, _ = _straight_run(node_ids, 20, 5, 25)
+
+    shortest = nx.shortest_path_length(graph, node_a, node_b, weight="distance")
+    max_allowed = shortest * DefaultConfig.TRANSIT.SHAPE_DISTANCE_TOLERANCE
+
+    enumerated = 0
+    within_tolerance = 0
+    for path in nx.shortest_simple_paths(graph, node_a, node_b, weight="distance"):
+        enumerated += 1
+        distance = sum(
+            graph[path[i]][path[i + 1]].get("distance", 0) for i in range(len(path) - 1)
+        )
+        if distance <= max_allowed:
+            within_tolerance += 1
+        if enumerated >= DefaultConfig.TRANSIT.MAX_SHAPE_CANDIDATE_PATHS:
+            break
+
+    WranglerLogger.info(
+        f"candidate paths enumerated={enumerated}, within tolerance={within_tolerance}"
+    )
+    assert within_tolerance <= enumerated
+
+
+# -------------------------------------------------------------------------------------------
+# Per-candidate-path and per-stop-pair helpers
+# -------------------------------------------------------------------------------------------
+
+
+@pytest.mark.parametrize(("path_nodes", "n_shape_points"), [(10, 15), (40, 60)])
+def test_benchmark_deviation_scorer(benchmark, grid40, path_nodes, n_shape_points):
+    """Benchmark the deviation scorer, called once per candidate path within tolerance."""
+    roadway_net, _, node_ids = grid40
+    path = [int(x) for x in node_ids[20, :path_nodes]]
+    shape_points = pd.DataFrame(
+        {
+            "shape_pt_lon": GRID_LON0 + np.linspace(0, 0.01, n_shape_points),
+            "shape_pt_lat": GRID_LAT0 + np.linspace(0, 0.01, n_shape_points),
+        }
+    )
+    benchmark(calculate_path_deviation_from_shape, path, shape_points, roadway_net)
+
+
+@pytest.mark.parametrize("n_shape_rows", [5_000, 50_000])
+def test_benchmark_shape_point_lookup(benchmark, n_shape_rows):
+    """Benchmark the per-stop-pair lookup of original shape points.
+
+    This does a full scan of the shapes table for every stop pair, so its cost grows with
+    the size of the feed rather than staying fixed.
+    """
+    points_per_shape = 50
+    n_shapes = n_shape_rows // points_per_shape
+    shapes_df = pd.DataFrame(
+        {
+            "shape_id": np.repeat([f"s{i}" for i in range(n_shapes)], points_per_shape),
+            "shape_pt_sequence": np.tile(np.arange(1, points_per_shape + 1), n_shapes),
+            "shape_pt_lat": GRID_LAT0,
+            "shape_pt_lon": GRID_LON0,
+            "stop_sequence": np.tile([1.0, *([np.nan] * (points_per_shape - 2)), 2.0], n_shapes),
+        }
+    )
+    feed_tables = {"shapes": shapes_df}
+    benchmark(get_original_shape_points_between_stops, feed_tables, "s3", 1, 2)
+
+
+@pytest.mark.parametrize("n_shape_rows", [5_000, 50_000, 500_000])
+def test_benchmark_shape_point_lookup_indexed(benchmark, n_shape_rows):
+    """Benchmark the shape point lookup with a prebuilt per-shape index.
+
+    With the index the cost depends on the size of one shape, not the size of the feed.
+    """
+    points_per_shape = 50
+    n_shapes = n_shape_rows // points_per_shape
+    shapes_df = pd.DataFrame(
+        {
+            "shape_id": np.repeat([f"s{i}" for i in range(n_shapes)], points_per_shape),
+            "shape_pt_sequence": np.tile(np.arange(1, points_per_shape + 1), n_shapes),
+            "shape_pt_lat": GRID_LAT0,
+            "shape_pt_lon": GRID_LON0,
+            "stop_sequence": np.tile([1.0, *([np.nan] * (points_per_shape - 2)), 2.0], n_shapes),
+        }
+    )
+    feed_tables = {"shapes": shapes_df}
+    index = _shape_points_index(shapes_df)
+    benchmark(
+        get_original_shape_points_between_stops,
+        feed_tables,
+        "s3",
+        1,
+        2,
+        shape_points_index=index,
+    )
+
+
+def test_shape_point_lookup_with_index_matches_scan():
+    """The indexed shape point lookup returns exactly what the full-table scan returns.
+
+    Covers shapes whose rows are interleaved and out of sequence order in the table, stop
+    pairs in the middle of a shape, a stop sequence that is not on the shape and a shape_id
+    that is not in the table.
+    """
+    rng = np.random.default_rng(497)
+    points_per_shape = 40
+    shape_ids = [f"s{i}" for i in range(12)]
+    stop_sequence = np.full(points_per_shape, np.nan)
+    stop_sequence[[0, 7, 8, 21, 39]] = [1, 2, 3, 4, 5]
+    n_rows = points_per_shape * len(shape_ids)
+    shapes_df = pd.DataFrame(
+        {
+            "shape_id": np.repeat(shape_ids, points_per_shape),
+            "shape_pt_sequence": np.tile(np.arange(1, points_per_shape + 1), len(shape_ids)),
+            "shape_pt_lat": GRID_LAT0 + rng.normal(0, 0.01, n_rows),
+            "shape_pt_lon": GRID_LON0 + rng.normal(0, 0.01, n_rows),
+            "stop_sequence": np.tile(stop_sequence, len(shape_ids)),
+        }
+    )
+    # interleave shapes and scramble the point order, keeping a non-default index
+    shapes_df = shapes_df.sample(frac=1.0, random_state=497)
+    feed_tables = {"shapes": shapes_df}
+    before = shapes_df.copy()
+    index = _shape_points_index(shapes_df)
+
+    last_stop_sequence = 5
+    for shape_id in [*shape_ids, "not-a-shape"]:
+        for from_seq in range(1, last_stop_sequence + 1):
+            expected = get_original_shape_points_between_stops(
+                feed_tables, shape_id, from_seq, from_seq + 1
+            )
+            actual = get_original_shape_points_between_stops(
+                feed_tables, shape_id, from_seq, from_seq + 1, shape_points_index=index
+            )
+            pd.testing.assert_frame_equal(actual, expected)
+            if shape_id != "not-a-shape" and from_seq < last_stop_sequence:
+                assert not expected.empty
+    # neither lookup modifies the shapes table
+    pd.testing.assert_frame_equal(shapes_df, before)
+
+
+# -------------------------------------------------------------------------------------------
+# Realistic case
+# -------------------------------------------------------------------------------------------
+
+
+def stpaul_routing_inputs(stpaul_ex_dir):
+    """Build real routing inputs from the St Paul example roadway network and GTFS feed.
+
+    Bus stops are snapped to the nearest bus-accessible roadway node and consecutive stops on
+    each shape become the stop pairs to route. Each stop is also snapped onto its nearest
+    original shape point so that the shape-aware comparison is exercised.
+
+    Args:
+        stpaul_ex_dir: path to the St Paul example directory.
+
+    Returns:
+        Tuple of (roadway_net, bus_stop_links_gdf, feed_tables).
+    """
+    roadway_net = load_roadway_from_dir(stpaul_ex_dir)
+
+    stops = pd.read_csv(stpaul_ex_dir / "stops.txt", dtype={"stop_id": str})
+    stop_times = pd.read_csv(
+        stpaul_ex_dir / "stop_times.txt", dtype={"stop_id": str, "trip_id": str}
+    )
+    trips = pd.read_csv(stpaul_ex_dir / "trips.txt", dtype={"trip_id": str, "shape_id": str})
+    routes = pd.read_csv(stpaul_ex_dir / "routes.txt")
+    shapes = pd.read_csv(stpaul_ex_dir / "shapes.txt", dtype={"shape_id": str})
+
+    bus_links = roadway_net.links_df.mode_query("bus")
+    bus_node_ids = set(bus_links["A"]) | set(bus_links["B"])
+    bus_nodes = roadway_net.nodes_df[roadway_net.nodes_df["model_node_id"].isin(bus_node_ids)]
+    bus_nodes_gdf = gpd.GeoDataFrame(
+        bus_nodes[["model_node_id"]],
+        geometry=gpd.points_from_xy(bus_nodes["X"], bus_nodes["Y"]),
+        crs="EPSG:4326",
+    ).to_crs(LOCAL_CRS)
+    stops_gdf = gpd.GeoDataFrame(
+        stops[["stop_id"]],
+        geometry=gpd.points_from_xy(stops["stop_lon"], stops["stop_lat"]),
+        crs="EPSG:4326",
+    ).to_crs(LOCAL_CRS)
+    snapped = gpd.sjoin_nearest(stops_gdf, bus_nodes_gdf)[["stop_id", "model_node_id"]]
+    unique_snapped = snapped.drop_duplicates("stop_id")
+    stop_to_node = dict(
+        zip(unique_snapped["stop_id"], unique_snapped["model_node_id"], strict=True)
+    )
+
+    trips = trips.merge(routes[["route_id", "route_type"]], on="route_id")
+    bus_route_types = [int(RouteType.BUS), int(RouteType.TROLLEYBUS)]
+    bus_trips = trips[trips["route_type"].isin(bus_route_types)]
+    ordered = (
+        stop_times.merge(
+            bus_trips[["trip_id", "route_id", "shape_id", "direction_id", "route_type"]],
+            on="trip_id",
+        )
+        .merge(stops[["stop_id", "stop_name"]], on="stop_id", how="left")
+        .sort_values(["shape_id", "stop_sequence"])
+        .drop_duplicates(["shape_id", "stop_sequence"])
+    )
+    ordered["model_node_id"] = ordered["stop_id"].map(stop_to_node)
+    ordered = ordered.dropna(subset=["model_node_id"])
+
+    pair_records = []
+    for shape_id, shape_stops in ordered.groupby("shape_id"):
+        in_order = shape_stops.sort_values("stop_sequence").reset_index(drop=True)
+        for i in range(len(in_order) - 1):
+            this_stop, next_stop = in_order.loc[i], in_order.loc[i + 1]
+            pair_records.append(
+                {
+                    "shape_id": shape_id,
+                    "stop_sequence": i + 1,
+                    "stop_id": this_stop["stop_id"],
+                    "stop_name": this_stop["stop_name"],
+                    "next_stop_id": next_stop["stop_id"],
+                    "next_stop_name": next_stop["stop_name"],
+                    "A": int(this_stop["model_node_id"]),
+                    "B": int(next_stop["model_node_id"]),
+                    "route_id": this_stop["route_id"],
+                    "route_type": int(this_stop["route_type"]),
+                    "trip_id": this_stop["trip_id"],
+                    "direction_id": int(this_stop["direction_id"] or 0),
+                    "geometry": sg.LineString([(0, 0), (1, 1)]),
+                }
+            )
+    pairs_gdf = gpd.GeoDataFrame(pair_records, geometry="geometry", crs="EPSG:4326")
+
+    shapes = (
+        shapes.merge(
+            trips[
+                ["shape_id", "route_id", "trip_id", "direction_id", "route_type"]
+            ].drop_duplicates("shape_id"),
+            on="shape_id",
+        )
+        .sort_values(["shape_id", "shape_pt_sequence"])
+        .reset_index(drop=True)
+    )
+    shapes["stop_sequence"] = np.nan
+    stop_xy = stops.set_index("stop_id")[["stop_lon", "stop_lat"]]
+    for shape_id, shape_stops in ordered.groupby("shape_id"):
+        shape_rows = shapes.index[shapes["shape_id"] == shape_id]
+        if len(shape_rows) == 0:
+            continue
+        shape_lon = shapes.loc[shape_rows, "shape_pt_lon"].to_numpy()
+        shape_lat = shapes.loc[shape_rows, "shape_pt_lat"].to_numpy()
+        in_order = shape_stops.sort_values("stop_sequence").reset_index(drop=True)
+        for stop_seq, stop_id in enumerate(in_order["stop_id"], start=1):
+            if stop_id not in stop_xy.index:
+                continue
+            lon, lat = stop_xy.loc[stop_id, "stop_lon"], stop_xy.loc[stop_id, "stop_lat"]
+            nearest = int(np.argmin((shape_lon - lon) ** 2 + (shape_lat - lat) ** 2))
+            shapes.loc[shape_rows[nearest], "stop_sequence"] = stop_seq
+
+    shapes["agency_id"] = "A1"
+    shapes["agency_name"] = "Metro Transit"
+    shapes["route_short_name"] = "R"
+    shapes_gdf = gpd.GeoDataFrame(
+        shapes,
+        geometry=gpd.points_from_xy(shapes["shape_pt_lon"], shapes["shape_pt_lat"]),
+        crs="EPSG:4326",
+    )
+    stops_table = stops.copy()
+    stops_table["is_bus_stop"] = True
+    return roadway_net, pairs_gdf, {"stops": stops_table, "shapes": shapes_gdf}
+
+
+@pytest.fixture(scope="module")
+def stpaul_routing_case(stpaul_ex_dir):
+    """Realistic routing inputs built once per module."""
+    return stpaul_routing_inputs(stpaul_ex_dir)
+
+
+def test_benchmark_route_shapes_stpaul(benchmark, stpaul_routing_case):
+    """Benchmark end-to-end shape routing on the St Paul example feed."""
+    roadway_net, pairs_gdf, feed_tables = stpaul_routing_case
+
+    def route_once():
+        route_shapes_between_stops(
+            pairs_gdf.copy(),
+            {name: table.copy() for name, table in feed_tables.items()},
+            roadway_net,
+            local_crs=LOCAL_CRS,
+            crs_units=CRS_UNITS,
+            errors="ignore",
+        )
+
+    benchmark.pedantic(route_once, rounds=1, iterations=1)
+
+
+def test_stpaul_per_stop_pair_cost(stpaul_routing_case):
+    """Record the realistic per-stop-pair cost, which sets the scale of a full feed run."""
+    roadway_net, pairs_gdf, feed_tables = stpaul_routing_case
+    start = time.perf_counter()
+    route_shapes_between_stops(
+        pairs_gdf.copy(),
+        {name: table.copy() for name, table in feed_tables.items()},
+        roadway_net,
+        local_crs=LOCAL_CRS,
+        crs_units=CRS_UNITS,
+        errors="ignore",
+    )
+    elapsed = time.perf_counter() - start
+    per_pair_ms = 1000 * elapsed / len(pairs_gdf)
+    WranglerLogger.info(
+        f"St Paul: {len(pairs_gdf)} stop pairs in {elapsed:.1f}s ({per_pair_ms:.1f} ms/pair); "
+        f"a feed with 50,000 stop pairs would take ~{50_000 * per_pair_ms / 1000 / 60:.0f} min"
+    )
+    assert len(pairs_gdf) > 0
+
+
+# -------------------------------------------------------------------------------------------
+# Equivalence with the original implementation
+# -------------------------------------------------------------------------------------------
+#
+# The optimizations to shape-aware routing are meant to be behavior-preserving: the same
+# path must be selected for every stop pair. A regression here produces silently wrong
+# routes rather than an error, so these tests compare against a frozen copy of the original
+# algorithm (trace logging omitted; it does not affect the result).
+
+
+def _reference_path_deviation(path_nodes, original_shape_points, roadway_net) -> float:
+    """Original `calculate_path_deviation_from_shape()`, kept as a reference."""
+    if original_shape_points.empty or not path_nodes:
+        return float("inf")
+    try:
+        path_coords = []
+        for node_id in path_nodes:
+            node_row = roadway_net.nodes_df[roadway_net.nodes_df["model_node_id"] == node_id]
+            if not node_row.empty:
+                path_coords.append((node_row.iloc[0]["X"], node_row.iloc[0]["Y"]))
+        if len(path_coords) < 2:
+            return float("inf")
+        path_line = sg.LineString(path_coords)
+        total_deviation = 0.0
+        for _idx, shape_row in original_shape_points.iterrows():
+            shape_point = sg.Point(shape_row["shape_pt_lon"], shape_row["shape_pt_lat"])
+            total_deviation += shape_point.distance(path_line)
+        return total_deviation
+    except Exception:
+        return float("inf")
+
+
+def _reference_shape_aware_path(
+    G_bus,
+    start_node,
+    end_node,
+    original_shape_points,
+    roadway_net,
+    tolerance=1.10,
+    trace=False,  # noqa: ARG001
+    **_ignored,
+) -> list:
+    """Original `find_shape_aware_shortest_path()`, kept as a reference."""
+    from itertools import islice
+
+    try:
+        shortest_dist = nx.shortest_path_length(G_bus, start_node, end_node, weight="distance")
+        max_allowed_dist = shortest_dist * tolerance
+        candidate_paths = list(
+            islice(
+                nx.shortest_simple_paths(G_bus, start_node, end_node, weight="distance"),
+                DefaultConfig.TRANSIT.MAX_SHAPE_CANDIDATE_PATHS,
+            )
+        )
+        best_path = None
+        best_deviation = float("inf")
+        for path in candidate_paths:
+            path_dist = 0
+            for i in range(len(path) - 1):
+                path_dist += G_bus[path[i]][path[i + 1]].get("distance", 0)
+            if path_dist <= max_allowed_dist:
+                deviation = _reference_path_deviation(path, original_shape_points, roadway_net)
+                if deviation < best_deviation:
+                    best_deviation = deviation
+                    best_path = path
+        return best_path if best_path else candidate_paths[0]
+    except Exception:
+        return nx.shortest_path(G_bus, start_node, end_node, weight="distance")
+
+
+def _grid_point(row: float, col: float) -> tuple[float, float]:
+    return GRID_LON0 + col * GRID_DEG, GRID_LAT0 + row * GRID_DEG
+
+
+def _shape_points(points: list[tuple[float, float]]) -> pd.DataFrame:
+    """Shape points as (row, col) grid coordinates, which may be fractional."""
+    lon_lat = [_grid_point(r, c) for r, c in points]
+    return pd.DataFrame(
+        {"shape_pt_lon": [p[0] for p in lon_lat], "shape_pt_lat": [p[1] for p in lon_lat]}
+    )
+
+
+def _equivalence_cases(node_ids):
+    """Stop pairs chosen so that candidate selection is non-trivial.
+
+    On a uniform grid every monotone staircase between two corners is a shortest path, so
+    many candidates tie on distance and the deviation score alone decides the winner.
+    """
+    rng = np.random.default_rng(497)
+    cases = []
+    # straight runs at short, medium and long stop spacing
+    for spacing in [3, 5, 15, 25]:
+        cases.append((f"straight-{spacing}", *_straight_run(node_ids, 20, 5, spacing)))
+    # diagonal pairs whose shape follows one particular L or staircase
+    for dr, dc in [(2, 3), (4, 4), (6, 9)]:
+        a, b = int(node_ids[10, 10]), int(node_ids[10 + dr, 10 + dc])
+        north_then_east = [(10 + r, 10) for r in range(dr + 1)] + [
+            (10 + dr, 10 + c) for c in range(1, dc + 1)
+        ]
+        east_then_north = [(10, 10 + c) for c in range(dc + 1)] + [
+            (10 + r, 10 + dc) for r in range(1, dr + 1)
+        ]
+        cases.append((f"L-north-east-{dr}x{dc}", a, b, _shape_points(north_then_east)))
+        cases.append((f"L-east-north-{dr}x{dc}", a, b, _shape_points(east_then_north)))
+        # a noisy shape that roughly follows the diagonal
+        n_pts = 4 * (dr + dc)
+        t = np.linspace(0, 1, n_pts)
+        noisy = list(
+            zip(
+                10 + dr * t + rng.normal(0, 0.3, n_pts),
+                10 + dc * t + rng.normal(0, 0.3, n_pts),
+                strict=True,
+            )
+        )
+        cases.append((f"noisy-diagonal-{dr}x{dc}", a, b, _shape_points(noisy)))
+    # a shape that detours one block off the straight line, so a longer path can win
+    detour = [(20, 5), (20, 6), (21, 6), (21, 7), (21, 8), (21, 9), (20, 9), (20, 10)]
+    cases.append(("detour", int(node_ids[20, 5]), int(node_ids[20, 10]), _shape_points(detour)))
+    # empty shape: every candidate scores inf and the shortest path is returned
+    cases.append(
+        (
+            "empty-shape",
+            int(node_ids[5, 5]),
+            int(node_ids[8, 9]),
+            pd.DataFrame({"shape_pt_lon": [], "shape_pt_lat": []}),
+        )
+    )
+    return cases
+
+
+def test_shape_aware_path_matches_reference(grid40):
+    """`find_shape_aware_shortest_path()` selects the same path as the original algorithm."""
+    roadway_net, graph, node_ids = grid40
+    mismatches = []
+    for label, node_a, node_b, shape_points in _equivalence_cases(node_ids):
+        expected = _reference_shape_aware_path(
+            graph,
+            node_a,
+            node_b,
+            shape_points,
+            roadway_net,
+            DefaultConfig.TRANSIT.SHAPE_DISTANCE_TOLERANCE,
+        )
+        actual = find_shape_aware_shortest_path(
+            graph,
+            node_a,
+            node_b,
+            shape_points,
+            roadway_net,
+            DefaultConfig.TRANSIT.SHAPE_DISTANCE_TOLERANCE,
+        )
+        if list(actual) != list(expected):
+            mismatches.append(f"{label}: expected {expected}, got {actual}")
+    assert not mismatches, "\n".join(mismatches)
+
+
+def test_shape_aware_path_with_candidate_cache_matches_reference(grid40, monkeypatch):
+    """Sharing a candidate cache between calls does not change which path is selected.
+
+    The equivalence cases reuse node pairs with different shapes (the two L shapes and the
+    noisy diagonal share end points and pick different winners), so a cache that leaked
+    one shape's choice into the next would be caught. The whole set is run twice with one
+    cache; candidates must be generated once per distinct node pair and never again.
+    """
+    roadway_net, graph, node_ids = grid40
+    cases = _equivalence_cases(node_ids)
+    tolerance = DefaultConfig.TRANSIT.SHAPE_DISTANCE_TOLERANCE
+    expected = {
+        label: _reference_shape_aware_path(
+            graph, node_a, node_b, shape_points, roadway_net, tolerance
+        )
+        for label, node_a, node_b, shape_points in cases
+    }
+
+    real_shortest_simple_paths = nx.shortest_simple_paths
+    generator_calls = []
+
+    def counting_shortest_simple_paths(G, source, target, *args, **kwargs):
+        generator_calls.append((source, target))
+        return real_shortest_simple_paths(G, source, target, *args, **kwargs)
+
+    monkeypatch.setattr(nx, "shortest_simple_paths", counting_shortest_simple_paths)
+
+    candidate_cache: dict = {}
+    mismatches = []
+    for pass_number in [1, 2]:
+        for label, node_a, node_b, shape_points in cases:
+            actual = find_shape_aware_shortest_path(
+                graph,
+                node_a,
+                node_b,
+                shape_points,
+                roadway_net,
+                tolerance,
+                candidate_cache=candidate_cache,
+            )
+            if list(actual) != list(expected[label]):
+                mismatches.append(
+                    f"pass {pass_number} {label}: expected {expected[label]}, got {actual}"
+                )
+    assert not mismatches, "\n".join(mismatches)
+
+    distinct_pairs = {(node_a, node_b) for _, node_a, node_b, _ in cases}
+    assert len(distinct_pairs) < len(cases), "cases should repeat node pairs"
+    assert sorted(generator_calls) == sorted(distinct_pairs)
+    # the winners for a shared node pair differ by shape, so the cache holds candidates
+    assert expected["L-north-east-4x4"] != expected["L-east-north-4x4"]
+
+
+def test_shape_aware_path_with_zero_candidate_cap_returns_shortest_path(grid40, monkeypatch):
+    """With `MAX_SHAPE_CANDIDATE_PATHS` of 0 the plain shortest path is returned.
+
+    No candidates are enumerated, so there is nothing to score. The original algorithm fell
+    back to `nx.shortest_path()` in that case and this must too, with and without a cache,
+    rather than returning None.
+    """
+    roadway_net, graph, node_ids = grid40
+    monkeypatch.setattr(DefaultConfig.TRANSIT, "MAX_SHAPE_CANDIDATE_PATHS", 0)
+    tolerance = DefaultConfig.TRANSIT.SHAPE_DISTANCE_TOLERANCE
+    candidate_cache: dict = {}
+    for label, node_a, node_b, shape_points in _equivalence_cases(node_ids):
+        expected = _reference_shape_aware_path(
+            graph, node_a, node_b, shape_points, roadway_net, tolerance
+        )
+        assert expected == nx.shortest_path(graph, node_a, node_b, weight="distance")
+        for cache in [None, candidate_cache, candidate_cache]:
+            actual = find_shape_aware_shortest_path(
+                graph, node_a, node_b, shape_points, roadway_net, tolerance, candidate_cache=cache
+            )
+            assert actual == expected, f"{label}: expected {expected}, got {actual}"
+
+
+def test_path_deviation_matches_reference(grid40):
+    """`calculate_path_deviation_from_shape()` returns the same score as the original."""
+    roadway_net, graph, node_ids = grid40
+    for label, node_a, node_b, shape_points in _equivalence_cases(node_ids):
+        for path in [nx.shortest_path(graph, node_a, node_b, weight="distance"), [node_a]]:
+            expected = _reference_path_deviation(path, shape_points, roadway_net)
+            actual = calculate_path_deviation_from_shape(path, shape_points, roadway_net)
+            assert actual == expected, f"{label} path len {len(path)}: {expected} != {actual}"
+
+
+def _routed_shapes(route_fn_inputs, monkeypatch=None, use_reference=False) -> pd.DataFrame:
+    roadway_net, pairs_gdf, feed_tables = route_fn_inputs
+    feed_tables = {name: table.copy() for name, table in feed_tables.items()}
+    if use_reference:
+        import network_wrangler.utils.transit as transit_module
+
+        monkeypatch.setattr(
+            transit_module, "find_shape_aware_shortest_path", _reference_shape_aware_path
+        )
+    route_shapes_between_stops(
+        pairs_gdf.copy(),
+        feed_tables,
+        roadway_net,
+        local_crs=LOCAL_CRS,
+        crs_units=CRS_UNITS,
+        errors="ignore",
+    )
+    if use_reference:
+        monkeypatch.undo()
+    return pd.DataFrame(feed_tables["shapes"]).reset_index(drop=True)
+
+
+@pytest.mark.parametrize(("n", "n_routes", "stop_spacing"), [(20, 5, 4), (30, 6, 10)])
+def test_route_shapes_grid_matches_reference(monkeypatch, n, n_routes, stop_spacing):
+    """End-to-end routed shapes on a grid feed match the original algorithm exactly."""
+    roadway_net = grid_roadway_net(n)
+    pairs_gdf, feed_tables = grid_bus_feed(n, n_routes, stop_spacing)
+    inputs = (roadway_net, pairs_gdf, feed_tables)
+    expected = _routed_shapes(inputs, monkeypatch, use_reference=True)
+    actual = _routed_shapes(inputs)
+    pd.testing.assert_frame_equal(actual, expected)
+
+
+def test_route_shapes_stpaul_matches_reference(monkeypatch, stpaul_routing_case):
+    """End-to-end routed shapes on the St Paul feed match the original algorithm exactly."""
+    expected = _routed_shapes(stpaul_routing_case, monkeypatch, use_reference=True)
+    actual = _routed_shapes(stpaul_routing_case)
+    pd.testing.assert_frame_equal(actual, expected)

@@ -1345,6 +1345,14 @@ def route_shapes_between_stops(  # noqa: PLR0912, PLR0915
         f"Converted MultiDiGraph ({G_bus_multi.number_of_edges()} edges) to DiGraph ({G_bus.number_of_edges()} edges)"
     )
 
+    # node coordinates for scoring candidate paths against shapes, built once per run
+    node_coords = _node_coords_lookup(roadway_net)
+    # candidate paths per (A, B, tolerance), shared by every shape serving that node pair
+    candidate_cache: dict = {}
+    # original shape points per shape_id; feed_tables["shapes"] is not modified until
+    # routing is complete
+    shape_points_index = _shape_points_index(feed_tables["shapes"])
+
     # collect node sequences for these shapes
     bus_node_sequence = []
     # also collect failed stop sequences
@@ -1423,6 +1431,7 @@ def route_shapes_between_stops(  # noqa: PLR0912, PLR0915
                     row["stop_sequence"],
                     row["stop_sequence"] + 1,
                     trace_shape_ids is not None and current_shape_id in trace_shape_ids,
+                    shape_points_index=shape_points_index,
                 )
 
                 path = find_shape_aware_shortest_path(
@@ -1433,6 +1442,8 @@ def route_shapes_between_stops(  # noqa: PLR0912, PLR0915
                     roadway_net,
                     DefaultConfig.TRANSIT.SHAPE_DISTANCE_TOLERANCE,
                     trace_shape_ids is not None and current_shape_id in trace_shape_ids,
+                    node_coords=node_coords,
+                    candidate_cache=candidate_cache,
                 )
             else:
                 # Standard shortest path
@@ -3319,146 +3330,159 @@ def create_feed_from_gtfs_model(  # noqa: PLR0912, PLR0915
     Feed representation compatible with travel modeling. Maps transit stops to roadway
     nodes and optionally adds station infrastructure to the network.
 
-    Process Steps:
-    1. Prepare roadway network:
-       - Convert roadway_net.nodes_df to GeoDataFrame if needed
-       - Create Point geometries from X, Y coordinates
-       - Set CRS to LAT_LON_CRS (EPSG:4326)
-       - Modifies roadway_net.nodes_df in place
+    **Process steps:**
 
-    2. Copy GTFS tables to feed_tables dictionary:
-       - Copy routes, trips, agencies, stops, stop_times, shapes from gtfs_model
-       - Convert stops to GeoDataFrame with Point geometries from stop_lon/stop_lat
-       - Creates feed_tables dict for all subsequent operations
+    **Step 1: Prepare roadway network**
 
-    3. Enrich stops with route/agency metadata:
-       - Calls: [`add_additional_data_to_stops()`][network_wrangler.utils.transit.add_additional_data_to_stops]
-       - Joins route and agency information to each stop via stop_times and trips
-       - Adds columns: agency_ids, agency_names, route_ids, route_names, route_types,
-         shape_ids, is_parent, is_bus_stop
-       - Modifies feed_tables['stops'] in place
+    - Convert roadway_net.nodes_df to GeoDataFrame if needed
+    - Create Point geometries from X, Y coordinates
+    - Set CRS to LAT_LON_CRS (EPSG:4326)
+    - Modifies roadway_net.nodes_df in place
 
-    4. Create frequency-based schedules from timetables:
-       - Calls: [`create_feed_frequencies()`][network_wrangler.models.gtfs.converters.create_feed_frequencies]
-       - Converts GTFS trip-based schedules to frequency-based representation
-       - Groups trips by stop pattern (shape_id) and time period
-       - Calculates headways using specified method (uniform/mean/median)
-       - Creates one representative trip per shape_id
-       - Creates feed_tables['frequencies'] table
-       - Modifies: feed_tables['stop_times'] (adds departure_minutes),
-         feed_tables['trips'] (one row per shape_id)
+    **Step 2: Copy GTFS tables to feed_tables dictionary**
 
-    5. Match stops to shape points and enrich shapes:
-       - Calls: [`add_additional_data_to_shapes()`][network_wrangler.utils.transit.add_additional_data_to_shapes]
-       - For each shape_id, processes stops in sequence order
-       - For each stop:
-           - Match: Find nearest existing shape point within threshold (forward-only search)
-           - Insert: If no match, create new shape point at stop location
-       - Uses local minimum matching to handle routes that double back
-       - Renumbers shape_pt_sequence if duplicates or non-integers detected
-       - Writes debug_shapes.geojson with stop matching information
-       - Calls helpers: `_match_stop_to_shape_points()`, `_insert_stop_into_shape()`,
-         `_align_shape_with_stops()`, `_write_debug_shapes()`
-       - Modifies feed_tables['shapes']: adds stop_id, stop_name, stop_sequence,
-         match_distance_{crs_units}, poor_match
+    - Copy routes, trips, agencies, stops, stop_times, shapes from gtfs_model
+    - Convert stops to GeoDataFrame with Point geometries from stop_lon/stop_lat
+    - Creates feed_tables dict for all subsequent operations
 
-    6. Match bus stops to roadway nodes:
-       - Calls: [`match_bus_stops_to_roadway_nodes()`][network_wrangler.utils.transit.match_bus_stops_to_roadway_nodes]
-       - Gets bus modal graph from roadway network (bus-accessible nodes only)
-       - For each bus stop:
-           - Finds K nearest bus-accessible nodes using BallTree spatial index
-           - If use_name_matching=True: scores by distance + name compatibility
-             (combined_score = 0.1 * normalized_dist + 0.9 * (1 - name_score))
-           - Selects best match within max_distance threshold
-       - If name matching enabled: marks stops with combined_score > 0.9 as poor_match:
-           - Sets poor_match = True (does not update location yet)
-           - Keeps model_node_id as nearest bus-accessible node (for connector links)
-           - These stops will be added to network in step 6a
-       - If name matching disabled: poor_match = False for all stops
-       - Updates stop locations to matched node positions (except poor_match stops)
-       - Modifies feed_tables['stops']: adds model_node_id, match_distance_{crs_units},
-         close_match, poor_match (always added, but only True when name matching enabled),
-         node_link_names, name_match_score, normalized_dist, combined_score
-       - Modifies feed_tables['shapes']: updates bus stop shape points to node locations,
-         adds poor_match flag
-       - Modifies roadway_net.nodes_df: adds bus_access column
+    **Step 3: Enrich stops with route/agency metadata**
 
-    6a. Add unmatched bus stops to network:
-        - Calls: [`add_unmatched_bus_stops_to_network()`][network_wrangler.utils.transit.add_unmatched_bus_stops_to_network]
-        - Identifies unmatched bus stops (poor_match=True)
-        - Clusters nearby stops using DBSCAN (max_distance threshold)
-        - Creates new roadway nodes at cluster centroids
-        - One node per cluster for grouped transit stations
-        - Updates feed_tables['stops'] with new node IDs
-        - Modifies roadway_net.nodes_df: adds new transit stop nodes with is_transit_stop_node flag
+    - Calls: [`add_additional_data_to_stops()`][network_wrangler.utils.transit.add_additional_data_to_stops]
+    - Joins route and agency information to each stop via stop_times and trips
+    - Adds columns: agency_ids, agency_names, route_ids, route_names, route_types,
+      shape_ids, is_parent, is_bus_stop
+    - Modifies feed_tables['stops'] in place
 
-    7. Add rail/ferry stations and links to roadway network:
-       - Calls: [`add_stations_and_links_to_roadway_network()`][network_wrangler.utils.transit.add_stations_and_links_to_roadway_network]
-       - For STATION_ROUTE_TYPES (rail, light rail, subway, etc.):
-           - Creates new nodes for each station
-           - Adds dedicated transit links between consecutive stations
-           - Links follow original GTFS shape geometry
-       - For BUS/TROLLEYBUS routes:
-           - Creates bus_stop_links_gdf with consecutive stop pairs (A->B)
-           - Includes route metadata (route_id, trip_id, direction_id, etc.)
-           - No new nodes/links added yet (handled in next step)
-       - Returns station_id_to_model_node_id_dict and bus_stop_links_gdf
-       - Modifies roadway_net.nodes_df: adds station nodes
-       - Modifies roadway_net.links_df: adds station-to-station links
-       - Modifies feed_tables['stops']: updates station stops with new model_node_ids
-       - Modifies feed_tables['shapes']: removes intermediate shape points for station routes,
-         keeps only station stop points
+    **Step 4: Create frequency-based schedules from timetables**
 
-    7a. Create connector links for unmatched bus stops:
-        - Calls: [`create_connector_links_for_poor_match_stops()`][network_wrangler.utils.transit.create_connector_links_for_poor_match_stops]
-        - Creates bidirectional bus-only links between:
-            - New transit stop nodes (from step 6a) to their nearest bus-accessible node
-        - Links marked with ref="unmatched_bus_stop"
-        - Enables routing through these previously unmatched stops
-        - Modifies roadway_net.links_df: adds connector links
-        - Modifies roadway_net.shapes: adds link geometries
+    - Calls: [`create_feed_frequencies()`][network_wrangler.models.gtfs.converters.create_feed_frequencies]
+    - Converts GTFS trip-based schedules to frequency-based representation
+    - Groups trips by stop pattern (shape_id) and time period
+    - Calculates headways using specified method (uniform/mean/median)
+    - Creates one representative trip per shape_id
+    - Creates feed_tables['frequencies'] table
+    - Modifies: feed_tables['stop_times'] (adds departure_minutes),
+      feed_tables['trips'] (one row per shape_id)
 
-    8. Route bus services through road network:
-       - Calls: [`route_shapes_between_stops()`][network_wrangler.utils.transit.route_shapes_between_stops]
-       - Gets bus modal graph (DiGraph for pathfinding)
-       - For each consecutive bus stop pair (A->B):
-           - Check: If either node not in bus graph (e.g., poor_match):
-               - Add direct A->B connection to bus_node_sequence
-               - Add to no_path_sequence for special handling
-               - Skip pathfinding
-           - Find path: Use NetworkX shortest path through bus network
-               - Optional: Shape-aware routing (prefers paths close to original shape)
-           - Create shape points: Add all intermediate nodes in path as shape points
-       - Handles exceptions (NetworkXNoPath, NodeNotFound): adds to no_path_sequence
-       - If errors='raise' and no_path_sequence not empty: raises TransitValidationError
-       - If errors='ignore' and no_path_sequence not empty: calls create_links_for_failed_bus_paths()
-         to create special bus-only links (marked ref="bad_bus_path") for failed routing segments
-       - Calls helpers: `get_original_shape_points_between_stops()`,
-         `find_shape_aware_shortest_path()`
-       - Modifies feed_tables['shapes']: replaces bus route shapes with routed paths
-         through road network, adds shape_model_node_id from roadway
+    **Step 5: Match stops to shape points and enrich shapes**
 
-    9. Consolidate duplicate stops mapped to same node:
-       - Renames stop_id -> stop_id_GTFS (original GTFS IDs)
-       - Renames model_node_id -> stop_id (now uses network node IDs as stop IDs)
-       - Multiple GTFS stops may map to same network node
-       - Groups by stop_id (model_node_id) and aggregates:
-           - Converts singular fields to lists (stop_id_GTFS, stop_name, etc.)
-           - Takes first geometry/location
-           - Merges route/agency lists (flattens and deduplicates)
-       - Creates stop_id_to_model_node_id_dict mapping GTFS stop_id -> model_node_id
-       - Modifies feed_tables['stops']: consolidated rows, one per unique network node
+    - Calls: [`add_additional_data_to_shapes()`][network_wrangler.utils.transit.add_additional_data_to_shapes]
+    - For each shape_id, processes stops in sequence order
+    - For each stop:
+        - Match: Find nearest existing shape point within threshold (forward-only search)
+        - Insert: If no match, create new shape point at stop location
+    - Uses local minimum matching to handle routes that double back
+    - Renumbers shape_pt_sequence if duplicates or non-integers detected
+    - Writes debug_shapes.geojson with stop matching information
+    - Calls helpers: `_match_stop_to_shape_points()`, `_insert_stop_into_shape()`,
+      `_align_shape_with_stops()`, `_write_debug_shapes()`
+    - Modifies feed_tables['shapes']: adds stop_id, stop_name, stop_sequence,
+      match_distance_{crs_units}, poor_match
 
-    10. Update stop references and create Feed object:
-        - Updates feed_tables['stop_times']: maps stop_id_GTFS -> stop_id (model_node_id)
-        - Converts stop_times to Wrangler format
-        - Creates Feed object with all processed tables:
-            - routes, trips, agencies: from GTFS
-            - stops: consolidated by model_node_id with metadata
-            - stop_times: with updated stop_id references
-            - shapes: routed through road network with shape_model_node_id
-            - frequencies: frequency-based schedules by time period
-        - Returns Feed object ready for network modeling
+    **Step 6: Match bus stops to roadway nodes**
+
+    - Calls: [`match_bus_stops_to_roadway_nodes()`][network_wrangler.utils.transit.match_bus_stops_to_roadway_nodes]
+    - Gets bus modal graph from roadway network (bus-accessible nodes only)
+    - For each bus stop:
+        - Finds K nearest bus-accessible nodes using BallTree spatial index
+        - If use_name_matching=True: scores by distance + name compatibility
+          (combined_score = 0.1 * normalized_dist + 0.9 * (1 - name_score))
+        - Selects best match within max_distance threshold
+    - If name matching enabled: marks stops with combined_score > 0.9 as poor_match:
+        - Sets poor_match = True (does not update location yet)
+        - Keeps model_node_id as nearest bus-accessible node (for connector links)
+        - These stops will be added to network in step 6a
+    - If name matching disabled: poor_match = False for all stops
+    - Updates stop locations to matched node positions (except poor_match stops)
+    - Modifies feed_tables['stops']: adds model_node_id, match_distance_{crs_units},
+      close_match, poor_match (always added, but only True when name matching enabled),
+      node_link_names, name_match_score, normalized_dist, combined_score
+    - Modifies feed_tables['shapes']: updates bus stop shape points to node locations,
+      adds poor_match flag
+    - Modifies roadway_net.nodes_df: adds bus_access column
+
+    **Step 6a: Add unmatched bus stops to network**
+
+    - Calls: [`add_unmatched_bus_stops_to_network()`][network_wrangler.utils.transit.add_unmatched_bus_stops_to_network]
+    - Identifies unmatched bus stops (poor_match=True)
+    - Clusters nearby stops using DBSCAN (max_distance threshold)
+    - Creates new roadway nodes at cluster centroids
+    - One node per cluster for grouped transit stations
+    - Updates feed_tables['stops'] with new node IDs
+    - Modifies roadway_net.nodes_df: adds new transit stop nodes with is_transit_stop_node flag
+
+    **Step 7: Add rail/ferry stations and links to roadway network**
+
+    - Calls: [`add_stations_and_links_to_roadway_network()`][network_wrangler.utils.transit.add_stations_and_links_to_roadway_network]
+    - For STATION_ROUTE_TYPES (rail, light rail, subway, etc.):
+        - Creates new nodes for each station
+        - Adds dedicated transit links between consecutive stations
+        - Links follow original GTFS shape geometry
+    - For BUS/TROLLEYBUS routes:
+        - Creates bus_stop_links_gdf with consecutive stop pairs (A->B)
+        - Includes route metadata (route_id, trip_id, direction_id, etc.)
+        - No new nodes/links added yet (handled in next step)
+    - Returns station_id_to_model_node_id_dict and bus_stop_links_gdf
+    - Modifies roadway_net.nodes_df: adds station nodes
+    - Modifies roadway_net.links_df: adds station-to-station links
+    - Modifies feed_tables['stops']: updates station stops with new model_node_ids
+    - Modifies feed_tables['shapes']: removes intermediate shape points for station routes,
+      keeps only station stop points
+
+    **Step 7a: Create connector links for unmatched bus stops**
+
+    - Calls: [`create_connector_links_for_poor_match_stops()`][network_wrangler.utils.transit.create_connector_links_for_poor_match_stops]
+    - Creates bidirectional bus-only links between:
+        - New transit stop nodes (from step 6a) to their nearest bus-accessible node
+    - Links marked with ref="unmatched_bus_stop"
+    - Enables routing through these previously unmatched stops
+    - Modifies roadway_net.links_df: adds connector links
+    - Modifies roadway_net.shapes: adds link geometries
+
+    **Step 8: Route bus services through road network**
+
+    - Calls: [`route_shapes_between_stops()`][network_wrangler.utils.transit.route_shapes_between_stops]
+    - Gets bus modal graph (DiGraph for pathfinding)
+    - For each consecutive bus stop pair (A->B):
+        - Check: If either node not in bus graph (e.g., poor_match):
+            - Add direct A->B connection to bus_node_sequence
+            - Add to no_path_sequence for special handling
+            - Skip pathfinding
+        - Find path: Use NetworkX shortest path through bus network
+            - Optional: Shape-aware routing (prefers paths close to original shape)
+        - Create shape points: Add all intermediate nodes in path as shape points
+    - Handles exceptions (NetworkXNoPath, NodeNotFound): adds to no_path_sequence
+    - If errors='raise' and no_path_sequence not empty: raises TransitValidationError
+    - If errors='ignore' and no_path_sequence not empty: calls create_links_for_failed_bus_paths()
+      to create special bus-only links (marked ref="bad_bus_path") for failed routing segments
+    - Calls helpers: `get_original_shape_points_between_stops()`,
+      `find_shape_aware_shortest_path()`
+    - Modifies feed_tables['shapes']: replaces bus route shapes with routed paths
+      through road network, adds shape_model_node_id from roadway
+
+    **Step 9: Consolidate duplicate stops mapped to same node**
+
+    - Renames stop_id -> stop_id_GTFS (original GTFS IDs)
+    - Renames model_node_id -> stop_id (now uses network node IDs as stop IDs)
+    - Multiple GTFS stops may map to same network node
+    - Groups by stop_id (model_node_id) and aggregates:
+        - Converts singular fields to lists (stop_id_GTFS, stop_name, etc.)
+        - Takes first geometry/location
+        - Merges route/agency lists (flattens and deduplicates)
+    - Creates stop_id_to_model_node_id_dict mapping GTFS stop_id -> model_node_id
+    - Modifies feed_tables['stops']: consolidated rows, one per unique network node
+
+    **Step 10: Update stop references and create Feed object**
+
+    - Updates feed_tables['stop_times']: maps stop_id_GTFS -> stop_id (model_node_id)
+    - Converts stop_times to Wrangler format
+    - Creates Feed object with all processed tables:
+        - routes, trips, agencies: from GTFS
+        - stops: consolidated by model_node_id with metadata
+        - stop_times: with updated stop_id references
+        - shapes: routed through road network with shape_model_node_id
+        - frequencies: frequency-based schedules by time period
+    - Returns Feed object ready for network modeling
 
     Args:
         gtfs_model: Source GTFS data model
@@ -3484,6 +3508,7 @@ def create_feed_from_gtfs_model(  # noqa: PLR0912, PLR0915
 
     Returns:
         Feed: Wrangler Feed object with:
+
             - Stops mapped to roadway nodes
             - Frequency-based trip representation
             - Routes following road network paths
@@ -3761,8 +3786,34 @@ def create_feed_from_gtfs_model(  # noqa: PLR0912, PLR0915
         raise e
 
 
-def get_original_shape_points_between_stops(  # noqa: PLR0912
-    feed_tables: dict, shape_id: str, from_stop_seq: int, to_stop_seq: int, trace: bool = False
+def _shape_points_index(shapes_df: pd.DataFrame) -> dict[Any, pd.DataFrame]:
+    """Split the shapes table into one DataFrame per shape_id, sorted by shape_pt_sequence.
+
+    Built once per routing run so that `get_original_shape_points_between_stops()` does not
+    scan and sort the whole shapes table for every stop pair. Each value holds the same rows,
+    in the same order, as filtering `shapes_df` by that shape_id and sorting would produce.
+
+    The index is a snapshot: rebuild it if the shapes table changes.
+
+    Args:
+        shapes_df: shapes table with shape_id and shape_pt_sequence columns.
+
+    Returns:
+        Dictionary of shape_id to that shape's points sorted by shape_pt_sequence.
+    """
+    return {
+        shape_id: shape_points.sort_values("shape_pt_sequence")
+        for shape_id, shape_points in shapes_df.groupby("shape_id", sort=False)
+    }
+
+
+def get_original_shape_points_between_stops(  # noqa: PLR0912, PLR0915
+    feed_tables: dict,
+    shape_id: str,
+    from_stop_seq: int,
+    to_stop_seq: int,
+    trace: bool = False,
+    shape_points_index: dict | None = None,
 ):
     """Get original GTFS shape points between two consecutive stops.
 
@@ -3774,6 +3825,9 @@ def get_original_shape_points_between_stops(  # noqa: PLR0912
         from_stop_seq: Starting stop sequence number
         to_stop_seq: Ending stop sequence number (should be from_stop_seq + 1)
         trace: If True, enable trace logging for debugging
+        shape_points_index: Optional per-shape lookup from `_shape_points_index()`, built
+            from `feed_tables["shapes"]`. Pass it when looking up many stop pairs; if
+            omitted the shapes table is scanned and sorted on each call.
 
     Returns:
         DataFrame of shape points between stops, or empty DataFrame if not found
@@ -3785,7 +3839,17 @@ def get_original_shape_points_between_stops(  # noqa: PLR0912
             )
 
         # Get shape points for this shape_id
-        shape_points = feed_tables["shapes"][feed_tables["shapes"]["shape_id"] == shape_id].copy()
+        if shape_points_index is None:
+            shape_points = feed_tables["shapes"][
+                feed_tables["shapes"]["shape_id"] == shape_id
+            ].copy()
+            is_sorted = False
+        elif shape_id in shape_points_index:
+            shape_points = shape_points_index[shape_id]
+            is_sorted = True
+        else:
+            shape_points = feed_tables["shapes"].iloc[0:0].copy()
+            is_sorted = False
 
         if trace:
             WranglerLogger.debug(
@@ -3802,8 +3866,9 @@ def get_original_shape_points_between_stops(  # noqa: PLR0912
                 WranglerLogger.debug(f"  No shape points found for shape_id={shape_id}")
             return shape_points
 
-        # Sort by shape_pt_sequence
-        shape_points = shape_points.sort_values("shape_pt_sequence")
+        # Sort by shape_pt_sequence (already done for indexed shapes)
+        if not is_sorted:
+            shape_points = shape_points.sort_values("shape_pt_sequence")
 
         # Check if stop_sequence column exists
         if "stop_sequence" not in shape_points.columns:
@@ -3882,8 +3947,31 @@ def get_original_shape_points_between_stops(  # noqa: PLR0912
         return pd.DataFrame()
 
 
+def _node_coords_lookup(roadway_net: RoadwayNetwork) -> dict:
+    """Map model_node_id to (X, Y) for every roadway node.
+
+    Built once per routing run so path scoring does not filter `nodes_df` for every node of
+    every candidate path. Where a node id appears more than once, the first row wins,
+    matching the original per-node `iloc[0]` lookup.
+
+    Args:
+        roadway_net: RoadwayNetwork whose `nodes_df` has model_node_id, X and Y columns.
+
+    Returns:
+        Dict of model_node_id to (X, Y).
+    """
+    nodes = roadway_net.nodes_df[["model_node_id", "X", "Y"]].drop_duplicates(
+        subset="model_node_id", keep="first"
+    )
+    return dict(zip(nodes["model_node_id"], zip(nodes["X"], nodes["Y"], strict=True), strict=True))
+
+
 def calculate_path_deviation_from_shape(
-    path_nodes: list, original_shape_points: pd.DataFrame, roadway_net, trace: bool = False
+    path_nodes: list,
+    original_shape_points: pd.DataFrame,
+    roadway_net,
+    trace: bool = False,
+    node_coords: dict | None = None,
 ) -> float:
     """Calculate total deviation of a path from original shape points.
 
@@ -3895,6 +3983,9 @@ def calculate_path_deviation_from_shape(
         original_shape_points: DataFrame of original GTFS shape points
         roadway_net: RoadwayNetwork to get node coordinates
         trace: If True, enable trace logging for debugging
+        node_coords: Optional model_node_id to (X, Y) lookup from `_node_coords_lookup()`.
+            Pass it when scoring many paths against the same network; if omitted it is
+            built from `roadway_net`.
 
     Returns:
         Total deviation distance (sum of distances from shape points to path line)
@@ -3903,33 +3994,28 @@ def calculate_path_deviation_from_shape(
         return float("inf")
 
     try:
-        from shapely.geometry import LineString, Point
+        import shapely
+        from shapely.geometry import LineString
 
-        # Create LineString from path nodes
-        path_coords = []
-        for node_id in path_nodes:
-            node_row = roadway_net.nodes_df[roadway_net.nodes_df["model_node_id"] == node_id]
-            if not node_row.empty:
-                path_coords.append((node_row.iloc[0]["X"], node_row.iloc[0]["Y"]))
+        if node_coords is None:
+            node_coords = _node_coords_lookup(roadway_net)
+
+        # Create LineString from path nodes; nodes missing from the network are skipped
+        path_coords = [node_coords[node_id] for node_id in path_nodes if node_id in node_coords]
 
         if len(path_coords) < 2:  # noqa: PLR2004
             return float("inf")
 
         path_line = LineString(path_coords)
 
-        # Calculate total deviation - for each shape point, find distance to path line
-        total_deviation = 0.0
         if trace:
             WranglerLogger.debug(
                 f"Calculating path deviation for line with {len(path_nodes)} nodes against {len(original_shape_points)} shape points"
             )
             # Get link names for first and last nodes for debugging
-            first_node_row = roadway_net.nodes_df[
-                roadway_net.nodes_df["model_node_id"] == path_nodes[0]
-            ]
-            last_node_row = roadway_net.nodes_df[
-                roadway_net.nodes_df["model_node_id"] == path_nodes[-1]
-            ]
+            nodes_df = roadway_net.nodes_df
+            first_node_row = nodes_df[nodes_df["model_node_id"] == path_nodes[0]]
+            last_node_row = nodes_df[nodes_df["model_node_id"] == path_nodes[-1]]
             first_link_names = (
                 first_node_row.iloc[0].get("link_names", [])
                 if not first_node_row.empty and "link_names" in first_node_row.columns
@@ -3944,18 +4030,21 @@ def calculate_path_deviation_from_shape(
                 f"  Path from node {path_nodes[0]} ({first_link_names}) to node {path_nodes[-1]} ({last_link_names})"
             )
 
-        for idx, shape_row in original_shape_points.iterrows():
-            shape_point = Point(shape_row["shape_pt_lon"], shape_row["shape_pt_lat"])
-            # Distance from point to nearest point on line
-            dist = shape_point.distance(path_line)
-            total_deviation += dist
-
-            if (
-                trace and idx % max(1, len(original_shape_points) // 5) == 0
-            ):  # Log every ~20% of points
-                WranglerLogger.debug(f"  Shape point {idx} distance to path: {dist:.6f}")
+        # Distance from every shape point to the nearest point on the path, in one call
+        shape_pts = shapely.points(
+            original_shape_points["shape_pt_lon"].to_numpy(dtype=float),
+            original_shape_points["shape_pt_lat"].to_numpy(dtype=float),
+        )
+        distances = shapely.distance(shape_pts, path_line)
+        # cumsum adds in order, so the total is bit-for-bit the same as a sequential loop;
+        # np.sum's pairwise summation could round differently and flip near-ties.
+        total_deviation = float(np.cumsum(distances)[-1])
 
         if trace:
+            log_every = max(1, len(original_shape_points) // 5)  # Log every ~20% of points
+            for idx, dist in zip(original_shape_points.index, distances, strict=True):
+                if idx % log_every == 0:
+                    WranglerLogger.debug(f"  Shape point {idx} distance to path: {dist:.6f}")
             WranglerLogger.debug(
                 f"Total path deviation: {total_deviation:.6f} (avg per point: {total_deviation / len(original_shape_points):.6f})"
             )
@@ -3967,6 +4056,67 @@ def calculate_path_deviation_from_shape(
         return float("inf")
 
 
+def _shape_candidate_paths(
+    G_bus: nx.DiGraph,
+    start_node: int,
+    end_node: int,
+    tolerance: float,
+) -> tuple[list | None, list[tuple[list, float]], int]:
+    """Enumerate the candidate paths between two nodes for shape-aware routing.
+
+    Candidates come from `nx.shortest_simple_paths()` (Yen's algorithm), which yields paths
+    in nondecreasing length order, so enumeration stops at the first path longer than
+    `tolerance` times the shortest distance or after `MAX_SHAPE_CANDIDATE_PATHS` paths.
+
+    The result does not depend on the shape being matched, which is what makes it safe to
+    cache per node pair (see `candidate_cache` in `find_shape_aware_shortest_path()`).
+
+    Args:
+        G_bus: NetworkX DiGraph of bus network
+        start_node: Starting node ID
+        end_node: Ending node ID
+        tolerance: Maximum ratio of path distance to shortest distance
+
+    Returns:
+        Tuple of (shortest path or None if nothing was enumerated, list of
+        (path, path distance) for each path within tolerance in enumeration order,
+        number of paths enumerated).
+    """
+    from itertools import islice
+
+    # First, get the absolute shortest path distance
+    shortest_dist = nx.shortest_path_length(G_bus, start_node, end_node, weight="distance")
+    max_allowed_dist = shortest_dist * tolerance
+
+    candidate_iter = islice(
+        nx.shortest_simple_paths(G_bus, start_node, end_node, weight="distance"),
+        DefaultConfig.TRANSIT.MAX_SHAPE_CANDIDATE_PATHS,
+    )
+
+    first_path = None
+    candidates = []
+    paths_enumerated = 0
+
+    for path in candidate_iter:
+        paths_enumerated += 1
+        if first_path is None:
+            first_path = path
+
+        # Calculate path distance
+        path_dist = 0
+        for i in range(len(path) - 1):
+            edge_data = G_bus[path[i]][path[i + 1]]
+            path_dist += edge_data.get("distance", 0)
+
+        # Paths arrive shortest first, so once one is over tolerance all the rest are too
+        if path_dist > max_allowed_dist:
+            break
+
+        candidates.append((path, path_dist))
+
+    return first_path, candidates, paths_enumerated
+
+
 def find_shape_aware_shortest_path(  # noqa: PLR0912
     G_bus: nx.DiGraph,
     start_node: int,
@@ -3975,6 +4125,8 @@ def find_shape_aware_shortest_path(  # noqa: PLR0912
     roadway_net: RoadwayNetwork,
     tolerance: float = 1.10,
     trace: bool = False,
+    node_coords: dict | None = None,
+    candidate_cache: dict | None = None,
 ) -> list:
     """Find shortest path that considers original shape points.
 
@@ -3982,6 +4134,12 @@ def find_shape_aware_shortest_path(  # noqa: PLR0912
     1. Find shortest distance
     2. Get all paths within tolerance of shortest distance
     3. Among those, select path with minimum deviation from original shape
+
+    Candidate paths come from `nx.shortest_simple_paths()` (Yen's algorithm), which yields
+    them in nondecreasing length order. Enumeration therefore stops at the first candidate
+    longer than `tolerance` times the shortest distance: every later candidate would be
+    longer still and rejected, so the selected path is unchanged and the cost of
+    generating up to `MAX_SHAPE_CANDIDATE_PATHS` paths is only paid when they are needed.
 
     Args:
         G_bus: NetworkX DiGraph of bus network
@@ -3991,67 +4149,63 @@ def find_shape_aware_shortest_path(  # noqa: PLR0912
         roadway_net: RoadwayNetwork to get node coordinates
         tolerance: Maximum ratio of path distance to shortest distance (default 1.10 = 110%)
         trace: Whether to log trace information
+        node_coords: Optional model_node_id to (X, Y) lookup from `_node_coords_lookup()`.
+            Pass it when routing many stop pairs on the same network; if omitted it is
+            built once per call.
+        candidate_cache: Optional dict used to reuse candidate paths between calls. The
+            candidates for a node pair depend only on the graph, the tolerance and
+            `MAX_SHAPE_CANDIDATE_PATHS`, not on the shape, so different shapes (or trips)
+            that serve the same pair of nodes can share them and only repeat the scoring.
+            Pass the same dict for every call on the same `G_bus`; do not reuse it after
+            the graph or `MAX_SHAPE_CANDIDATE_PATHS` changes.
 
     Returns:
         List of node IDs representing the best path
     """
     try:
-        # First, get the absolute shortest path distance
-        shortest_dist = nx.shortest_path_length(G_bus, start_node, end_node, weight="distance")
-        max_allowed_dist = shortest_dist * tolerance
+        if node_coords is None:
+            node_coords = _node_coords_lookup(roadway_net)
 
-        # Get multiple shortest paths to evaluate
-        from itertools import islice
-
-        candidate_paths = list(
-            islice(
-                nx.shortest_simple_paths(G_bus, start_node, end_node, weight="distance"),
-                DefaultConfig.TRANSIT.MAX_SHAPE_CANDIDATE_PATHS,
-            )
-        )
+        cache_key = (start_node, end_node, tolerance)
+        cached = candidate_cache.get(cache_key) if candidate_cache is not None else None
+        if cached is None:
+            cached = _shape_candidate_paths(G_bus, start_node, end_node, tolerance)
+            if candidate_cache is not None:
+                candidate_cache[cache_key] = cached
+        first_path, candidates, paths_enumerated = cached
 
         best_path = None
         best_deviation = float("inf")
-        paths_within_tolerance = 0
+        paths_within_tolerance = len(candidates)
 
         # Store path info for debug output
         debug_paths = []
 
-        for path in candidate_paths:
-            # Calculate path distance
-            path_dist = 0
-            for i in range(len(path) - 1):
-                edge_data = G_bus[path[i]][path[i + 1]]
-                path_dist += edge_data.get("distance", 0)
+        for path, path_dist in candidates:
+            # Calculate shape deviation for this path
+            deviation = calculate_path_deviation_from_shape(
+                path, original_shape_points, roadway_net, trace=trace, node_coords=node_coords
+            )
 
-            # Check if within tolerance
-            if path_dist <= max_allowed_dist:
-                paths_within_tolerance += 1
-
-                # Calculate shape deviation for this path
-                deviation = calculate_path_deviation_from_shape(
-                    path, original_shape_points, roadway_net, trace=trace
+            # Store for debug output
+            if trace:
+                debug_paths.append(
+                    {
+                        "path": path,
+                        "distance": path_dist,
+                        "deviation": deviation,
+                        "is_best": False,  # Will update later
+                    }
                 )
 
-                # Store for debug output
+            # Select path with minimum deviation
+            if deviation < best_deviation:
+                best_deviation = deviation
+                best_path = path
                 if trace:
-                    debug_paths.append(
-                        {
-                            "path": path,
-                            "distance": path_dist,
-                            "deviation": deviation,
-                            "is_best": False,  # Will update later
-                        }
+                    WranglerLogger.debug(
+                        f"  New best path with deviation {deviation:.6f}, distance {path_dist:.3f}"
                     )
-
-                # Select path with minimum deviation
-                if deviation < best_deviation:
-                    best_deviation = deviation
-                    best_path = path
-                    if trace:
-                        WranglerLogger.debug(
-                            f"  New best path with deviation {deviation:.6f}, distance {path_dist:.3f}"
-                        )
 
         # Mark the best path
         if trace and debug_paths and best_path:
@@ -4062,7 +4216,8 @@ def find_shape_aware_shortest_path(  # noqa: PLR0912
 
         if trace:
             WranglerLogger.debug(
-                f"Shape-aware routing: {paths_within_tolerance} paths within {tolerance:.1%} tolerance"
+                f"Shape-aware routing: {paths_within_tolerance} of {paths_enumerated} "
+                f"enumerated paths within {tolerance:.1%} tolerance"
             )
             if not original_shape_points.empty:
                 WranglerLogger.debug(
@@ -4071,7 +4226,12 @@ def find_shape_aware_shortest_path(  # noqa: PLR0912
             if best_path:
                 WranglerLogger.debug(f"Selected path with deviation {best_deviation:.6f}")
 
-        return best_path if best_path else candidate_paths[0]  # Fallback to shortest
+        if best_path:
+            return best_path
+        if first_path is not None:
+            return first_path  # Fallback to shortest
+        # nothing was enumerated (MAX_SHAPE_CANDIDATE_PATHS of 0): standard shortest path
+        return nx.shortest_path(G_bus, start_node, end_node, weight="distance")
 
     except Exception as e:
         if trace:
