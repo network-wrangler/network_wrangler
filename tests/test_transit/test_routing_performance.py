@@ -777,6 +777,59 @@ def test_shape_aware_path_matches_reference(grid40):
     assert not mismatches, "\n".join(mismatches)
 
 
+def test_shape_aware_path_with_candidate_cache_matches_reference(grid40, monkeypatch):
+    """Sharing a candidate cache between calls does not change which path is selected.
+
+    The equivalence cases reuse node pairs with different shapes (the two L shapes and the
+    noisy diagonal share end points and pick different winners), so a cache that leaked
+    one shape's choice into the next would be caught. The whole set is run twice with one
+    cache; candidates must be generated once per distinct node pair and never again.
+    """
+    roadway_net, graph, node_ids = grid40
+    cases = _equivalence_cases(node_ids)
+    tolerance = DefaultConfig.TRANSIT.SHAPE_DISTANCE_TOLERANCE
+    expected = {
+        label: _reference_shape_aware_path(
+            graph, node_a, node_b, shape_points, roadway_net, tolerance
+        )
+        for label, node_a, node_b, shape_points in cases
+    }
+
+    real_shortest_simple_paths = nx.shortest_simple_paths
+    generator_calls = []
+
+    def counting_shortest_simple_paths(G, source, target, *args, **kwargs):
+        generator_calls.append((source, target))
+        return real_shortest_simple_paths(G, source, target, *args, **kwargs)
+
+    monkeypatch.setattr(nx, "shortest_simple_paths", counting_shortest_simple_paths)
+
+    candidate_cache: dict = {}
+    mismatches = []
+    for pass_number in [1, 2]:
+        for label, node_a, node_b, shape_points in cases:
+            actual = find_shape_aware_shortest_path(
+                graph,
+                node_a,
+                node_b,
+                shape_points,
+                roadway_net,
+                tolerance,
+                candidate_cache=candidate_cache,
+            )
+            if list(actual) != list(expected[label]):
+                mismatches.append(
+                    f"pass {pass_number} {label}: expected {expected[label]}, got {actual}"
+                )
+    assert not mismatches, "\n".join(mismatches)
+
+    distinct_pairs = {(node_a, node_b) for _, node_a, node_b, _ in cases}
+    assert len(distinct_pairs) < len(cases), "cases should repeat node pairs"
+    assert sorted(generator_calls) == sorted(distinct_pairs)
+    # the winners for a shared node pair differ by shape, so the cache holds candidates
+    assert expected["L-north-east-4x4"] != expected["L-east-north-4x4"]
+
+
 def test_path_deviation_matches_reference(grid40):
     """`calculate_path_deviation_from_shape()` returns the same score as the original."""
     roadway_net, graph, node_ids = grid40

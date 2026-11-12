@@ -1347,6 +1347,8 @@ def route_shapes_between_stops(  # noqa: PLR0912, PLR0915
 
     # node coordinates for scoring candidate paths against shapes, built once per run
     node_coords = _node_coords_lookup(roadway_net)
+    # candidate paths per (A, B, tolerance), shared by every shape serving that node pair
+    candidate_cache: dict = {}
 
     # collect node sequences for these shapes
     bus_node_sequence = []
@@ -1437,6 +1439,7 @@ def route_shapes_between_stops(  # noqa: PLR0912, PLR0915
                     DefaultConfig.TRANSIT.SHAPE_DISTANCE_TOLERANCE,
                     trace_shape_ids is not None and current_shape_id in trace_shape_ids,
                     node_coords=node_coords,
+                    candidate_cache=candidate_cache,
                 )
             else:
                 # Standard shortest path
@@ -3995,6 +3998,67 @@ def calculate_path_deviation_from_shape(
         return float("inf")
 
 
+def _shape_candidate_paths(
+    G_bus: nx.DiGraph,
+    start_node: int,
+    end_node: int,
+    tolerance: float,
+) -> tuple[list | None, list[tuple[list, float]], int]:
+    """Enumerate the candidate paths between two nodes for shape-aware routing.
+
+    Candidates come from `nx.shortest_simple_paths()` (Yen's algorithm), which yields paths
+    in nondecreasing length order, so enumeration stops at the first path longer than
+    `tolerance` times the shortest distance or after `MAX_SHAPE_CANDIDATE_PATHS` paths.
+
+    The result does not depend on the shape being matched, which is what makes it safe to
+    cache per node pair (see `candidate_cache` in `find_shape_aware_shortest_path()`).
+
+    Args:
+        G_bus: NetworkX DiGraph of bus network
+        start_node: Starting node ID
+        end_node: Ending node ID
+        tolerance: Maximum ratio of path distance to shortest distance
+
+    Returns:
+        Tuple of (shortest path or None if nothing was enumerated, list of
+        (path, path distance) for each path within tolerance in enumeration order,
+        number of paths enumerated).
+    """
+    from itertools import islice
+
+    # First, get the absolute shortest path distance
+    shortest_dist = nx.shortest_path_length(G_bus, start_node, end_node, weight="distance")
+    max_allowed_dist = shortest_dist * tolerance
+
+    candidate_iter = islice(
+        nx.shortest_simple_paths(G_bus, start_node, end_node, weight="distance"),
+        DefaultConfig.TRANSIT.MAX_SHAPE_CANDIDATE_PATHS,
+    )
+
+    first_path = None
+    candidates = []
+    paths_enumerated = 0
+
+    for path in candidate_iter:
+        paths_enumerated += 1
+        if first_path is None:
+            first_path = path
+
+        # Calculate path distance
+        path_dist = 0
+        for i in range(len(path) - 1):
+            edge_data = G_bus[path[i]][path[i + 1]]
+            path_dist += edge_data.get("distance", 0)
+
+        # Paths arrive shortest first, so once one is over tolerance all the rest are too
+        if path_dist > max_allowed_dist:
+            break
+
+        candidates.append((path, path_dist))
+
+    return first_path, candidates, paths_enumerated
+
+
 def find_shape_aware_shortest_path(  # noqa: PLR0912
     G_bus: nx.DiGraph,
     start_node: int,
@@ -4004,6 +4068,7 @@ def find_shape_aware_shortest_path(  # noqa: PLR0912
     tolerance: float = 1.10,
     trace: bool = False,
     node_coords: dict | None = None,
+    candidate_cache: dict | None = None,
 ) -> list:
     """Find shortest path that considers original shape points.
 
@@ -4029,51 +4094,36 @@ def find_shape_aware_shortest_path(  # noqa: PLR0912
         node_coords: Optional model_node_id to (X, Y) lookup from `_node_coords_lookup()`.
             Pass it when routing many stop pairs on the same network; if omitted it is
             built once per call.
+        candidate_cache: Optional dict used to reuse candidate paths between calls. The
+            candidates for a node pair depend only on the graph, the tolerance and
+            `MAX_SHAPE_CANDIDATE_PATHS`, not on the shape, so different shapes (or trips)
+            that serve the same pair of nodes can share them and only repeat the scoring.
+            Pass the same dict for every call on the same `G_bus`; do not reuse it after
+            the graph or `MAX_SHAPE_CANDIDATE_PATHS` changes.
 
     Returns:
         List of node IDs representing the best path
     """
     try:
-        # First, get the absolute shortest path distance
-        shortest_dist = nx.shortest_path_length(G_bus, start_node, end_node, weight="distance")
-        max_allowed_dist = shortest_dist * tolerance
-
         if node_coords is None:
             node_coords = _node_coords_lookup(roadway_net)
 
-        from itertools import islice
+        cache_key = (start_node, end_node, tolerance)
+        cached = candidate_cache.get(cache_key) if candidate_cache is not None else None
+        if cached is None:
+            cached = _shape_candidate_paths(G_bus, start_node, end_node, tolerance)
+            if candidate_cache is not None:
+                candidate_cache[cache_key] = cached
+        first_path, candidates, paths_enumerated = cached
 
-        candidate_iter = islice(
-            nx.shortest_simple_paths(G_bus, start_node, end_node, weight="distance"),
-            DefaultConfig.TRANSIT.MAX_SHAPE_CANDIDATE_PATHS,
-        )
-
-        first_path = None
         best_path = None
         best_deviation = float("inf")
-        paths_enumerated = 0
-        paths_within_tolerance = 0
+        paths_within_tolerance = len(candidates)
 
         # Store path info for debug output
         debug_paths = []
 
-        for path in candidate_iter:
-            paths_enumerated += 1
-            if first_path is None:
-                first_path = path
-
-            # Calculate path distance
-            path_dist = 0
-            for i in range(len(path) - 1):
-                edge_data = G_bus[path[i]][path[i + 1]]
-                path_dist += edge_data.get("distance", 0)
-
-            # Paths arrive shortest first, so once one is over tolerance all the rest are too
-            if path_dist > max_allowed_dist:
-                break
-
-            paths_within_tolerance += 1
-
+        for path, path_dist in candidates:
             # Calculate shape deviation for this path
             deviation = calculate_path_deviation_from_shape(
                 path, original_shape_points, roadway_net, trace=trace, node_coords=node_coords
