@@ -1,0 +1,52 @@
+/* Define CSS variables based on theme colors */
+
+.md-header {
+    overflow: visible; /* Allow overflow */
+}
+
+.md-tabs {
+    position: relative; /* Make sure .md-tabs is positioned */
+    overflow: visible; /* Allow overflow */
+    margin-bottom: 15px;
+}
+
+.md-tabs::after {
+    content: '';
+    display: block;
+    width: 100%; /* Fill the width of the page */
+    position: absolute;
+    bottom: 5;
+    left: 0;
+    z-index: -1; /* Optional: place behind content */
+}
+
+
+/* Body and Link Styling for Readability */
+body {
+    font-family: 'Roboto', sans-serif;
+}
+
+
+/* Code Block Styling */
+code {
+    border-radius: 3px;
+    padding: 2px 5px;
+}
+
+
+/* Table Styling */
+table {
+border-collapse: collapse;
+width: 100%;
+}
+
+th, td {
+border: 1px solid var(--md-primary-fg-color);
+padding: 8px;
+text-align: left;
+}
+
+th {
+background-color: var(--md-primary-fg-color);
+color: var(--md-default-bg-color);
+}
