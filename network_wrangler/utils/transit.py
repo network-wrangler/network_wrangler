@@ -1349,6 +1349,9 @@ def route_shapes_between_stops(  # noqa: PLR0912, PLR0915
     node_coords = _node_coords_lookup(roadway_net)
     # candidate paths per (A, B, tolerance), shared by every shape serving that node pair
     candidate_cache: dict = {}
+    # original shape points per shape_id; feed_tables["shapes"] is not modified until
+    # routing is complete
+    shape_points_index = _shape_points_index(feed_tables["shapes"])
 
     # collect node sequences for these shapes
     bus_node_sequence = []
@@ -1428,6 +1431,7 @@ def route_shapes_between_stops(  # noqa: PLR0912, PLR0915
                     row["stop_sequence"],
                     row["stop_sequence"] + 1,
                     trace_shape_ids is not None and current_shape_id in trace_shape_ids,
+                    shape_points_index=shape_points_index,
                 )
 
                 path = find_shape_aware_shortest_path(
@@ -3768,8 +3772,34 @@ def create_feed_from_gtfs_model(  # noqa: PLR0912, PLR0915
         raise e
 
 
-def get_original_shape_points_between_stops(  # noqa: PLR0912
-    feed_tables: dict, shape_id: str, from_stop_seq: int, to_stop_seq: int, trace: bool = False
+def _shape_points_index(shapes_df: pd.DataFrame) -> dict[Any, pd.DataFrame]:
+    """Split the shapes table into one DataFrame per shape_id, sorted by shape_pt_sequence.
+
+    Built once per routing run so that `get_original_shape_points_between_stops()` does not
+    scan and sort the whole shapes table for every stop pair. Each value holds the same rows,
+    in the same order, as filtering `shapes_df` by that shape_id and sorting would produce.
+
+    The index is a snapshot: rebuild it if the shapes table changes.
+
+    Args:
+        shapes_df: shapes table with shape_id and shape_pt_sequence columns.
+
+    Returns:
+        Dictionary of shape_id to that shape's points sorted by shape_pt_sequence.
+    """
+    return {
+        shape_id: shape_points.sort_values("shape_pt_sequence")
+        for shape_id, shape_points in shapes_df.groupby("shape_id", sort=False)
+    }
+
+
+def get_original_shape_points_between_stops(  # noqa: PLR0912, PLR0915
+    feed_tables: dict,
+    shape_id: str,
+    from_stop_seq: int,
+    to_stop_seq: int,
+    trace: bool = False,
+    shape_points_index: dict | None = None,
 ):
     """Get original GTFS shape points between two consecutive stops.
 
@@ -3781,6 +3811,9 @@ def get_original_shape_points_between_stops(  # noqa: PLR0912
         from_stop_seq: Starting stop sequence number
         to_stop_seq: Ending stop sequence number (should be from_stop_seq + 1)
         trace: If True, enable trace logging for debugging
+        shape_points_index: Optional per-shape lookup from `_shape_points_index()`, built
+            from `feed_tables["shapes"]`. Pass it when looking up many stop pairs; if
+            omitted the shapes table is scanned and sorted on each call.
 
     Returns:
         DataFrame of shape points between stops, or empty DataFrame if not found
@@ -3792,7 +3825,17 @@ def get_original_shape_points_between_stops(  # noqa: PLR0912
             )
 
         # Get shape points for this shape_id
-        shape_points = feed_tables["shapes"][feed_tables["shapes"]["shape_id"] == shape_id].copy()
+        if shape_points_index is None:
+            shape_points = feed_tables["shapes"][
+                feed_tables["shapes"]["shape_id"] == shape_id
+            ].copy()
+            is_sorted = False
+        elif shape_id in shape_points_index:
+            shape_points = shape_points_index[shape_id]
+            is_sorted = True
+        else:
+            shape_points = feed_tables["shapes"].iloc[0:0].copy()
+            is_sorted = False
 
         if trace:
             WranglerLogger.debug(
@@ -3809,8 +3852,9 @@ def get_original_shape_points_between_stops(  # noqa: PLR0912
                 WranglerLogger.debug(f"  No shape points found for shape_id={shape_id}")
             return shape_points
 
-        # Sort by shape_pt_sequence
-        shape_points = shape_points.sort_values("shape_pt_sequence")
+        # Sort by shape_pt_sequence (already done for indexed shapes)
+        if not is_sorted:
+            shape_points = shape_points.sort_values("shape_pt_sequence")
 
         # Check if stop_sequence column exists
         if "stop_sequence" not in shape_points.columns:

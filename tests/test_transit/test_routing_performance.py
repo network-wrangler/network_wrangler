@@ -45,6 +45,7 @@ from network_wrangler.logger import WranglerLogger
 from network_wrangler.models.gtfs.types import RouteType
 from network_wrangler.roadway import load_roadway_from_dataframes, load_roadway_from_dir
 from network_wrangler.utils.transit import (
+    _shape_points_index,
     calculate_path_deviation_from_shape,
     find_shape_aware_shortest_path,
     get_original_shape_points_between_stops,
@@ -450,6 +451,79 @@ def test_benchmark_shape_point_lookup(benchmark, n_shape_rows):
     )
     feed_tables = {"shapes": shapes_df}
     benchmark(get_original_shape_points_between_stops, feed_tables, "s3", 1, 2)
+
+
+@pytest.mark.parametrize("n_shape_rows", [5_000, 50_000, 500_000])
+def test_benchmark_shape_point_lookup_indexed(benchmark, n_shape_rows):
+    """Benchmark the shape point lookup with a prebuilt per-shape index.
+
+    With the index the cost depends on the size of one shape, not the size of the feed.
+    """
+    points_per_shape = 50
+    n_shapes = n_shape_rows // points_per_shape
+    shapes_df = pd.DataFrame(
+        {
+            "shape_id": np.repeat([f"s{i}" for i in range(n_shapes)], points_per_shape),
+            "shape_pt_sequence": np.tile(np.arange(1, points_per_shape + 1), n_shapes),
+            "shape_pt_lat": GRID_LAT0,
+            "shape_pt_lon": GRID_LON0,
+            "stop_sequence": np.tile([1.0, *([np.nan] * (points_per_shape - 2)), 2.0], n_shapes),
+        }
+    )
+    feed_tables = {"shapes": shapes_df}
+    index = _shape_points_index(shapes_df)
+    benchmark(
+        get_original_shape_points_between_stops,
+        feed_tables,
+        "s3",
+        1,
+        2,
+        shape_points_index=index,
+    )
+
+
+def test_shape_point_lookup_with_index_matches_scan():
+    """The indexed shape point lookup returns exactly what the full-table scan returns.
+
+    Covers shapes whose rows are interleaved and out of sequence order in the table, stop
+    pairs in the middle of a shape, a stop sequence that is not on the shape and a shape_id
+    that is not in the table.
+    """
+    rng = np.random.default_rng(497)
+    points_per_shape = 40
+    shape_ids = [f"s{i}" for i in range(12)]
+    stop_sequence = np.full(points_per_shape, np.nan)
+    stop_sequence[[0, 7, 8, 21, 39]] = [1, 2, 3, 4, 5]
+    n_rows = points_per_shape * len(shape_ids)
+    shapes_df = pd.DataFrame(
+        {
+            "shape_id": np.repeat(shape_ids, points_per_shape),
+            "shape_pt_sequence": np.tile(np.arange(1, points_per_shape + 1), len(shape_ids)),
+            "shape_pt_lat": GRID_LAT0 + rng.normal(0, 0.01, n_rows),
+            "shape_pt_lon": GRID_LON0 + rng.normal(0, 0.01, n_rows),
+            "stop_sequence": np.tile(stop_sequence, len(shape_ids)),
+        }
+    )
+    # interleave shapes and scramble the point order, keeping a non-default index
+    shapes_df = shapes_df.sample(frac=1.0, random_state=497)
+    feed_tables = {"shapes": shapes_df}
+    before = shapes_df.copy()
+    index = _shape_points_index(shapes_df)
+
+    last_stop_sequence = 5
+    for shape_id in [*shape_ids, "not-a-shape"]:
+        for from_seq in range(1, last_stop_sequence + 1):
+            expected = get_original_shape_points_between_stops(
+                feed_tables, shape_id, from_seq, from_seq + 1
+            )
+            actual = get_original_shape_points_between_stops(
+                feed_tables, shape_id, from_seq, from_seq + 1, shape_points_index=index
+            )
+            pd.testing.assert_frame_equal(actual, expected)
+            if shape_id != "not-a-shape" and from_seq < last_stop_sequence:
+                assert not expected.empty
+    # neither lookup modifies the shapes table
+    pd.testing.assert_frame_equal(shapes_df, before)
 
 
 # -------------------------------------------------------------------------------------------
