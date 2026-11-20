@@ -1,5 +1,10 @@
 [
   {
+    "version": "remove-pandera-step-01-tests",
+    "title": "remove-pandera-step-01-tests",
+    "aliases": []
+  },
+  {
     "version": "perf-transit-shape-routing",
     "title": "perf-transit-shape-routing",
     "aliases": []
